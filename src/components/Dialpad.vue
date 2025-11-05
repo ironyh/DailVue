@@ -1,35 +1,32 @@
 <template>
   <div class="dialpad">
     <div class="dialpad-display">
-      <input 
-        type="text" 
-        v-model="number" 
-        readonly 
+      <input
+        v-model="number"
+        type="text"
+        readonly
         class="dialpad-input"
         placeholder="Enter number"
       />
     </div>
     <div class="dialpad-buttons">
-      <button 
-        v-for="button in buttons" 
+      <button
+        v-for="button in buttons"
         :key="button.digit"
-        @click="handleDigit(button.digit)"
         class="dialpad-button"
+        @click="handleDigit(button.digit)"
       >
         <span class="digit">{{ button.digit }}</span>
         <span class="letters">{{ button.letters }}</span>
       </button>
-      <button 
-        @click="handleCall" 
+      <button
         class="dialpad-button call-button"
         :disabled="!number || isCalling"
+        @click="handleCall"
       >
         <i class="pi pi-phone"></i>
       </button>
-      <button 
-        @click="handleBackspace" 
-        class="dialpad-button"
-      >
+      <button class="dialpad-button" @click="handleBackspace">
         <i class="pi pi-times"></i>
       </button>
     </div>

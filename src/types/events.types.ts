@@ -4,7 +4,7 @@
  */
 
 import type { CallEvent } from './call.types'
-import type { SipEvent, RegistrationEvent, ConnectionEvent } from './sip.types'
+import type { RegistrationEvent, ConnectionEvent } from './sip.types'
 import type { MediaStreamEvent, MediaTrackEvent, MediaDeviceChangeEvent } from './media.types'
 
 /**
@@ -203,18 +203,12 @@ export interface EventEmitter {
   /**
    * Add a one-time event listener
    */
-  once<K extends keyof EventMap>(
-    event: K,
-    handler: EventHandler<EventMap[K]>
-  ): void
+  once<K extends keyof EventMap>(event: K, handler: EventHandler<EventMap[K]>): void
 
   /**
    * Remove an event listener
    */
-  off<K extends keyof EventMap>(
-    event: K,
-    handler: EventHandler<EventMap[K]>
-  ): void
+  off<K extends keyof EventMap>(event: K, handler: EventHandler<EventMap[K]>): void
 
   /**
    * Emit an event
@@ -229,8 +223,5 @@ export interface EventEmitter {
   /**
    * Wait for an event to be emitted
    */
-  waitFor<K extends keyof EventMap>(
-    event: K,
-    timeout?: number
-  ): Promise<EventMap[K]>
+  waitFor<K extends keyof EventMap>(event: K, timeout?: number): Promise<EventMap[K]>
 }

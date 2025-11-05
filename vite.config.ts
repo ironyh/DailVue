@@ -23,23 +23,6 @@ export default defineConfig({
     lib: {
       entry: resolve(__dirname, 'src/index.ts'),
       name: 'DailVue',
-      fileName: (format) => `dailvue.${format}.js`
-    },
-    rollupOptions: {
-      external: ['vue', 'sip.js'],
-      output: {
-        globals: {
-          vue: 'Vue',
-          'sip.js': 'SIP'
-        }
-      }
-    }
-  },
-  resolve: {
-    alias: {
-      '@': resolve(__dirname, 'src')
-    }
-  }
       formats: ['es', 'cjs', 'umd'],
       fileName: (format) => {
         if (format === 'es') return 'dailvue.js'
@@ -50,11 +33,13 @@ export default defineConfig({
     },
     rollupOptions: {
       // Make sure to externalize deps that shouldn't be bundled
-      external: ['vue'],
+      external: ['vue', 'jssip', 'webrtc-adapter'],
       output: {
         // Provide global variables to use in the UMD build
         globals: {
           vue: 'Vue',
+          jssip: 'JsSIP',
+          'webrtc-adapter': 'adapter',
         },
         // Export format for named exports
         exports: 'named',
@@ -84,13 +69,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      exclude: [
-        'node_modules/',
-        'dist/',
-        'tests/',
-        '**/*.spec.ts',
-        '**/*.test.ts',
-      ],
+      exclude: ['node_modules/', 'dist/', 'tests/', '**/*.spec.ts', '**/*.test.ts'],
       // Enforce minimum coverage
       lines: 80,
       functions: 80,

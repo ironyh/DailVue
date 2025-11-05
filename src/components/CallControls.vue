@@ -4,10 +4,10 @@
       <h3>Incoming Call</h3>
       <p>{{ incomingCall.remoteIdentity }}</p>
       <div class="call-actions">
-        <button @click="$emit('answer')" class="btn btn-success">
+        <button class="btn btn-success" @click="$emit('answer')">
           <i class="pi pi-phone"></i> Answer
         </button>
-        <button @click="$emit('reject')" class="btn btn-danger">
+        <button class="btn btn-danger" @click="$emit('reject')">
           <i class="pi pi-times"></i> Reject
         </button>
       </div>
@@ -18,7 +18,7 @@
       <p>{{ currentCall.remoteIdentity }}</p>
       <p class="call-duration">{{ formatDuration(currentCall) }}</p>
       <div class="call-actions">
-        <button @click="$emit('end')" class="btn btn-danger">
+        <button class="btn btn-danger" @click="$emit('end')">
           <i class="pi pi-phone"></i> End Call
         </button>
       </div>
@@ -48,12 +48,12 @@ defineEmits<{
 
 const formatDuration = (call: CallSession): string => {
   if (!call.answerTime) return '00:00'
-  
+
   const now = new Date()
   const diff = Math.floor((now.getTime() - call.answerTime.getTime()) / 1000)
   const minutes = Math.floor(diff / 60)
   const seconds = diff % 60
-  
+
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 </script>
@@ -139,7 +139,11 @@ p {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 </style>

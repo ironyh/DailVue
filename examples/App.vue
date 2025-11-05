@@ -2,7 +2,7 @@
   <div id="app">
     <div class="container">
       <h1>DailVue - SIP Interface</h1>
-      
+
       <!-- Connection Status -->
       <div class="status-bar">
         <div class="status-item">
@@ -38,11 +38,7 @@
           <label>Display Name:</label>
           <input v-model="config.displayName" type="text" placeholder="John Doe" />
         </div>
-        <button 
-          @click="handleConnect" 
-          :disabled="isConnecting"
-          class="btn btn-primary"
-        >
+        <button :disabled="isConnecting" class="btn btn-primary" @click="handleConnect">
           {{ isConnecting ? 'Connecting...' : 'Connect' }}
         </button>
       </div>
@@ -64,11 +60,7 @@
 
           <!-- Dialpad -->
           <div class="col">
-            <Dialpad
-              :is-calling="isCalling"
-              @digit="handleDtmf"
-              @call="handleMakeCall"
-            />
+            <Dialpad :is-calling="isCalling" @digit="handleDtmf" @call="handleMakeCall" />
           </div>
         </div>
 
@@ -78,8 +70,8 @@
           <div class="form-group">
             <label>Microphone:</label>
             <select v-model="selectedInputDevice" @change="handleInputChange">
-              <option 
-                v-for="device in audioInputDevices" 
+              <option
+                v-for="device in audioInputDevices"
                 :key="device.deviceId"
                 :value="device.deviceId"
               >
@@ -90,8 +82,8 @@
           <div class="form-group">
             <label>Speaker:</label>
             <select v-model="selectedOutputDevice" @change="handleOutputChange">
-              <option 
-                v-for="device in audioOutputDevices" 
+              <option
+                v-for="device in audioOutputDevices"
                 :key="device.deviceId"
                 :value="device.deviceId"
               >
@@ -102,9 +94,7 @@
         </div>
 
         <!-- Disconnect Button -->
-        <button @click="handleDisconnect" class="btn btn-danger">
-          Disconnect
-        </button>
+        <button class="btn btn-danger" @click="handleDisconnect">Disconnect</button>
       </div>
 
       <!-- Error Display -->
@@ -128,18 +118,13 @@ const config = ref<SipConfig>({
   username: '1000',
   password: '',
   displayName: 'DailVue User',
-  autoRegister: true
+  autoRegister: true,
 })
 
 // SIP Connection
-const {
-  isConnected,
-  isRegistered,
-  isConnecting,
-  error,
-  connect,
-  disconnect
-} = useSipConnection(config.value)
+const { isConnected, isRegistered, isConnecting, error, connect, disconnect } = useSipConnection(
+  config.value
+)
 
 // SIP Call
 const userAgentRef = ref(null)
@@ -151,7 +136,7 @@ const {
   makeCall,
   answerCall,
   endCall,
-  rejectCall
+  rejectCall,
 } = useSipCall(userAgentRef)
 
 // DTMF
@@ -165,7 +150,7 @@ const {
   selectedInputDevice,
   selectedOutputDevice,
   setInputDevice,
-  setOutputDevice
+  setOutputDevice,
 } = useAudioDevices()
 
 // Handlers
@@ -248,7 +233,8 @@ const handleOutputChange = () => {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   background: #f3f4f6;
   color: #1f2937;
 }
