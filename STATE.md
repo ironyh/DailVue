@@ -23,7 +23,7 @@ This document tracks the implementation progress of DailVue, a headless Vue.js c
   - Set version: "1.0.0"
   - Define type: "module"
   - Add Vue 3.4+ as peer dependency
-  - Add JsSIP 3.10+ as dependency
+  - Add JsSIP 3.10+ and/or SIP.js 0.21+ as dependencies (support both)
   - Add webrtc-adapter 9.0+ as dependency
   - Configure package.json exports for ESM/CJS/UMD
 
@@ -243,9 +243,17 @@ During Phase 1 & 2 review, the following oversights were identified and correcte
 
 ### 4.3 SIP Client Core
 
+- [ ] Create src/core/SipLibraryAdapter.ts (NEW)
+  - Design adapter pattern to support both JsSIP and SIP.js
+  - Create common interface for SIP operations
+  - Implement JsSIP adapter (JsSIP.UA, RTCSession)
+  - Implement SIP.js adapter (UserAgent, Session, Inviter)
+  - Auto-detect which library is installed
+  - Allow manual library selection via configuration
+
 - [ ] Create src/core/SipClient.ts
-  - Integrate JsSIP library
-  - Implement UA (User Agent) initialization
+  - Use SipLibraryAdapter for multi-library support
+  - Implement UA (User Agent) initialization (via adapter)
   - Configure SIP transport (WebSocket)
   - Implement authentication handling
   - Implement registration management
@@ -260,12 +268,19 @@ During Phase 1 & 2 review, the following oversights were identified and correcte
   - Support HA1 hash for enhanced security
   - Handle authentication realm
 
+- [ ] Test SipLibraryAdapter
+  - Test JsSIP adapter implementation
+  - Test SIP.js adapter implementation
+  - Test library auto-detection
+  - Test fallback behavior
+
 - [ ] Test SipClient
-  - Mock JsSIP UA
-  - Test registration flow
+  - Mock both JsSIP and SIP.js UAs
+  - Test registration flow with both libraries
   - Test authentication
   - Test error handling
   - Test configuration validation
+  - Test library switching
 
 ### 4.4 Call Session Management
 
