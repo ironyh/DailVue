@@ -167,27 +167,27 @@ This document tracks the implementation progress of DailVue, a headless Vue.js c
 
 ### 3.1 Core Utilities
 
-- [ ] Create src/utils/logger.ts
+- [x] Create src/utils/logger.ts
   - Implement configurable logger
   - Support log levels (debug, info, warn, error)
   - Add namespace support for different modules
   - Implement browser console formatting
   - Add timestamp formatting
 
-- [ ] Create src/utils/validators.ts
+- [x] Create src/utils/validators.ts
   - Implement validateSipUri function
   - Implement validatePhoneNumber function
   - Implement validateSipConfig function
   - Implement validateMediaConfig function
   - Return ValidationResult for each
 
-- [ ] Create src/utils/formatters.ts
+- [x] Create src/utils/formatters.ts
   - Implement SIP URI formatting functions
   - Implement duration formatting (seconds to HH:MM:SS)
   - Implement phone number formatting
   - Implement date/time formatting for call history
 
-- [ ] Create src/utils/constants.ts
+- [x] Create src/utils/constants.ts
   - Define default SIP configuration values
   - Define default media constraints
   - Define timeout values
