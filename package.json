@@ -1,5 +1,15 @@
 {
   "name": "dailvue",
+  "version": "0.1.0",
+  "description": "Headless Vue components for creating SIP interfaces with Asterisk",
+  "type": "module",
+  "main": "./dist/dailvue.umd.js",
+  "module": "./dist/dailvue.es.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/dailvue.es.js",
+      "require": "./dist/dailvue.umd.js",
   "version": "1.0.0",
   "description": "A headless Vue.js component library for SIP/VoIP applications",
   "type": "module",
@@ -25,6 +35,44 @@
     }
   },
   "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && vue-tsc --project tsconfig.build.json",
+    "preview": "vite preview",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "type-check": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "sip.js": "^0.21.2",
+    "vue": "^3.4.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.0",
+    "@vue/eslint-config-typescript": "^13.0.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-vue": "^9.20.0",
+    "primevue": "^3.50.0",
+    "typescript": "~5.4.0",
+    "vite": "^5.0.0",
+    "vue-tsc": "^2.0.0"
+  },
+  "peerDependencies": {
+    "vue": "^3.3.0"
+  },
+  "keywords": [
+    "vue",
+    "sip",
+    "webrtc",
+    "asterisk",
+    "voip",
+    "headless",
+    "composables",
+    "dialpad"
+  ],
+  "author": "",
+  "license": "MIT"
     "dist",
     "README.md",
     "LICENSE"
