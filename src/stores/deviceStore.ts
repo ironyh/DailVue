@@ -59,7 +59,7 @@ const state = reactive<DeviceStoreState>({
 /**
  * Computed values
  */
-const computed_values: Record<string, any> = {
+const computed_values = {
   /** Total number of available devices */
   totalDevices: computed(
     () =>

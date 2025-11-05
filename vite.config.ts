@@ -33,12 +33,13 @@ export default defineConfig({
     },
     rollupOptions: {
       // Make sure to externalize deps that shouldn't be bundled
-      external: ['vue', 'jssip', 'webrtc-adapter'],
+      external: ['vue', 'jssip', 'sip.js', 'webrtc-adapter'],
       output: {
         // Provide global variables to use in the UMD build
         globals: {
           vue: 'Vue',
           jssip: 'JsSIP',
+          'sip.js': 'SIP',
           'webrtc-adapter': 'adapter',
         },
         // Export format for named exports

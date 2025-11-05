@@ -53,7 +53,7 @@ const state = reactive<RegistrationStoreState>({
 /**
  * Computed values
  */
-const computed_values: Record<string, any> = {
+const computed_values = {
   /** Whether currently registered */
   isRegistered: computed(() => state.state === RegistrationState.Registered),
 
@@ -75,7 +75,7 @@ const computed_values: Record<string, any> = {
   }),
 
   /** Whether registration is about to expire (less than 30 seconds) */
-  isExpiringsSoon: computed(() => computed_values.secondsUntilExpiry.value < 30),
+  isExpiringSoon: computed(() => computed_values.secondsUntilExpiry.value < 30),
 
   /** Whether registration has expired */
   hasExpired: computed(() => computed_values.secondsUntilExpiry.value === 0),
@@ -179,7 +179,7 @@ export const registrationStore = {
    * Check if expiring soon
    */
   get isExpiringSoon() {
-    return computed_values.isExpiringsSoon.value
+    return computed_values.isExpiringSoon.value
   },
 
   /**

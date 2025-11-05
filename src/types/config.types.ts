@@ -66,7 +66,7 @@ export interface UserPreferences {
 }
 
 /**
- * Extended RTCConfiguration with DailVue-specific options
+ * Extended RTCConfiguration with VueSip-specific options
  */
 export interface ExtendedRTCConfiguration extends RTCConfiguration {
   /** STUN server URLs */

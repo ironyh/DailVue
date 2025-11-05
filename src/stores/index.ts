@@ -1,7 +1,7 @@
 /**
  * Store exports
  *
- * Central export point for all DailVue stores.
+ * Central export point for all VueSip stores.
  *
  * @module stores
  */

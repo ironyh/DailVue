@@ -391,4 +391,4 @@ export function setLogHandler(handler: LogHandler | undefined): void {
 /**
  * Default logger instance (for global use)
  */
-export const defaultLogger = createLogger('DailVue')
+export const defaultLogger = createLogger('VueSip')

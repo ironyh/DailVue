@@ -283,10 +283,10 @@ export const EVENTS = {
 // ============================================================================
 
 /**
- * LocalStorage key prefix for DailVue
+ * LocalStorage key prefix for VueSip
  * All keys are namespaced to avoid conflicts
  */
-export const STORAGE_PREFIX = 'dailvue:'
+export const STORAGE_PREFIX = 'vuesip:'
 
 /**
  * Storage version for migration support
