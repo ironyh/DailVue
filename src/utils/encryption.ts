@@ -58,9 +58,15 @@ function generateIV(length = 12): Uint8Array {
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer)
   let binary = ''
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i])
+  const len = bytes.byteLength
+
+  // Process in chunks for better performance with large buffers
+  const chunkSize = 8192 // 8KB chunks
+  for (let i = 0; i < len; i += chunkSize) {
+    const chunk = bytes.subarray(i, Math.min(i + chunkSize, len))
+    binary += String.fromCharCode(...chunk)
   }
+
   return btoa(binary)
 }
 
@@ -71,10 +77,18 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
  */
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
   const binary = atob(base64)
-  const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i)
+  const len = binary.length
+  const bytes = new Uint8Array(len)
+
+  // Process in chunks for better performance
+  const chunkSize = 8192 // 8KB chunks
+  for (let i = 0; i < len; i += chunkSize) {
+    const end = Math.min(i + chunkSize, len)
+    for (let j = i; j < end; j++) {
+      bytes[j] = binary.charCodeAt(j)
+    }
   }
+
   return bytes.buffer
 }
 

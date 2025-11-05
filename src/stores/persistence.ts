@@ -57,23 +57,60 @@ class StorePersistenceManager {
       return
     }
 
-    try {
-      // Initialize storage adapters
-      this.localStorage = new LocalStorageAdapter(config.storage, config.encryptionPassword)
+    const errors: Array<{ store: string; error: Error }> = []
 
+    // Initialize storage adapters
+    try {
+      this.localStorage = new LocalStorageAdapter(config.storage, config.encryptionPassword)
+    } catch (error) {
+      errors.push({ store: 'localStorage', error: error as Error })
+      logger.error('Failed to initialize localStorage adapter:', error)
+    }
+
+    try {
       this.indexedDB = new IndexedDBAdapter(config.storage)
       await this.indexedDB.initialize()
-
-      // Setup persistence for each store
-      await this.setupConfigStore()
-      await this.setupDeviceStore()
-      await this.setupCallStore()
-      await this.setupRegistrationStore()
-
-      logger.info('Store persistence initialized successfully')
     } catch (error) {
-      logger.error('Failed to initialize store persistence:', error)
-      throw error
+      errors.push({ store: 'indexedDB', error: error as Error })
+      logger.error('Failed to initialize IndexedDB adapter:', error)
+    }
+
+    // Setup persistence for each store (with error recovery)
+    try {
+      await this.setupConfigStore()
+    } catch (error) {
+      errors.push({ store: 'configStore', error: error as Error })
+      logger.error('Failed to setup config store persistence:', error)
+    }
+
+    try {
+      await this.setupDeviceStore()
+    } catch (error) {
+      errors.push({ store: 'deviceStore', error: error as Error })
+      logger.error('Failed to setup device store persistence:', error)
+    }
+
+    try {
+      await this.setupCallStore()
+    } catch (error) {
+      errors.push({ store: 'callStore', error: error as Error })
+      logger.error('Failed to setup call store persistence:', error)
+    }
+
+    try {
+      await this.setupRegistrationStore()
+    } catch (error) {
+      errors.push({ store: 'registrationStore', error: error as Error })
+      logger.error('Failed to setup registration store persistence:', error)
+    }
+
+    if (errors.length > 0) {
+      logger.warn(
+        `Store persistence initialized with ${errors.length} error(s):`,
+        errors.map((e) => `${e.store}: ${e.error.message}`)
+      )
+    } else {
+      logger.info('Store persistence initialized successfully')
     }
   }
 
@@ -93,6 +130,7 @@ class StorePersistenceManager {
           configStore.setSipConfig(config, false) // Don't validate on load
         }
       },
+      watchSource: () => configStore.sipConfig,
       autoLoad: this.config.autoLoad,
       debounce: this.config.debounce,
     })
@@ -108,6 +146,7 @@ class StorePersistenceManager {
           configStore.setMediaConfig(config, false)
         }
       },
+      watchSource: () => configStore.mediaConfig,
       autoLoad: this.config.autoLoad,
       debounce: this.config.debounce,
     })
@@ -123,6 +162,7 @@ class StorePersistenceManager {
           configStore.setUserPreferences(prefs)
         }
       },
+      watchSource: () => configStore.userPreferences,
       autoLoad: this.config.autoLoad,
       debounce: this.config.debounce,
     })
@@ -162,6 +202,11 @@ class StorePersistenceManager {
           if (device) deviceStore.selectVideoInput(device)
         }
       },
+      watchSource: () => ({
+        audioInput: deviceStore.selectedAudioInput?.deviceId,
+        audioOutput: deviceStore.selectedAudioOutput?.deviceId,
+        videoInput: deviceStore.selectedVideoInput?.deviceId,
+      }),
       autoLoad: this.config.autoLoad,
       debounce: this.config.debounce,
     })
@@ -184,6 +229,11 @@ class StorePersistenceManager {
           permissions.speaker
         )
       },
+      watchSource: () => ({
+        microphone: deviceStore.microphonePermission,
+        camera: deviceStore.cameraPermission,
+        speaker: deviceStore.speakerPermission,
+      }),
       autoLoad: this.config.autoLoad,
       debounce: this.config.debounce,
     })
@@ -209,6 +259,7 @@ class StorePersistenceManager {
           callStore.addToHistory(entry)
         })
       },
+      watchSource: () => callStore.history,
       autoLoad: this.config.autoLoad,
       debounce: this.config.debounce,
     })
@@ -240,6 +291,12 @@ class StorePersistenceManager {
           registrationStore.markRegistered(data.registeredUri, data.expiryTime, data.retryCount)
         }
       },
+      watchSource: () => ({
+        state: registrationStore.state,
+        registeredUri: registrationStore.registeredUri,
+        expiryTime: registrationStore.expiryTime,
+        retryCount: registrationStore.retryCount,
+      }),
       autoLoad: this.config.autoLoad,
       debounce: this.config.debounce,
     })
