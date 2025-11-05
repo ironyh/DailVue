@@ -1,0 +1,7 @@
+dist
+node_modules
+coverage
+*.d.ts
+pnpm-lock.yaml
+package-lock.json
+.husky
