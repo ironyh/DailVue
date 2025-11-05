@@ -49,4 +49,3 @@ export function useSipDtmf(currentSession: Ref<Session | null>): UseSipDtmfRetur
     sendDtmfSequence
   }
 }
-

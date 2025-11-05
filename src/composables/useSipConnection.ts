@@ -151,4 +151,3 @@ export function useSipConnection(config: SipConfig): UseSipConnectionReturn {
     unregister
   }
 }
-

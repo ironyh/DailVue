@@ -176,4 +176,3 @@ export function useSipCall(userAgent: Ref<UserAgent | null>): UseSipCallReturn {
     rejectCall
   }
 }
-
