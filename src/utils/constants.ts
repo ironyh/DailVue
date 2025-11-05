@@ -1,7 +1,7 @@
 /**
- * DailVue Constants
+ * VueSip Constants
  *
- * Centralized constants and default values for the DailVue library.
+ * Centralized constants and default values for the VueSip library.
  * These constants are used throughout the library for SIP configuration,
  * media settings, timeouts, and protocol defaults.
  *
@@ -17,7 +17,7 @@ export const VERSION = '1.0.0'
  * Default User-Agent string format
  * Used in SIP headers to identify the client
  */
-export const USER_AGENT = `DailVue/${VERSION}`
+export const USER_AGENT = `VueSip/${VERSION}`
 
 // ============================================================================
 // SIP Configuration Defaults

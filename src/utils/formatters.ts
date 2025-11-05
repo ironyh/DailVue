@@ -1,5 +1,5 @@
 /**
- * DailVue Formatters
+ * VueSip Formatters
  *
  * Formatting functions for SIP URIs, durations, phone numbers, and dates.
  * These utilities help display data in user-friendly formats.

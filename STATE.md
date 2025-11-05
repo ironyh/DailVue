@@ -1,9 +1,9 @@
-# DailVue - Development State Tracker
+# VueSip - Development State Tracker
 
 Version: 1.0.0
 Last Updated: 2025-11-05
 
-This document tracks the implementation progress of DailVue, a headless Vue.js component library for SIP/VoIP applications. Each task is designed to be completed sequentially, building upon previous work.
+This document tracks the implementation progress of VueSip, a headless Vue.js component library for SIP/VoIP applications. Each task is designed to be completed sequentially, building upon previous work.
 
 ## Status Legend
 
@@ -19,7 +19,7 @@ This document tracks the implementation progress of DailVue, a headless Vue.js c
 ### 1.1 Project Setup
 
 - [x] Initialize npm/pnpm package with package.json
-  - Configure package name: "dailvue"
+  - Configure package name: "vuesip"
   - Set version: "1.0.0"
   - Define type: "module"
   - Add Vue 3.4+ as peer dependency

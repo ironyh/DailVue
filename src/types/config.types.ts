@@ -1,5 +1,5 @@
 /**
- * Configuration type definitions for DailVue
+ * Configuration type definitions for VueSip
  * @packageDocumentation
  */
 

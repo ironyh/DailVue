@@ -1,5 +1,5 @@
 /**
- * DailVue Utilities
+ * VueSip Utilities
  *
  * Centralized export of all utility functions, constants, and helpers.
  *

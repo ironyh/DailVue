@@ -22,13 +22,13 @@ export default defineConfig({
   build: {
     lib: {
       entry: resolve(__dirname, 'src/index.ts'),
-      name: 'DailVue',
+      name: 'VueSip',
       formats: ['es', 'cjs', 'umd'],
       fileName: (format) => {
-        if (format === 'es') return 'dailvue.js'
-        if (format === 'cjs') return 'dailvue.cjs'
-        if (format === 'umd') return 'dailvue.umd.js'
-        return `dailvue.${format}.js`
+        if (format === 'es') return 'vuesip.js'
+        if (format === 'cjs') return 'vuesip.cjs'
+        if (format === 'umd') return 'vuesip.umd.js'
+        return `vuesip.${format}.js`
       },
     },
     rollupOptions: {

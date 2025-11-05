@@ -1,14 +1,14 @@
-# Contributing to DailVue
+# Contributing to VueSip
 
-Thank you for your interest in contributing to DailVue! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to VueSip! This document provides guidelines and instructions for contributing.
 
 ## Development Setup
 
 1. Fork the repository
 2. Clone your fork:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/DailVue.git
-   cd DailVue
+   git clone https://github.com/YOUR_USERNAME/VueSip.git
+   cd VueSip
    ```
 
 3. Install dependencies:

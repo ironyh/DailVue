@@ -2,7 +2,7 @@
 layout: home
 
 hero:
-  name: DailVue
+  name: VueSip
   text: Headless SIP/VoIP for Vue
   tagline: A modern, type-safe Vue.js component library for building SIP/VoIP applications
   actions:
@@ -11,7 +11,7 @@ hero:
       link: /guide/getting-started
     - theme: alt
       text: View on GitHub
-      link: https://github.com/ironyh/DailVue
+      link: https://github.com/ironyh/VueSip
 
 features:
   - icon: 🎯

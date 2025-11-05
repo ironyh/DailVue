@@ -1,8 +1,8 @@
 /**
- * DailVue Logger
+ * VueSip Logger
  *
  * Configurable logging system with namespace support, log levels, and browser console formatting.
- * Provides consistent logging throughout the DailVue library with the ability to filter by level and namespace.
+ * Provides consistent logging throughout the VueSip library with the ability to filter by level and namespace.
  *
  * @module utils/logger
  */

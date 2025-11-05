@@ -20,7 +20,7 @@ export type {
   SipError 
 } from './types'
 /**
- * DailVue - A headless Vue.js component library for SIP/VoIP applications
+ * VueSip - A headless Vue.js component library for SIP/VoIP applications
  * @packageDocumentation
  */
 
@@ -46,16 +46,16 @@ export type {
 export const version = '1.0.0'
 
 // Library initialization
-export interface DailVueOptions {
+export interface VueSipOptions {
   // Global configuration options will be defined here
 }
 
-export function createDailVue(options?: DailVueOptions) {
+export function createVueSip(options?: VueSipOptions) {
   // Vue plugin install method will be implemented here
   return {
     install: () => {
       // Plugin installation logic
-      console.log('DailVue initialized', options)
+      console.log('VueSip initialized', options)
     },
   }
 }

@@ -1,8 +1,8 @@
-# DailVue
+# VueSip
 
 Headless Vue components that makes it possible to create great working SIP interfaces!
 
-DailVue provides a set of powerful, headless Vue 3 composables for building SIP (Session Initiation Protocol) interfaces with Asterisk and other VoIP systems. Built with TypeScript and designed for flexibility, DailVue gives you the business logic while letting you control the UI.
+VueSip provides a set of powerful, headless Vue 3 composables for building SIP (Session Initiation Protocol) interfaces with Asterisk and other VoIP systems. Built with TypeScript and designed for flexibility, VueSip gives you the business logic while letting you control the UI.
 
 ## Features
 
@@ -16,17 +16,17 @@ DailVue provides a set of powerful, headless Vue 3 composables for building SIP 
 ⚡ **Modern Stack** - Vue 3, Vite, TypeScript  
 > A headless Vue.js component library for SIP/VoIP applications
 
-[![npm version](https://img.shields.io/npm/v/dailvue.svg)](https://www.npmjs.com/package/dailvue)
+[![npm version](https://img.shields.io/npm/v/vuesip.svg)](https://www.npmjs.com/package/vuesip)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Installation
 
 ```bash
-npm install dailvue
+npm install vuesip
 # or
-yarn add dailvue
+yarn add vuesip
 # or
-pnpm add dailvue
+pnpm add vuesip
 ```
 
 ## Quick Start
@@ -34,7 +34,7 @@ pnpm add dailvue
 ```vue
 <script setup>
 import { ref } from 'vue'
-import { useSipConnection, useSipCall } from 'dailvue'
+import { useSipConnection, useSipCall } from 'vuesip'
 
 const config = {
   server: 'sip.example.com',
@@ -62,7 +62,7 @@ await makeCall('2000')
 Manages SIP server connection and registration.
 
 ```typescript
-import { useSipConnection } from 'dailvue'
+import { useSipConnection } from 'vuesip'
 
 const {
   isConnected,      // Ref<boolean> - Connection state
@@ -94,7 +94,7 @@ interface SipConfig {
 Manages call state and operations.
 
 ```typescript
-import { useSipCall } from 'dailvue'
+import { useSipCall } from 'vuesip'
 
 const {
   currentCall,      // Ref<CallSession | null> - Active call
@@ -127,7 +127,7 @@ interface CallSession {
 Send DTMF (dialpad) tones during calls.
 
 ```typescript
-import { useSipDtmf } from 'dailvue'
+import { useSipDtmf } from 'vuesip'
 
 const {
   sendDtmf,         // (digit: string) => Promise<void> - Send single digit
@@ -146,7 +146,7 @@ await sendDtmfSequence('1234', 160)
 Manage audio input/output devices.
 
 ```typescript
-import { useAudioDevices } from 'dailvue'
+import { useAudioDevices } from 'vuesip'
 
 const {
   audioInputDevices,      // Ref<AudioDevice[]> - Available microphones
@@ -161,7 +161,7 @@ const {
 
 ## Example Components
 
-DailVue includes example components built with PrimeVue to demonstrate usage:
+VueSip includes example components built with PrimeVue to demonstrate usage:
 
 ### Dialpad Component
 
@@ -223,7 +223,7 @@ Requires WebRTC support.
 
 ## Architecture
 
-DailVue follows the headless component pattern:
+VueSip follows the headless component pattern:
 
 1. **Composables** provide the business logic and state management
 2. **You** provide the UI components and styling
@@ -234,13 +234,13 @@ DailVue follows the headless component pattern:
 Full TypeScript support with exported types:
 
 ```typescript
-import type { 
-  SipConfig, 
-  CallSession, 
-  CallState, 
-  AudioDevice, 
-  SipError 
-} from 'dailvue'
+import type {
+  SipConfig,
+  CallSession,
+  CallState,
+  AudioDevice,
+  SipError
+} from 'vuesip'
 ```
 
 ## License
@@ -259,28 +259,28 @@ Built with:
 - [TypeScript](https://www.typescriptlang.org/)
 - [Vite](https://vitejs.dev/)
 # npm
-npm install dailvue
+npm install vuesip
 
 # pnpm
-pnpm add dailvue
+pnpm add vuesip
 
 # yarn
-yarn add dailvue
+yarn add vuesip
 ```
 
 ## Quick Start
 
 ```typescript
-import { createDailVue } from 'dailvue'
+import { createVueSip } from 'vuesip'
 import { createApp } from 'vue'
 
 const app = createApp(App)
-app.use(createDailVue())
+app.use(createVueSip())
 ```
 
 ## Documentation
 
-Full documentation is available at [https://dailvue.dev](https://dailvue.dev) (coming soon)
+Full documentation is available at [https://vuesip.dev](https://vuesip.dev) (coming soon)
 
 ## Browser Support
 

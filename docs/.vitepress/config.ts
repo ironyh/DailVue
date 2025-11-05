@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitepress'
 
 export default defineConfig({
-  title: 'DailVue',
+  title: 'VueSip',
   description: 'A headless Vue.js component library for SIP/VoIP applications',
   base: '/',
 
@@ -19,7 +19,7 @@ export default defineConfig({
         {
           text: 'Introduction',
           items: [
-            { text: 'What is DailVue?', link: '/guide/' },
+            { text: 'What is VueSip?', link: '/guide/' },
             { text: 'Getting Started', link: '/guide/getting-started' },
             { text: 'Installation', link: '/guide/installation' },
           ],
@@ -46,7 +46,7 @@ export default defineConfig({
     },
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/ironyh/DailVue' },
+      { icon: 'github', link: 'https://github.com/ironyh/VueSip' },
     ],
 
     search: {

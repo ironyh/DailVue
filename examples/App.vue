@@ -1,7 +1,7 @@
 <template>
   <div id="app">
     <div class="container">
-      <h1>DailVue - SIP Interface</h1>
+      <h1>VueSip - SIP Interface</h1>
 
       <!-- Connection Status -->
       <div class="status-bar">

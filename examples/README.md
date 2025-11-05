@@ -1,6 +1,6 @@
-# DailVue Examples
+# VueSip Examples
 
-This directory contains example implementations showing how to use DailVue headless Vue composables.
+This directory contains example implementations showing how to use VueSip headless Vue composables.
 
 ## Running the Example
 
@@ -44,7 +44,7 @@ The main example (`App.vue`) demonstrates a complete SIP phone interface with:
 
 ```vue
 <script setup>
-import { useSipConnection } from 'dailvue'
+import { useSipConnection } from 'vuesip'
 
 const config = {
   server: 'sip.example.com',
@@ -65,7 +65,7 @@ await connect()
 ```vue
 <script setup>
 import { ref } from 'vue'
-import { useSipCall } from 'dailvue'
+import { useSipCall } from 'vuesip'
 
 const userAgent = ref(null) // Set this to your UserAgent instance
 const { currentCall, makeCall, endCall } = useSipCall(userAgent)
@@ -86,7 +86,7 @@ const hangup = async () => {
 
 ```vue
 <script setup>
-import { useSipCall } from 'dailvue'
+import { useSipCall } from 'vuesip'
 
 const userAgent = ref(null)
 const { incomingCall, answerCall, rejectCall } = useSipCall(userAgent)
@@ -120,7 +120,7 @@ const reject = async () => {
 ```vue
 <script setup>
 import { ref } from 'vue'
-import { useSipDtmf } from 'dailvue'
+import { useSipDtmf } from 'vuesip'
 
 const currentSession = ref(null) // Set this to your active session
 const { sendDtmf, sendDtmfSequence } = useSipDtmf(currentSession)
@@ -141,7 +141,7 @@ const sendNumber = async () => {
 
 ```vue
 <script setup>
-import { useAudioDevices } from 'dailvue'
+import { useAudioDevices } from 'vuesip'
 
 const {
   audioInputDevices,
@@ -187,7 +187,7 @@ The example components (`Dialpad.vue` and `CallControls.vue`) are provided as re
 <script setup>
 import { Button } from 'primevue/button'
 import { InputText } from 'primevue/inputtext'
-import { useSipConnection, useSipCall } from 'dailvue'
+import { useSipConnection, useSipCall } from 'vuesip'
 
 // Your SIP logic here
 </script>

@@ -1,4 +1,4 @@
-# DailVue - Technical Specifications
+# VueSip - Technical Specifications
 ## Vue SIP Headless Components Library
 
 Version: 1.0.0
@@ -32,7 +32,7 @@ Last Updated: 2025-11-05
 ## 1. Project Overview
 
 ### 1.1 Purpose
-DailVue is a headless Vue.js component library providing SIP (Session Initiation Protocol) functionality for building VoIP applications. The library follows the headless UI pattern, separating business logic from presentation, allowing developers to implement custom UI while leveraging robust SIP communication features.
+VueSip is a headless Vue.js component library providing SIP (Session Initiation Protocol) functionality for building VoIP applications. The library follows the headless UI pattern, separating business logic from presentation, allowing developers to implement custom UI while leveraging robust SIP communication features.
 
 ### 1.2 Goals
 - Provide headless components that manage SIP call state without prescribing UI

@@ -1,5 +1,5 @@
 /**
- * DailVue Validators
+ * VueSip Validators
  *
  * Validation functions for SIP URIs, phone numbers, configurations, and other inputs.
  * All validators return a consistent ValidationResult structure.

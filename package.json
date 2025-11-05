@@ -1,5 +1,5 @@
 {
-  "name": "dailvue",
+  "name": "vuesip",
   "version": "1.0.0",
   "description": "A headless Vue.js component library for SIP/VoIP applications",
   "type": "module",
@@ -17,13 +17,13 @@
     "asterisk",
     "dialpad"
   ],
-  "main": "./dist/dailvue.cjs",
-  "module": "./dist/dailvue.js",
+  "main": "./dist/vuesip.cjs",
+  "module": "./dist/vuesip.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/dailvue.js",
-      "require": "./dist/dailvue.cjs",
+      "import": "./dist/vuesip.js",
+      "require": "./dist/vuesip.cjs",
       "types": "./dist/index.d.ts"
     }
   },

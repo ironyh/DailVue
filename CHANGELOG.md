@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2025-11-05
 
 ### Added
-- Initial release of DailVue
+- Initial release of VueSip
 - `useSipConnection` composable for SIP server connection and registration
 - `useSipCall` composable for call management (make, answer, end, reject)
 - `useSipDtmf` composable for sending DTMF tones
@@ -20,4 +20,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive documentation
 - MIT License
 
-[0.1.0]: https://github.com/ironyh/DailVue/releases/tag/v0.1.0
+[0.1.0]: https://github.com/ironyh/VueSip/releases/tag/v0.1.0
