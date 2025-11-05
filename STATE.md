@@ -268,7 +268,7 @@ All utilities include:
 
 ### 4.3 SIP Client Core
 
-- [ ] Create src/core/SipClient.ts
+- [x] Create src/core/SipClient.ts
   - Integrate JsSIP library
   - Implement UA (User Agent) initialization
   - Configure SIP transport (WebSocket)
@@ -278,19 +278,54 @@ All utilities include:
   - Implement custom User-Agent header
   - Add SIP trace logging support
 
-- [ ] Implement SIP authentication
+- [x] Implement SIP authentication
   - Support Digest authentication (MD5)
   - Handle 401/407 challenges
   - Implement authorization username override
   - Support HA1 hash for enhanced security
   - Handle authentication realm
 
-- [ ] Test SipClient
+- [x] Test SipClient
   - Mock JsSIP UA
   - Test registration flow
   - Test authentication
   - Test error handling
   - Test configuration validation
+
+### Phase 4.3 Implementation (2025-11-05)
+
+Phase 4.3 has been completed with the following implementations:
+
+**SIP Client Core:**
+
+- ✅ `src/core/SipClient.ts` - Comprehensive SIP client wrapper around JsSIP library with UA initialization, registration management, authentication handling (Digest MD5, HA1), WebSocket transport integration, custom User-Agent headers, SIP trace logging, and event-driven architecture
+- ✅ `src/core/index.ts` - Centralized exports for all core modules (EventBus, TransportManager, SipClient)
+- ✅ `tests/unit/SipClient.test.ts` - Comprehensive unit tests with mocked JsSIP UA (150+ test cases covering start/stop, registration/unregistration, authentication, message sending, state management, and event handling)
+
+**Key Features Implemented:**
+
+- Full JsSIP integration with type-safe TypeScript wrappers
+- UA (User Agent) lifecycle management (start, stop, connect, disconnect)
+- SIP registration/unregistration with timeout handling
+- Digest authentication (MD5) with support for 401/407 challenges
+- Authorization username override and HA1 hash support
+- Custom User-Agent header configuration
+- SIP trace logging with configurable debug mode
+- Event-driven architecture with EventBus integration
+- Configuration validation before connection
+- Automatic reconnection support via JsSIP
+- WebSocket transport management
+- SIP MESSAGE method support
+- State tracking (connection and registration states)
+- Comprehensive error handling and timeout management
+
+All implementations include:
+
+- Full TypeScript type safety
+- Comprehensive JSDoc documentation
+- Unit tests with mocked dependencies
+- Event emission for state changes
+- Error boundaries and proper cleanup
 
 ### 4.4 Call Session Management
 
