@@ -116,9 +116,10 @@ export class PluginManager implements IPluginManager {
   /**
    * Create plugin context
    *
+   * @param pluginName - Name of the plugin requesting context (optional, defaults to 'core')
    * @returns Plugin context
    */
-  private createContext(): PluginContext {
+  private createContext(pluginName = 'core'): PluginContext {
     return {
       eventBus: this.eventBus,
       sipClient: this.sipClient,
@@ -130,7 +131,15 @@ export class PluginManager implements IPluginManager {
           name: HookName,
           handler: HookHandler<TData, TReturn>,
           options?: HookOptions
-        ) => this.hookManager.register(name, handler, options, 'core'),
+        ) => {
+          const hookId = this.hookManager.register(name, handler, options, pluginName)
+          // Track hook ID in plugin entry for cleanup
+          const entry = this.plugins.get(pluginName)
+          if (entry) {
+            entry.hookIds.push(hookId)
+          }
+          return hookId
+        },
         unregister: (hookId: string) => this.hookManager.unregister(hookId),
         execute: <TData = any, TReturn = any>(name: HookName, data?: TData) =>
           this.hookManager.execute<TData, TReturn>(name, data),
@@ -212,7 +221,7 @@ export class PluginManager implements IPluginManager {
     try {
       entry.state = PluginState.Installing
 
-      const context = this.createContext()
+      const context = this.createContext(pluginName)
 
       // Install the plugin
       await entry.plugin.install(context, entry.config)
@@ -255,7 +264,7 @@ export class PluginManager implements IPluginManager {
 
       // Uninstall if plugin has uninstall method
       if (entry.plugin.uninstall) {
-        const context = this.createContext()
+        const context = this.createContext(pluginName)
         await entry.plugin.uninstall(context)
       }
     } catch (error) {
@@ -330,7 +339,7 @@ export class PluginManager implements IPluginManager {
 
     // Call plugin's updateConfig if available
     if (entry.plugin.updateConfig) {
-      const context = this.createContext()
+      const context = this.createContext(pluginName)
       await entry.plugin.updateConfig(context, entry.config as TConfig)
     }
 

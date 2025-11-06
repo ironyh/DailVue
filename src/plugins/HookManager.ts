@@ -159,9 +159,15 @@ export class HookManager {
 
     for (const hook of hooks) {
       try {
-        // Check condition
-        if (hook.options.condition && !hook.options.condition(this.context, data)) {
-          logger.debug(`Hook condition not met, skipping: ${hook.id}`)
+        // Check condition with error handling
+        try {
+          if (hook.options.condition && !hook.options.condition(this.context, data)) {
+            logger.debug(`Hook condition not met, skipping: ${hook.id}`)
+            continue
+          }
+        } catch (conditionError) {
+          logger.error(`Hook condition error: ${hook.id}`, conditionError)
+          // Skip this hook but continue with others
           continue
         }
 

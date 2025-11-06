@@ -289,6 +289,8 @@ export class RecordingPlugin implements Plugin<RecordingPluginConfig> {
       // Store in IndexedDB
       if (this.config.storeInIndexedDB && this.db) {
         await this.saveRecording(recordingData)
+        // Clear blob from memory after saving to prevent memory leak
+        this.clearRecordingBlob(recordingId)
       }
 
       this.config.onRecordingStop(recordingData)
@@ -379,6 +381,23 @@ export class RecordingPlugin implements Plugin<RecordingPluginConfig> {
    */
   getAllRecordings(): RecordingData[] {
     return Array.from(this.recordings.values())
+  }
+
+  /**
+   * Clear recording blob from memory
+   *
+   * Should be called after saving to IndexedDB to prevent memory leaks.
+   * The recording metadata remains but the blob is cleared.
+   *
+   * @param recordingId - Recording ID
+   */
+  private clearRecordingBlob(recordingId: string): void {
+    const recording = this.recordings.get(recordingId)
+    if (recording && recording.blob) {
+      // Clear blob reference to allow garbage collection
+      recording.blob = undefined
+      logger.debug(`Cleared blob from memory for recording: ${recordingId}`)
+    }
   }
 
   /**
