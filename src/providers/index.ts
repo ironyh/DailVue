@@ -6,6 +6,12 @@
  * @module providers
  */
 
+export {
+  SipClientProvider,
+  useSipClientProvider,
+  SipClientProviderKey,
+  type SipClientProviderContext,
+} from './SipClientProvider'
 export { ConfigProvider, useConfigProvider, CONFIG_PROVIDER_KEY } from './ConfigProvider'
 export { MediaProvider, useMediaProvider, MEDIA_PROVIDER_KEY } from './MediaProvider'
 export type {
