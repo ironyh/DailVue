@@ -7,7 +7,7 @@
  * @module composables/useSipClient
  */
 
-import { ref, computed, onUnmounted, readonly, type Ref, type ComputedRef } from 'vue'
+import { ref, computed, onUnmounted, readonly, nextTick, type Ref, type ComputedRef } from 'vue'
 import { SipClient } from '@/core/SipClient'
 import { EventBus } from '@/core/EventBus'
 import { configStore } from '@/stores/configStore'
@@ -17,6 +17,9 @@ import type { ConnectionState, RegistrationState } from '@/types/sip.types'
 import { createLogger } from '@/utils/logger'
 
 const logger = createLogger('useSipClient')
+
+// Track instances using this EventBus to warn about potential conflicts
+const eventBusInstanceCounts = new WeakMap<EventBus, number>()
 
 /**
  * SIP Client composable return type
@@ -141,13 +144,31 @@ export function useSipClient(
     autoConnect?: boolean
     /** Auto-cleanup on unmount */
     autoCleanup?: boolean
+    /** Reconnect delay in milliseconds (default: 1000) */
+    reconnectDelay?: number
   }
 ): UseSipClientReturn {
   // ============================================================================
   // Setup
   // ============================================================================
 
-  const { eventBus = new EventBus(), autoConnect = false, autoCleanup = true } = options ?? {}
+  const {
+    eventBus = new EventBus(),
+    autoConnect = false,
+    autoCleanup = true,
+    reconnectDelay = 1000,
+  } = options ?? {}
+
+  // Track EventBus instance usage for conflict detection
+  const currentCount = eventBusInstanceCounts.get(eventBus) ?? 0
+  if (currentCount > 0) {
+    logger.warn(
+      `Multiple useSipClient instances (${currentCount + 1}) detected using the same EventBus. ` +
+        'This may cause duplicate event handlers and state conflicts. ' +
+        'Consider using separate EventBus instances or implementing instance-scoped state.'
+    )
+  }
+  eventBusInstanceCounts.set(eventBus, currentCount + 1)
 
   // ============================================================================
   // Internal State
@@ -156,7 +177,8 @@ export function useSipClient(
   const sipClient = ref<SipClient | null>(null)
   const error = ref<Error | null>(null)
   const isDisconnecting = ref(false)
-  const internalConnectionState = ref<ConnectionState>('disconnected')
+  // Store event listener IDs for cleanup
+  const listenerIds = ref<string[]>([])
 
   // ============================================================================
   // Initialize Configuration
@@ -174,20 +196,24 @@ export function useSipClient(
   // Reactive State (Computed)
   // ============================================================================
 
+  /**
+   * Connection state - uses SipClient as single source of truth
+   * Falls back to 'disconnected' if client not initialized
+   */
+  const connectionState = computed(() => {
+    return sipClient.value?.connectionState ?? 'disconnected'
+  })
+
   const isConnected = computed(() => {
-    return internalConnectionState.value === 'connected'
+    return sipClient.value?.isConnected ?? false
   })
 
   const isRegistered = computed(() => {
-    return registrationStore.isRegistered
-  })
-
-  const connectionState = computed(() => {
-    return internalConnectionState.value
+    return sipClient.value?.isRegistered ?? false
   })
 
   const registrationState = computed(() => {
-    return registrationStore.state
+    return sipClient.value?.registrationState ?? 'unregistered'
   })
 
   const registeredUri = computed(() => {
@@ -195,7 +221,7 @@ export function useSipClient(
   })
 
   const isConnecting = computed(() => {
-    return internalConnectionState.value === 'connecting'
+    return connectionState.value === 'connecting'
   })
 
   const isStarted = computed(() => {
@@ -208,56 +234,97 @@ export function useSipClient(
 
   /**
    * Setup event listeners for SIP client events
+   * @returns Cleanup function to remove all listeners
    */
-  function setupEventListeners(): void {
-    // Connection events
-    eventBus.on('sip:connected', () => {
-      logger.debug('SIP client connected')
-      internalConnectionState.value = 'connected'
-      error.value = null
-    })
+  function setupEventListeners(): () => void {
+    // Store listener IDs for cleanup
+    const ids: string[] = []
 
-    eventBus.on('sip:disconnected', (data: unknown) => {
-      logger.debug('SIP client disconnected', data)
-      internalConnectionState.value = 'disconnected'
-      if (data && typeof data === 'object' && 'error' in data) {
-        error.value = new Error(String(data.error))
-      }
-    })
+    // Connection events
+    ids.push(
+      eventBus.on('sip:connected', () => {
+        logger.debug('SIP client connected')
+        error.value = null
+      })
+    )
+
+    ids.push(
+      eventBus.on('sip:disconnected', (data: unknown) => {
+        logger.debug('SIP client disconnected', data)
+        if (data && typeof data === 'object' && 'error' in data) {
+          error.value = new Error(String(data.error))
+        }
+      })
+    )
 
     // Registration events
-    eventBus.on('sip:registered', (data: unknown) => {
-      logger.info('SIP registered', data)
-      if (data && typeof data === 'object' && 'uri' in data) {
-        const uri = String(data.uri)
-        const expires = 'expires' in data ? Number(data.expires) : undefined
-        registrationStore.setRegistered(uri, expires)
+    ids.push(
+      eventBus.on('sip:registered', (data: unknown) => {
+        logger.info('SIP registered', data)
+        if (data && typeof data === 'object' && 'uri' in data) {
+          const uri = String(data.uri)
+          const expires = 'expires' in data ? Number(data.expires) : undefined
+          registrationStore.setRegistered(uri, expires)
+        }
+      })
+    )
+
+    ids.push(
+      eventBus.on('sip:unregistered', (data: unknown) => {
+        logger.info('SIP unregistered', data)
+        registrationStore.setUnregistered()
+      })
+    )
+
+    ids.push(
+      eventBus.on('sip:registration_failed', (data: unknown) => {
+        logger.error('SIP registration failed', data)
+        const errorMsg =
+          data && typeof data === 'object' && 'cause' in data
+            ? String(data.cause)
+            : 'Registration failed'
+        registrationStore.setRegistrationFailed(errorMsg)
+        error.value = new Error(errorMsg)
+      })
+    )
+
+    ids.push(
+      eventBus.on('sip:registration_expiring', () => {
+        logger.debug('SIP registration expiring, auto-refresh')
+        // Auto-refresh will be handled by the SIP client
+      })
+    )
+
+    // Store IDs for external access
+    listenerIds.value = ids
+
+    // Return cleanup function
+    return () => {
+      logger.debug(`Cleaning up ${ids.length} event listeners`)
+      ids.forEach((id, index) => {
+        const eventNames = [
+          'sip:connected',
+          'sip:disconnected',
+          'sip:registered',
+          'sip:unregistered',
+          'sip:registration_failed',
+          'sip:registration_expiring',
+        ]
+        eventBus.off(eventNames[index], id)
+      })
+
+      // Decrement instance count for this EventBus
+      const count = eventBusInstanceCounts.get(eventBus) ?? 1
+      if (count <= 1) {
+        eventBusInstanceCounts.delete(eventBus)
+      } else {
+        eventBusInstanceCounts.set(eventBus, count - 1)
       }
-    })
-
-    eventBus.on('sip:unregistered', (data: unknown) => {
-      logger.info('SIP unregistered', data)
-      registrationStore.setUnregistered()
-    })
-
-    eventBus.on('sip:registration_failed', (data: unknown) => {
-      logger.error('SIP registration failed', data)
-      const errorMsg =
-        data && typeof data === 'object' && 'cause' in data
-          ? String(data.cause)
-          : 'Registration failed'
-      registrationStore.setRegistrationFailed(errorMsg)
-      error.value = new Error(errorMsg)
-    })
-
-    eventBus.on('sip:registration_expiring', () => {
-      logger.debug('SIP registration expiring, auto-refresh')
-      // Auto-refresh will be handled by the SIP client
-    })
+    }
   }
 
-  // Setup event listeners immediately
-  setupEventListeners()
+  // Setup event listeners immediately and store cleanup function
+  const cleanupEventListeners = setupEventListeners()
 
   // ============================================================================
   // Methods
@@ -279,12 +346,11 @@ export function useSipClient(
       // Create SIP client if not exists
       if (!sipClient.value) {
         logger.info('Creating SIP client')
-        sipClient.value = new SipClient(config as SipClientConfig, eventBus)
+        sipClient.value = new SipClient(config, eventBus)
       }
 
       // Start the client
       logger.info('Starting SIP client')
-      internalConnectionState.value = 'connecting'
       await sipClient.value.start()
 
       logger.info('SIP client connected successfully')
@@ -292,7 +358,6 @@ export function useSipClient(
       const errorMsg = err instanceof Error ? err.message : 'Connection failed'
       logger.error('Failed to connect', err)
       error.value = err instanceof Error ? err : new Error(errorMsg)
-      internalConnectionState.value = 'connection_failed'
       throw err
     }
   }
@@ -315,7 +380,6 @@ export function useSipClient(
 
       // Clear client instance
       sipClient.value = null
-      internalConnectionState.value = 'disconnected'
       registrationStore.setUnregistered()
 
       logger.info('SIP client disconnected successfully')
@@ -429,8 +493,9 @@ export function useSipClient(
         await disconnect()
       }
 
-      // Wait a bit before reconnecting
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      // Wait before reconnecting (configurable delay)
+      logger.debug(`Waiting ${reconnectDelay}ms before reconnecting`)
+      await new Promise((resolve) => setTimeout(resolve, reconnectDelay))
 
       // Connect again
       await connect()
@@ -464,11 +529,14 @@ export function useSipClient(
 
   /**
    * Auto-connect if configured
+   * Deferred to nextTick to ensure component lifecycle is complete
    */
   if (autoConnect && initialConfig) {
-    connect().catch((err) => {
-      logger.error('Auto-connect failed', err)
-      error.value = err
+    nextTick(() => {
+      connect().catch((err) => {
+        logger.error('Auto-connect failed', err)
+        error.value = err
+      })
     })
   }
 
@@ -478,6 +546,11 @@ export function useSipClient(
   if (autoCleanup) {
     onUnmounted(() => {
       logger.debug('Component unmounted, cleaning up')
+
+      // Clean up event listeners first (critical for memory leak prevention)
+      cleanupEventListeners()
+
+      // Then disconnect client
       if (sipClient.value) {
         disconnect().catch((err) => {
           logger.error('Cleanup disconnect failed', err)
