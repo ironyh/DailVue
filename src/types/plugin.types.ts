@@ -346,6 +346,10 @@ export interface AnalyticsPluginConfig extends PluginConfig {
   trackEvents?: string[]
   /** Events to ignore */
   ignoreEvents?: string[]
+  /** Maximum events in queue before dropping (prevents memory overflow) */
+  maxQueueSize?: number
+  /** Request timeout in milliseconds (prevents hanging requests) */
+  requestTimeout?: number
 }
 
 /**

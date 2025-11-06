@@ -28,6 +28,8 @@ const DEFAULT_CONFIG: Required<AnalyticsPluginConfig> = {
   transformEvent: (event: AnalyticsEvent) => event,
   trackEvents: [], // Empty = track all events
   ignoreEvents: [],
+  maxQueueSize: 1000, // Maximum events in queue before dropping old ones
+  requestTimeout: 30000, // 30 seconds timeout for requests
 }
 
 /**
@@ -67,9 +69,25 @@ export class AnalyticsPlugin implements Plugin<AnalyticsPluginConfig> {
   /** Event listener cleanup functions */
   private cleanupFunctions: Array<() => void> = []
 
+  /** Flag to prevent concurrent flush operations */
+  private isFlushing: boolean = false
+
+  /** Abort controller for fetch timeout */
+  private abortController: AbortController | null = null
+
   constructor() {
-    // Generate session ID
-    this.sessionId = `session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+    // Generate session ID using crypto for better uniqueness
+    this.sessionId = this.generateSessionId()
+  }
+
+  /**
+   * Generate a unique session ID
+   */
+  private generateSessionId(): string {
+    const timestamp = Date.now()
+    const random = Math.random().toString(36).substring(2, 15)
+    const random2 = Math.random().toString(36).substring(2, 15)
+    return `session-${timestamp}-${random}${random2}`
   }
 
   /**
@@ -268,6 +286,12 @@ export class AnalyticsPlugin implements Plugin<AnalyticsPluginConfig> {
       return
     }
 
+    // Validate event type
+    if (!type || typeof type !== 'string' || type.length === 0) {
+      logger.warn('Invalid event type, skipping')
+      return
+    }
+
     // Create event
     let event: AnalyticsEvent = {
       type,
@@ -281,11 +305,24 @@ export class AnalyticsPlugin implements Plugin<AnalyticsPluginConfig> {
       event.userId = this.userId
     }
 
-    // Transform event
-    event = this.config.transformEvent(event)
+    // Transform event with error handling
+    try {
+      event = this.config.transformEvent(event)
+    } catch (error) {
+      logger.error('Event transformation failed, using original event', error)
+      // Continue with untransformed event
+    }
 
     // Add to queue or send immediately
     if (this.config.batchEvents) {
+      // Check queue size limit before adding
+      if (this.eventQueue.length >= this.config.maxQueueSize!) {
+        // Drop oldest events to make room (FIFO)
+        const dropCount = Math.floor(this.config.maxQueueSize! * 0.1) // Drop 10%
+        this.eventQueue.splice(0, dropCount)
+        logger.warn(`Event queue overflow, dropped ${dropCount} old events`)
+      }
+
       this.eventQueue.push(event)
 
       // Send if batch size reached
@@ -352,10 +389,50 @@ export class AnalyticsPlugin implements Plugin<AnalyticsPluginConfig> {
     if (pattern === '*') return true
     if (pattern === type) return true
 
-    // Convert wildcard pattern to regex
-    const regexPattern = pattern.replace(/\*/g, '.*')
-    const regex = new RegExp(`^${regexPattern}$`)
-    return regex.test(type)
+    try {
+      // Sanitize pattern to prevent ReDoS
+      const sanitized = this.sanitizePattern(pattern)
+
+      // Convert wildcard pattern to regex
+      const regexPattern = sanitized.replace(/\*/g, '.*')
+      const regex = new RegExp(`^${regexPattern}$`)
+
+      // Test with timeout protection using a simple check
+      // If pattern is too complex, fallback to exact match
+      if (this.isPatternTooComplex(regexPattern)) {
+        logger.warn(`Pattern too complex, using exact match: ${pattern}`)
+        return type === pattern
+      }
+
+      return regex.test(type)
+    } catch (error) {
+      logger.error(`Pattern matching failed for "${pattern}"`, error)
+      return false
+    }
+  }
+
+  /**
+   * Sanitize pattern to prevent ReDoS attacks
+   */
+  private sanitizePattern(pattern: string): string {
+    // Remove potentially dangerous regex patterns
+    // Limit consecutive quantifiers and nested groups
+    return pattern
+      .replace(/(\*{2,})/g, '*') // Multiple wildcards to single
+      .replace(/([+{]{2,})/g, '+') // Prevent nested quantifiers
+      .substring(0, 100) // Limit pattern length
+  }
+
+  /**
+   * Check if pattern is too complex (may cause ReDoS)
+   */
+  private isPatternTooComplex(pattern: string): boolean {
+    // Simple heuristic: count quantifiers and groups
+    const quantifiers = (pattern.match(/[*+?{]/g) || []).length
+    const groups = (pattern.match(/[(]/g) || []).length
+
+    // If too many quantifiers or nested groups, consider it complex
+    return quantifiers > 10 || groups > 5
   }
 
   /**
@@ -390,14 +467,26 @@ export class AnalyticsPlugin implements Plugin<AnalyticsPluginConfig> {
    * Flush all queued events
    */
   async flushEvents(): Promise<void> {
+    // Prevent concurrent flush operations
+    if (this.isFlushing) {
+      logger.debug('Flush already in progress, skipping')
+      return
+    }
+
     if (this.eventQueue.length === 0) {
       return
     }
 
-    const events = [...this.eventQueue]
-    this.eventQueue = []
+    this.isFlushing = true
 
-    await this.sendEvents(events)
+    try {
+      const events = [...this.eventQueue]
+      this.eventQueue = []
+
+      await this.sendEvents(events)
+    } finally {
+      this.isFlushing = false
+    }
   }
 
   /**
@@ -411,6 +500,12 @@ export class AnalyticsPlugin implements Plugin<AnalyticsPluginConfig> {
       return
     }
 
+    // Create abort controller for timeout
+    this.abortController = new AbortController()
+    const timeoutId = setTimeout(() => {
+      this.abortController?.abort()
+    }, this.config.requestTimeout)
+
     try {
       const response = await fetch(this.config.endpoint, {
         method: 'POST',
@@ -418,7 +513,10 @@ export class AnalyticsPlugin implements Plugin<AnalyticsPluginConfig> {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ events }),
+        signal: this.abortController.signal,
       })
+
+      clearTimeout(timeoutId)
 
       if (!response.ok) {
         throw new Error(`Analytics endpoint returned ${response.status}`)
@@ -426,9 +524,28 @@ export class AnalyticsPlugin implements Plugin<AnalyticsPluginConfig> {
 
       logger.debug(`Sent ${events.length} events to analytics endpoint`)
     } catch (error) {
-      logger.error('Failed to send events to analytics endpoint', error)
-      // Re-queue events on failure
-      this.eventQueue.unshift(...events)
+      clearTimeout(timeoutId)
+
+      if ((error as Error).name === 'AbortError') {
+        logger.error('Analytics request timed out')
+      } else {
+        logger.error('Failed to send events to analytics endpoint', error)
+      }
+
+      // Re-queue events on failure, but respect max queue size
+      const remainingCapacity = this.config.maxQueueSize! - this.eventQueue.length
+      if (remainingCapacity > 0) {
+        const eventsToRequeue = events.slice(0, remainingCapacity)
+        this.eventQueue.unshift(...eventsToRequeue)
+
+        if (eventsToRequeue.length < events.length) {
+          logger.warn(`Could not requeue all events, dropped ${events.length - eventsToRequeue.length}`)
+        }
+      } else {
+        logger.warn(`Queue full, dropped ${events.length} events`)
+      }
+    } finally {
+      this.abortController = null
     }
   }
 

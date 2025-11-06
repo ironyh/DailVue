@@ -108,8 +108,20 @@ export class RecordingPlugin implements Plugin<RecordingPluginConfig> {
 
     // Stop all active recordings
     for (const [callId] of this.activeRecordings) {
-      await this.stopRecording(callId)
+      try {
+        await this.stopRecording(callId)
+      } catch (error) {
+        logger.error(`Failed to stop recording for call ${callId}`, error)
+      }
     }
+
+    // Clear all recording blobs from memory
+    for (const [recordingId] of this.recordings) {
+      this.clearRecordingBlob(recordingId)
+    }
+
+    // Clear recordings map
+    this.recordings.clear()
 
     // Close IndexedDB
     if (this.db) {
@@ -284,13 +296,29 @@ export class RecordingPlugin implements Plugin<RecordingPluginConfig> {
       // Create blob from chunks
       recordingData.blob = new Blob(chunks, { type: mimeType })
 
-      logger.info(`Recording stopped: ${recordingId} (duration: ${recordingData.duration}ms)`)
+      // Validate blob is not empty
+      if (!recordingData.blob || recordingData.blob.size === 0) {
+        logger.warn(`Recording ${recordingId} has no data, skipping save`)
+        recordingData.state = 'failed' as RecordingState
+        this.config.onRecordingError(new Error('Recording has no data'))
+        return
+      }
+
+      logger.info(
+        `Recording stopped: ${recordingId} (duration: ${recordingData.duration}ms, size: ${recordingData.blob.size} bytes)`
+      )
 
       // Store in IndexedDB
       if (this.config.storeInIndexedDB && this.db) {
-        await this.saveRecording(recordingData)
-        // Clear blob from memory after saving to prevent memory leak
-        this.clearRecordingBlob(recordingId)
+        try {
+          await this.saveRecording(recordingData)
+          // Clear blob from memory after saving to prevent memory leak
+          this.clearRecordingBlob(recordingId)
+        } catch (error) {
+          logger.error(`Failed to save recording ${recordingId}`, error)
+          recordingData.state = 'failed' as RecordingState
+          this.config.onRecordingError(error as Error)
+        }
       }
 
       this.config.onRecordingStop(recordingData)
@@ -394,10 +422,52 @@ export class RecordingPlugin implements Plugin<RecordingPluginConfig> {
   private clearRecordingBlob(recordingId: string): void {
     const recording = this.recordings.get(recordingId)
     if (recording && recording.blob) {
+      // Revoke any object URLs if they exist
+      if (recording.blob instanceof Blob) {
+        // Blob doesn't have URL, but if we created one, it should be revoked
+        // This is a safety measure for future URL creation
+      }
+
       // Clear blob reference to allow garbage collection
       recording.blob = undefined
       logger.debug(`Cleared blob from memory for recording: ${recordingId}`)
     }
+  }
+
+  /**
+   * Get memory usage estimate for recordings
+   *
+   * @returns Estimated memory usage in bytes
+   */
+  getMemoryUsage(): number {
+    let total = 0
+    for (const [, recording] of this.recordings) {
+      if (recording.blob) {
+        total += recording.blob.size
+      }
+    }
+    return total
+  }
+
+  /**
+   * Clear old recordings from memory (not IndexedDB)
+   *
+   * @param maxAge - Maximum age in milliseconds
+   */
+  clearOldRecordingsFromMemory(maxAge: number = 3600000): number {
+    const now = Date.now()
+    let cleared = 0
+
+    for (const [recordingId, recording] of this.recordings) {
+      const age = now - recording.startTime.getTime()
+      if (age > maxAge && recording.blob) {
+        this.clearRecordingBlob(recordingId)
+        cleared++
+      }
+    }
+
+    logger.info(`Cleared ${cleared} old recordings from memory`)
+    return cleared
   }
 
   /**
@@ -429,8 +499,30 @@ export class RecordingPlugin implements Plugin<RecordingPluginConfig> {
         resolve()
       }
 
-      request.onerror = () => {
-        reject(new Error('Failed to save recording to IndexedDB'))
+      request.onerror = (event) => {
+        const error = (event.target as IDBRequest).error
+
+        // Handle quota exceeded specifically
+        if (error?.name === 'QuotaExceededError') {
+          logger.error('IndexedDB quota exceeded, cannot save recording')
+          // Try to free up space by deleting old recordings
+          this.deleteOldRecordings()
+            .then(() => {
+              // Retry save once after cleanup
+              logger.info('Retrying save after cleanup')
+              return this.saveRecording(recording)
+            })
+            .then(resolve)
+            .catch(() => {
+              reject(
+                new Error(
+                  'IndexedDB quota exceeded. Please free up space or disable recording storage.'
+                )
+              )
+            })
+        } else {
+          reject(new Error(`Failed to save recording to IndexedDB: ${error?.message || 'Unknown error'}`))
+        }
       }
     })
   }
