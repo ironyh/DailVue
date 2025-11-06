@@ -157,6 +157,9 @@ export const DTMF_CONSTANTS = {
 
   /** Maximum allowed duration in milliseconds */
   MAX_DURATION: 6000,
+
+  /** Maximum DTMF queue size (prevents unbounded memory growth) */
+  MAX_QUEUE_SIZE: 100,
 } as const
 
 /**

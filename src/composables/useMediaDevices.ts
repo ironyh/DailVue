@@ -418,8 +418,18 @@ export function useMediaDevices(
    * Select audio input device
    *
    * @param deviceId - Device ID
+   * @remarks Logs a warning if device is not found, but still sets the value
    */
   const selectAudioInput = (deviceId: string): void => {
+    // Validate device exists in available devices
+    const device = audioInputDevices.value.find((d) => d.deviceId === deviceId)
+    if (!device) {
+      log.warn(`Audio input device ${deviceId} not found in available devices`, {
+        availableDevices: audioInputDevices.value.map((d) => d.deviceId),
+      })
+      // Still set it - device might become available later
+    }
+
     log.debug(`Selecting audio input: ${deviceId}`)
     selectedAudioInputId.value = deviceId
     deviceStore.setSelectedAudioInput(deviceId)
@@ -429,8 +439,18 @@ export function useMediaDevices(
    * Select audio output device
    *
    * @param deviceId - Device ID
+   * @remarks Logs a warning if device is not found, but still sets the value
    */
   const selectAudioOutput = (deviceId: string): void => {
+    // Validate device exists in available devices
+    const device = audioOutputDevices.value.find((d) => d.deviceId === deviceId)
+    if (!device) {
+      log.warn(`Audio output device ${deviceId} not found in available devices`, {
+        availableDevices: audioOutputDevices.value.map((d) => d.deviceId),
+      })
+      // Still set it - device might become available later
+    }
+
     log.debug(`Selecting audio output: ${deviceId}`)
     selectedAudioOutputId.value = deviceId
     deviceStore.setSelectedAudioOutput(deviceId)
@@ -440,8 +460,18 @@ export function useMediaDevices(
    * Select video input device
    *
    * @param deviceId - Device ID
+   * @remarks Logs a warning if device is not found, but still sets the value
    */
   const selectVideoInput = (deviceId: string): void => {
+    // Validate device exists in available devices
+    const device = videoInputDevices.value.find((d) => d.deviceId === deviceId)
+    if (!device) {
+      log.warn(`Video input device ${deviceId} not found in available devices`, {
+        availableDevices: videoInputDevices.value.map((d) => d.deviceId),
+      })
+      // Still set it - device might become available later
+    }
+
     log.debug(`Selecting video input: ${deviceId}`)
     selectedVideoInputId.value = deviceId
     deviceStore.setSelectedVideoInput(deviceId)
@@ -456,7 +486,9 @@ export function useMediaDevices(
    *
    * @param deviceId - Device ID (uses selected device if not provided)
    * @param options - Test options
-   * @returns true if test passed, false otherwise
+   * @returns Promise resolving to true if test passed, false otherwise
+   * @throws {Error} If no audio input device is selected and deviceId not provided
+   * @remarks Returns false on errors instead of throwing, cleanup is always performed
    */
   const testAudioInput = async (
     deviceId?: string,
@@ -477,42 +509,66 @@ export function useMediaDevices(
         const result = await mediaManager.value.testDevice(targetDeviceId)
         return result.success && (result.audioLevel ?? 0) > audioLevelThreshold
       } else {
-        // Fallback to basic test
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: { deviceId: { exact: targetDeviceId } },
-        })
+        // Fallback to basic test with proper cleanup
+        let stream: MediaStream | null = null
+        let audioContext: AudioContext | null = null
+        let intervalId: number | undefined
 
-        // Create audio context to measure levels
-        const audioContext = new AudioContext()
-        const source = audioContext.createMediaStreamSource(stream)
-        const analyser = audioContext.createAnalyser()
-        source.connect(analyser)
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: { deviceId: { exact: targetDeviceId } },
+          })
 
-        const dataArray = new Uint8Array(analyser.frequencyBinCount)
+          // Create audio context to measure levels
+          audioContext = new AudioContext()
+          const source = audioContext.createMediaStreamSource(stream)
+          const analyser = audioContext.createAnalyser()
+          source.connect(analyser)
 
-        return new Promise((resolve) => {
-          let maxLevel = 0
+          const dataArray = new Uint8Array(analyser.frequencyBinCount)
 
-          const checkLevel = () => {
-            analyser.getByteFrequencyData(dataArray)
-            const level = dataArray.reduce((sum, val) => sum + val, 0) / dataArray.length / 255
-            maxLevel = Math.max(maxLevel, level)
-          }
+          return await new Promise<boolean>((resolve, reject) => {
+            let maxLevel = 0
 
-          const intervalId = setInterval(checkLevel, 100)
+            const checkLevel = () => {
+              try {
+                analyser.getByteFrequencyData(dataArray)
+                const level = dataArray.reduce((sum, val) => sum + val, 0) / dataArray.length / 255
+                maxLevel = Math.max(maxLevel, level)
+              } catch (error) {
+                // Error during level check - cleanup and reject
+                clearInterval(intervalId)
+                reject(error)
+              }
+            }
 
-          setTimeout(() => {
+            intervalId = window.setInterval(checkLevel, 100)
+
+            setTimeout(() => {
+              clearInterval(intervalId)
+
+              const success = maxLevel > audioLevelThreshold
+              log.info(`Audio input test ${success ? 'passed' : 'failed'} (level: ${maxLevel})`)
+              resolve(success)
+            }, duration)
+          })
+        } finally {
+          // Always cleanup resources, even on error
+          if (intervalId !== undefined) {
             clearInterval(intervalId)
-
-            // Stop all tracks
-            stream.getTracks().forEach((track) => track.stop())
-            audioContext.close()
-
-            const success = maxLevel > audioLevelThreshold
-            log.info(`Audio input test ${success ? 'passed' : 'failed'} (level: ${maxLevel})`)
-            resolve(success)
-          }, duration)
-        })
+          }
+          if (stream) {
+            stream.getTracks().forEach((track) => {
+              track.stop()
+              log.debug(`Stopped audio input test track: ${track.kind}`)
+            })
+          }
+          if (audioContext) {
+            await audioContext.close().catch((err) => {
+              log.debug('Error closing audio context:', err)
+            })
+          }
+        }
       }
     } catch (error) {
       log.error('Audio input test failed:', error)
@@ -524,9 +580,14 @@ export function useMediaDevices(
    * Test audio output device
    *
    * @param deviceId - Device ID (uses selected device if not provided)
-   * @returns true if test passed, false otherwise
+   * @returns Promise resolving to true if test passed, false otherwise
+   * @throws {Error} If no audio output device is selected and deviceId not provided
+   * @remarks Returns false on errors instead of throwing, cleanup is always performed
    */
   const testAudioOutput = async (deviceId?: string): Promise<boolean> => {
+    let audioContext: AudioContext | null = null
+    let oscillator: OscillatorNode | null = null
+
     try {
       const targetDeviceId = deviceId || selectedAudioOutputId.value
       if (!targetDeviceId) {
@@ -536,8 +597,8 @@ export function useMediaDevices(
       log.info(`Testing audio output device: ${targetDeviceId}`)
 
       // Create test tone
-      const audioContext = new AudioContext()
-      const oscillator = audioContext.createOscillator()
+      audioContext = new AudioContext()
+      oscillator = audioContext.createOscillator()
       const gainNode = audioContext.createGain()
 
       oscillator.connect(gainNode)
@@ -552,13 +613,26 @@ export function useMediaDevices(
       await new Promise((resolve) => setTimeout(resolve, 500))
       oscillator.stop()
 
-      audioContext.close()
-
       log.info('Audio output test completed')
       return true
     } catch (error) {
       log.error('Audio output test failed:', error)
       return false
+    } finally {
+      // Always cleanup resources, even on error
+      if (oscillator) {
+        try {
+          oscillator.stop()
+        } catch (err) {
+          // Oscillator may already be stopped
+          log.debug('Oscillator already stopped:', err)
+        }
+      }
+      if (audioContext) {
+        await audioContext.close().catch((err) => {
+          log.debug('Error closing audio context:', err)
+        })
+      }
     }
   }
 
