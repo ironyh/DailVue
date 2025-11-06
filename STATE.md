@@ -854,12 +854,17 @@ All implementations include:
   - Handle device change events
   - Emit device events
 
-- [~] Test useMediaDevices (tests needed)
-  - Mock navigator.mediaDevices
-  - Test device enumeration
-  - Test device selection
-  - Test permission handling
-  - Test device change detection
+- [x] Test useMediaDevices - Comprehensive test suite completed (2025-11-06)
+  - ✅ 59 tests total (all passing)
+  - ✅ Device enumeration (MediaManager and fallback API)
+  - ✅ Permission management (audio, video, combined)
+  - ✅ Device selection (audio input/output, video input)
+  - ✅ Device testing (audio input/output with cleanup)
+  - ✅ Device utilities (getDeviceById, getDevicesByKind)
+  - ✅ Device change monitoring (start/stop)
+  - ✅ All computed properties (15+ properties)
+  - ✅ Store synchronization
+  - ✅ Error handling and edge cases
 
 ### 6.5 Call Controls Composable
 
@@ -1061,11 +1066,8 @@ Phase 6 (Core Composables) has been substantially completed with the following i
 
 - useSipClient - 48 tests (all passing)
 - useCallSession - 71 tests (all passing)
-- useDTMF - 51 tests (all passing) ⭐ _Just completed!_
-
-⚠️ **Partially Tested (Need More Tests):**
-
-- useMediaDevices - 2 tests (needs comprehensive coverage)
+- useDTMF - 51 tests (all passing)
+- useMediaDevices - 59 tests (all passing) ⭐ _Just completed!_
 
 ❌ **No Tests (Need Test Files):**
 
@@ -1079,7 +1081,7 @@ Phase 6 (Core Composables) has been substantially completed with the following i
 **Priority Recommendations:**
 
 1. ~~Add tests for useDTMF (already has 15 tests, expand to comprehensive)~~ ✅ **DONE!**
-2. Add tests for useMediaDevices (only has 2 tests, needs much more)
+2. ~~Add tests for useMediaDevices (only has 2 tests, needs much more)~~ ✅ **DONE!**
 3. Create test file for useSipRegistration (critical composable)
 4. Create test files for remaining composables
 
