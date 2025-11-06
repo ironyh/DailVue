@@ -238,8 +238,8 @@ export function useMediaDevices(
   watch(
     selectedAudioInputId,
     (newId) => {
-      if (!isUpdatingFromStore.value) {
-        deviceStore.setSelectedAudioInput(newId)
+      if (!isUpdatingFromStore.value && newId !== null) {
+        deviceStore.selectAudioInput(newId)
       }
     },
     { flush: 'sync' }
@@ -248,8 +248,8 @@ export function useMediaDevices(
   watch(
     selectedAudioOutputId,
     (newId) => {
-      if (!isUpdatingFromStore.value) {
-        deviceStore.setSelectedAudioOutput(newId)
+      if (!isUpdatingFromStore.value && newId !== null) {
+        deviceStore.selectAudioOutput(newId)
       }
     },
     { flush: 'sync' }
@@ -258,8 +258,8 @@ export function useMediaDevices(
   watch(
     selectedVideoInputId,
     (newId) => {
-      if (!isUpdatingFromStore.value) {
-        deviceStore.setSelectedVideoInput(newId)
+      if (!isUpdatingFromStore.value && newId !== null) {
+        deviceStore.selectVideoInput(newId)
       }
     },
     { flush: 'sync' }
@@ -432,7 +432,7 @@ export function useMediaDevices(
 
     log.debug(`Selecting audio input: ${deviceId}`)
     selectedAudioInputId.value = deviceId
-    deviceStore.setSelectedAudioInput(deviceId)
+    deviceStore.selectAudioInput(deviceId)
   }
 
   /**
@@ -453,7 +453,7 @@ export function useMediaDevices(
 
     log.debug(`Selecting audio output: ${deviceId}`)
     selectedAudioOutputId.value = deviceId
-    deviceStore.setSelectedAudioOutput(deviceId)
+    deviceStore.selectAudioOutput(deviceId)
   }
 
   /**
@@ -474,7 +474,7 @@ export function useMediaDevices(
 
     log.debug(`Selecting video input: ${deviceId}`)
     selectedVideoInputId.value = deviceId
-    deviceStore.setSelectedVideoInput(deviceId)
+    deviceStore.selectVideoInput(deviceId)
   }
 
   // ============================================================================
@@ -694,7 +694,7 @@ export function useMediaDevices(
     }
 
     navigator.mediaDevices.addEventListener('devicechange', deviceChangeListener)
-    deviceStore.setDeviceChangeListenerActive(true)
+    deviceStore.setDeviceChangeListenerAttached()
   }
 
   /**
@@ -710,7 +710,7 @@ export function useMediaDevices(
 
     navigator.mediaDevices.removeEventListener('devicechange', deviceChangeListener)
     deviceChangeListener = null
-    deviceStore.setDeviceChangeListenerActive(false)
+    deviceStore.setDeviceChangeListenerDetached()
   }
 
   // ============================================================================

@@ -7,4 +7,10 @@
  */
 
 export { ConfigProvider, useConfigProvider, CONFIG_PROVIDER_KEY } from './ConfigProvider'
-export type { ConfigProviderContext, ConfigProviderProps } from '../types/provider.types'
+export { MediaProvider, useMediaProvider, MEDIA_PROVIDER_KEY } from './MediaProvider'
+export type {
+  ConfigProviderContext,
+  ConfigProviderProps,
+  MediaProviderContext,
+  MediaProviderProps,
+} from '../types/provider.types'
