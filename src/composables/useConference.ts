@@ -22,6 +22,8 @@ import {
   type AudioLevelEvent,
 } from '../types/conference.types'
 import { createLogger } from '../utils/logger'
+import { CONFERENCE_CONSTANTS } from './constants'
+import { type ExtendedSipClient, hasSipClientMethod } from './types'
 
 const log = createLogger('useConference')
 
@@ -218,7 +220,7 @@ export function useConference(sipClient: Ref<SipClient | null>): UseConferenceRe
         participants: new Map(),
         isLocked: options.locked || false,
         isRecording: false,
-        maxParticipants: options.maxParticipants || 10,
+        maxParticipants: options.maxParticipants || CONFERENCE_CONSTANTS.DEFAULT_MAX_PARTICIPANTS,
         metadata: options.metadata,
       }
 
@@ -296,7 +298,7 @@ export function useConference(sipClient: Ref<SipClient | null>): UseConferenceRe
         participants: new Map(),
         isLocked: false,
         isRecording: false,
-        maxParticipants: options.maxParticipants || 10,
+        maxParticipants: options.maxParticipants || CONFERENCE_CONSTANTS.DEFAULT_MAX_PARTICIPANTS,
       }
 
       // Join conference via SIP client
@@ -337,7 +339,7 @@ export function useConference(sipClient: Ref<SipClient | null>): UseConferenceRe
       throw new Error('Conference is locked')
     }
 
-    if (participantCount.value >= (conference.value.maxParticipants || 10)) {
+    if (participantCount.value >= (conference.value.maxParticipants || CONFERENCE_CONSTANTS.DEFAULT_MAX_PARTICIPANTS)) {
       throw new Error('Conference is full')
     }
 
@@ -555,7 +557,7 @@ export function useConference(sipClient: Ref<SipClient | null>): UseConferenceRe
       // Clear conference after a delay
       setTimeout(() => {
         conference.value = null
-      }, 2000)
+      }, CONFERENCE_CONSTANTS.STATE_TRANSITION_DELAY)
 
       log.info('Conference ended')
     } catch (error) {
@@ -708,7 +710,7 @@ export function useConference(sipClient: Ref<SipClient | null>): UseConferenceRe
         }
         emitConferenceEvent(event)
       }
-    }, 100) // Update every 100ms
+    }, CONFERENCE_CONSTANTS.AUDIO_LEVEL_INTERVAL) // Update every 100ms
   }
 
   /**

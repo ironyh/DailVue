@@ -18,6 +18,8 @@ import {
   type PresenceSubscriptionOptions,
 } from '../types/presence.types'
 import { createLogger } from '../utils/logger'
+import { PRESENCE_CONSTANTS } from './constants'
+import { type ExtendedSipClient, hasSipClientMethod } from './types'
 
 const log = createLogger('usePresence')
 
@@ -171,7 +173,7 @@ export function usePresence(sipClient: Ref<SipClient | null>): UsePresenceReturn
     try {
       log.info(`Setting presence status to ${state}`)
 
-      const { statusMessage, expires = 3600, extraHeaders } = options
+      const { statusMessage, expires = PRESENCE_CONSTANTS.DEFAULT_EXPIRES, extraHeaders } = options
 
       // Publish presence via SIP client
       await sipClient.value.publishPresence({
@@ -229,7 +231,7 @@ export function usePresence(sipClient: Ref<SipClient | null>): UsePresenceReturn
     try {
       log.info(`Subscribing to presence of ${uri}`)
 
-      const { expires = 3600, extraHeaders } = options
+      const { expires = PRESENCE_CONSTANTS.DEFAULT_EXPIRES, extraHeaders } = options
 
       // Create subscription ID
       const subscriptionId = `sub-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
@@ -299,7 +301,7 @@ export function usePresence(sipClient: Ref<SipClient | null>): UsePresenceReturn
     }
 
     // Setup new timer (refresh at 90% of expiry time)
-    const refreshDelay = expires * 0.9 * 1000
+    const refreshDelay = expires * PRESENCE_CONSTANTS.SUBSCRIPTION_REFRESH_PERCENTAGE * 1000
 
     const timerId = window.setTimeout(async () => {
       log.info(`Auto-refreshing subscription to ${uri}`)

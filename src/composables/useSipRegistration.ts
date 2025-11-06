@@ -7,11 +7,13 @@
  * @module composables/useSipRegistration
  */
 
-import { ref, computed, onUnmounted, type Ref, type ComputedRef } from 'vue'
+import { ref, computed, watch, onUnmounted, type Ref, type ComputedRef } from 'vue'
 import { registrationStore } from '../stores/registrationStore'
 import { RegistrationState } from '../types/sip.types'
 import { createLogger } from '../utils/logger'
 import type { SipClient } from '../core/SipClient'
+import { REGISTRATION_CONSTANTS, RETRY_CONFIG } from './constants'
+import { type ExtendedSipClient, hasSipClientMethod } from './types'
 
 const log = createLogger('useSipRegistration')
 
@@ -133,8 +135,8 @@ export function useSipRegistration(
   options: RegistrationOptions = {}
 ): UseSipRegistrationReturn {
   const {
-    expires = 600,
-    maxRetries = 3,
+    expires = REGISTRATION_CONSTANTS.DEFAULT_EXPIRES,
+    maxRetries = REGISTRATION_CONSTANTS.DEFAULT_MAX_RETRIES,
     autoRefresh = true,
     userAgent,
   } = options
@@ -170,7 +172,7 @@ export function useSipRegistration(
     return Math.max(0, Math.floor((expiry - now) / 1000))
   })
 
-  const isExpiringSoon = computed(() => secondsUntilExpiry.value < 30)
+  const isExpiringSoon = computed(() => secondsUntilExpiry.value < REGISTRATION_CONSTANTS.EXPIRING_SOON_THRESHOLD)
   const hasExpired = computed(() => secondsUntilExpiry.value === 0)
 
   // ============================================================================
@@ -189,6 +191,45 @@ export function useSipRegistration(
     retryCount.value = registrationStore.retryCount
     lastError.value = registrationStore.lastError
   }
+
+  // Watch store for external changes and auto-sync
+  // This ensures the composable stays in sync if the store is updated elsewhere
+  const stopStoreWatch = watch(
+    () => ({
+      state: registrationStore.state,
+      registeredUri: registrationStore.registeredUri,
+      expires: registrationStore.expires,
+      lastRegistrationTime: registrationStore.lastRegistrationTime,
+      expiryTime: registrationStore.expiryTime,
+      retryCount: registrationStore.retryCount,
+      lastError: registrationStore.lastError,
+    }),
+    (newState) => {
+      // Only sync if values actually changed to avoid infinite loops
+      if (state.value !== newState.state) {
+        state.value = newState.state
+      }
+      if (registeredUri.value !== newState.registeredUri) {
+        registeredUri.value = newState.registeredUri
+      }
+      if (expiresValue.value !== newState.expires) {
+        expiresValue.value = newState.expires
+      }
+      if (lastRegistrationTime.value !== newState.lastRegistrationTime) {
+        lastRegistrationTime.value = newState.lastRegistrationTime
+      }
+      if (expiryTime.value !== newState.expiryTime) {
+        expiryTime.value = newState.expiryTime
+      }
+      if (retryCount.value !== newState.retryCount) {
+        retryCount.value = newState.retryCount
+      }
+      if (lastError.value !== newState.lastError) {
+        lastError.value = newState.lastError
+      }
+    },
+    { deep: true }
+  )
 
   // ============================================================================
   // Auto-Refresh Logic
@@ -211,11 +252,11 @@ export function useSipRegistration(
     }
 
     // Calculate refresh time (90% of expiry time)
-    const refreshPercentage = 0.9
-    const refreshDelay = expiresValue.value * refreshPercentage * 1000
+    const refreshDelay = expiresValue.value * REGISTRATION_CONSTANTS.REFRESH_PERCENTAGE * 1000
 
     log.debug(
-      `Setting up auto-refresh in ${Math.floor(refreshDelay / 1000)}s (90% of ${expiresValue.value}s)`
+      `Setting up auto-refresh in ${Math.floor(refreshDelay / 1000)}s ` +
+        `(${REGISTRATION_CONSTANTS.REFRESH_PERCENTAGE * 100}% of ${expiresValue.value}s)`
     )
 
     refreshTimerId = window.setTimeout(async () => {
@@ -257,7 +298,14 @@ export function useSipRegistration(
 
     try {
       log.info('Starting registration...')
-      registrationStore.setRegistering(sipClient.value.getConfig().uri)
+
+      // Get URI - prefer from SipClient if available, fallback to store
+      const extendedClient = sipClient.value as ExtendedSipClient
+      const uri = hasSipClientMethod(extendedClient, 'getConfig')
+        ? extendedClient.getConfig!().uri
+        : registeredUri.value || 'unknown'
+
+      registrationStore.setRegistering(uri)
 
       // Configure expiry time
       if (expires !== registrationStore.expires) {
@@ -265,13 +313,23 @@ export function useSipRegistration(
       }
 
       // Perform registration via SIP client
-      await sipClient.value.register({
-        expires,
-        userAgent,
-      })
+      // Check if SipClient.register() accepts options (extended API)
+      if (hasSipClientMethod(extendedClient, 'register')) {
+        // Try calling with options first (extended API)
+        try {
+          await extendedClient.register!({ expires, userAgent })
+        } catch (err) {
+          // If that fails, fallback to basic register() without parameters
+          log.debug('Extended register() not available, using basic register()')
+          await sipClient.value.register()
+        }
+      } else {
+        // Use the base SipClient.register() method
+        await sipClient.value.register()
+      }
 
       // Update store state
-      registrationStore.setRegistered(sipClient.value.getConfig().uri, expires)
+      registrationStore.setRegistered(uri, expires)
       syncWithStore()
 
       // Setup auto-refresh
@@ -285,10 +343,17 @@ export function useSipRegistration(
       registrationStore.setRegistrationFailed(errorMessage)
       syncWithStore()
 
-      // Retry logic
+      // Retry logic with exponential backoff
       if (retryCount.value < maxRetries) {
-        const retryDelay = Math.min(1000 * Math.pow(2, retryCount.value), 30000) // Exponential backoff, max 30s
-        log.info(`Retrying registration in ${retryDelay / 1000}s (attempt ${retryCount.value + 1}/${maxRetries})`)
+        const retryDelay = RETRY_CONFIG.calculateBackoff(
+          retryCount.value,
+          REGISTRATION_CONSTANTS.BASE_RETRY_DELAY,
+          REGISTRATION_CONSTANTS.MAX_RETRY_DELAY
+        )
+        log.info(
+          `Retrying registration in ${retryDelay / 1000}s ` +
+            `(attempt ${retryCount.value + 1}/${maxRetries})`
+        )
 
         setTimeout(() => {
           register().catch((err) => log.error('Retry failed:', err))
@@ -396,8 +461,9 @@ export function useSipRegistration(
 
   // Cleanup on component unmount
   onUnmounted(() => {
-    log.debug('Composable unmounting, clearing auto-refresh timer')
+    log.debug('Composable unmounting, clearing auto-refresh timer and store watch')
     clearAutoRefresh()
+    stopStoreWatch()
   })
 
   // ============================================================================

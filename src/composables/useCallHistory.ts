@@ -18,6 +18,7 @@ import type {
   HistoryExportOptions,
 } from '../types/history.types'
 import { CallDirection } from '../types/call.types'
+import { HISTORY_CONSTANTS } from './constants'
 import { createLogger } from '../utils/logger'
 
 const log = createLogger('useCallHistory')
@@ -184,8 +185,8 @@ export function useCallHistory(): UseCallHistoryReturn {
     }
 
     // Sort
-    const sortBy = filter.sortBy || 'startTime'
-    const sortOrder = filter.sortOrder || 'desc'
+    const sortBy = filter.sortBy || HISTORY_CONSTANTS.DEFAULT_SORT_BY
+    const sortOrder = filter.sortOrder || HISTORY_CONSTANTS.DEFAULT_SORT_ORDER
 
     filtered.sort((a, b) => {
       let comparison = 0
@@ -304,7 +305,7 @@ export function useCallHistory(): UseCallHistoryReturn {
   /**
    * Get recent calls
    */
-  const getRecentCalls = (limit: number = 10): CallHistoryEntry[] => {
+  const getRecentCalls = (limit: number = HISTORY_CONSTANTS.DEFAULT_LIMIT): CallHistoryEntry[] => {
     return history.value.slice(0, limit)
   }
 
@@ -488,7 +489,7 @@ export function useCallHistory(): UseCallHistoryReturn {
         count: data.count,
       }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 10) // Top 10
+      .slice(0, HISTORY_CONSTANTS.TOP_FREQUENT_CONTACTS)
 
     return {
       totalCalls,

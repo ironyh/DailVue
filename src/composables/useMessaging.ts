@@ -20,6 +20,8 @@ import {
   type MessageFilter,
 } from '../types/messaging.types'
 import { createLogger } from '../utils/logger'
+import { MESSAGING_CONSTANTS } from './constants'
+import { type ExtendedSipClient, hasSipClientMethod } from './types'
 
 const log = createLogger('useMessaging')
 
@@ -224,7 +226,7 @@ export function useMessaging(sipClient: Ref<SipClient | null>): UseMessagingRetu
       uri: from,
       isComposing,
       lastUpdated: new Date(),
-      idleTimeout: 10, // 10 seconds
+      idleTimeout: MESSAGING_CONSTANTS.COMPOSING_TIMEOUT_SECONDS, // 10 seconds
     }
 
     composingIndicators.value.set(from, indicator)
@@ -242,7 +244,7 @@ export function useMessaging(sipClient: Ref<SipClient | null>): UseMessagingRetu
         if (currentIndicator) {
           currentIndicator.isComposing = false
         }
-      }, 10000) // 10 seconds
+      }, MESSAGING_CONSTANTS.COMPOSING_IDLE_TIMEOUT) // 10 seconds
 
       composingTimeouts.set(from, timeoutId)
     }

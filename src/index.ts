@@ -20,7 +20,7 @@ export type { UseSipDtmfReturn } from './composables/useSipDtmf'
 export { useAudioDevices } from './composables/useAudioDevices'
 export type { UseAudioDevicesReturn } from './composables/useAudioDevices'
 
-// Advanced composables (Phase 6)
+// Advanced composables (Phase 6 - Improved)
 export { useSipRegistration } from './composables/useSipRegistration'
 export type { UseSipRegistrationReturn, RegistrationOptions, RegistrationStatistics } from './composables/useSipRegistration'
 
@@ -38,6 +38,10 @@ export type { UseMessagingReturn, Conversation } from './composables/useMessagin
 
 export { useConference } from './composables/useConference'
 export type { UseConferenceReturn } from './composables/useConference'
+
+// Composable utilities
+export type { ExtendedSipClient, ExtendedCallSession } from './composables/types'
+export { hasSipClientMethod, hasCallSessionMethod } from './composables/types'
 
 // ============================================================================
 // Types
