@@ -98,98 +98,399 @@ const defaultMockDevices: MockMediaDevice[] = [
 ]
 
 /**
- * Mock WebSocket responses
+ * SIP response delays (in milliseconds)
+ */
+const SIP_DELAYS = {
+  CONNECTION: 50,
+  REGISTER_200: 80,
+  INVITE_100: 50,
+  INVITE_180: 100,
+  INVITE_200: 150,
+  BYE_200: 50,
+  CANCEL_200: 50,
+  ACK_PROCESS: 10,
+  OPTIONS_200: 50,
+}
+
+/**
+ * Parse SIP method from request
+ */
+function parseSipMethod(data: string): string | null {
+  const lines = data.split('\r\n')
+  if (lines.length === 0) return null
+  const firstLine = lines[0]
+  const parts = firstLine.split(' ')
+  return parts.length > 0 ? parts[0] : null
+}
+
+/**
+ * Extract Call-ID from SIP message
+ */
+function extractCallId(data: string): string {
+  const match = data.match(/Call-ID:\s*(.+)/i)
+  return match ? match[1].trim() : 'default-call-id'
+}
+
+/**
+ * Extract CSeq number from SIP message
+ */
+function extractCSeq(data: string): string {
+  const match = data.match(/CSeq:\s*(\d+)/i)
+  return match ? match[1] : '1'
+}
+
+/**
+ * Extract branch from Via header
+ */
+function extractBranch(data: string): string {
+  const match = data.match(/branch=([^;\s]+)/i)
+  return match ? match[1] : 'z9hG4bK123'
+}
+
+/**
+ * Extract From tag
+ */
+function extractFromTag(data: string): string {
+  const match = data.match(/From:.*tag=([^;\s]+)/i)
+  return match ? match[1] : '123'
+}
+
+/**
+ * Extract To URI
+ */
+function extractToUri(data: string): string {
+  const match = data.match(/To:\s*<([^>]+)>/i)
+  return match ? match[1] : 'sip:destination@example.com'
+}
+
+/**
+ * Extract From URI
+ */
+function extractFromUri(data: string): string {
+  const match = data.match(/From:\s*<([^>]+)>/i)
+  return match ? match[1] : 'sip:testuser@example.com'
+}
+
+/**
+ * Mock WebSocket responses with comprehensive SIP support
  */
 function mockWebSocketResponses(page: Page) {
-  return page.addInitScript(() => {
-    // Store original WebSocket
-    const OriginalWebSocket = window.WebSocket
-
-    // Mock WebSocket implementation
-    class MockWebSocket extends EventTarget {
-      url: string
-      readyState = 0 // CONNECTING
-      static CONNECTING = 0
-      static OPEN = 1
-      static CLOSING = 2
-      static CLOSED = 3
-
-      constructor(url: string) {
-        super()
-        this.url = url
-
-        // Simulate connection after a delay
-        setTimeout(() => {
-          this.readyState = 1 // OPEN
-          const openEvent = new Event('open')
-          this.dispatchEvent(openEvent)
-        }, 100)
+  return page.addInitScript(
+    ({ delays }: { delays: typeof SIP_DELAYS }) => {
+      // Helper functions (injected into page context)
+      const parseSipMethod = (data: string): string | null => {
+        const lines = data.split('\r\n')
+        if (lines.length === 0) return null
+        const parts = lines[0].split(' ')
+        return parts.length > 0 ? parts[0] : null
       }
 
-      send(data: string) {
-        // Simulate SIP responses
-        console.log('Mock WS send:', data)
+      const extractCallId = (data: string): string => {
+        const match = data.match(/Call-ID:\s*(.+)/i)
+        return match ? match[1].trim() : 'default-call-id'
+      }
 
-        // Auto-respond to REGISTER
-        if (data.includes('REGISTER')) {
+      const extractCSeq = (data: string): string => {
+        const match = data.match(/CSeq:\s*(\d+)/i)
+        return match ? match[1] : '1'
+      }
+
+      const extractBranch = (data: string): string => {
+        const match = data.match(/branch=([^;\s]+)/i)
+        return match ? match[1] : 'z9hG4bK123'
+      }
+
+      const extractFromTag = (data: string): string => {
+        const match = data.match(/From:.*tag=([^;\s]+)/i)
+        return match ? match[1] : '123'
+      }
+
+      const extractToUri = (data: string): string => {
+        const match = data.match(/To:\s*<([^>]+)>/i)
+        return match ? match[1] : 'sip:destination@example.com'
+      }
+
+      const extractFromUri = (data: string): string => {
+        const match = data.match(/From:\s*<([^>]+)>/i)
+        return match ? match[1] : 'sip:testuser@example.com'
+      }
+
+      // Mock WebSocket implementation
+      class MockWebSocket extends EventTarget {
+        url: string
+        readyState = 0 // CONNECTING
+        static CONNECTING = 0
+        static OPEN = 1
+        static CLOSING = 2
+        static CLOSED = 3
+
+        // Track active calls
+        private activeCalls = new Map<string, any>()
+
+        constructor(url: string) {
+          super()
+          this.url = url
+
+          // Simulate connection
           setTimeout(() => {
-            const response =
-              'SIP/2.0 200 OK\r\n' +
-              'Via: SIP/2.0/WS fake;branch=z9hG4bK123\r\n' +
-              'From: <sip:testuser@example.com>;tag=123\r\n' +
-              'To: <sip:testuser@example.com>;tag=456\r\n' +
-              'Call-ID: test-call-id\r\n' +
-              'CSeq: 1 REGISTER\r\n' +
-              'Contact: <sip:testuser@example.com>;expires=600\r\n' +
-              'Content-Length: 0\r\n\r\n'
-
-            const messageEvent = new MessageEvent('message', { data: response })
-            this.dispatchEvent(messageEvent)
-          }, 100)
+            this.readyState = 1 // OPEN
+            this.dispatchEvent(new Event('open'))
+          }, delays.CONNECTION)
         }
 
-        // Auto-respond to INVITE
-        if (data.includes('INVITE')) {
+        send(data: string) {
+          if (this.readyState !== 1) return
+
+          const method = parseSipMethod(data)
+          const callId = extractCallId(data)
+          const cseq = extractCSeq(data)
+          const branch = extractBranch(data)
+          const fromTag = extractFromTag(data)
+
+          // Handle different SIP methods
+          switch (method) {
+            case 'REGISTER':
+              this.handleRegister(data, callId, cseq, branch, fromTag)
+              break
+            case 'INVITE':
+              this.handleInvite(data, callId, cseq, branch, fromTag)
+              break
+            case 'BYE':
+              this.handleBye(data, callId, cseq, branch)
+              break
+            case 'CANCEL':
+              this.handleCancel(data, callId, cseq, branch)
+              break
+            case 'ACK':
+              this.handleAck(data, callId)
+              break
+            case 'OPTIONS':
+              this.handleOptions(data, callId, cseq, branch)
+              break
+            case 'UPDATE':
+              this.handleUpdate(data, callId, cseq, branch)
+              break
+            case 'INFO':
+              this.handleInfo(data, callId, cseq, branch)
+              break
+            default:
+              console.log('Mock WS: Unhandled SIP method:', method)
+          }
+        }
+
+        private handleRegister(
+          data: string,
+          callId: string,
+          cseq: string,
+          branch: string,
+          fromTag: string
+        ) {
           setTimeout(() => {
-            // Send 100 Trying
+            const fromUri = extractFromUri(data)
+            const response =
+              `SIP/2.0 200 OK\r\n` +
+              `Via: SIP/2.0/WS fake;branch=${branch}\r\n` +
+              `From: <${fromUri}>;tag=${fromTag}\r\n` +
+              `To: <${fromUri}>;tag=server-${Date.now()}\r\n` +
+              `Call-ID: ${callId}\r\n` +
+              `CSeq: ${cseq} REGISTER\r\n` +
+              `Contact: <${fromUri}>;expires=600\r\n` +
+              `Content-Length: 0\r\n\r\n`
+
+            this.dispatchEvent(new MessageEvent('message', { data: response }))
+          }, delays.REGISTER_200)
+        }
+
+        private handleInvite(
+          data: string,
+          callId: string,
+          cseq: string,
+          branch: string,
+          fromTag: string
+        ) {
+          const fromUri = extractFromUri(data)
+          const toUri = extractToUri(data)
+          const toTag = `to-${Date.now()}`
+
+          // Store call info
+          this.activeCalls.set(callId, { fromUri, toUri, fromTag, toTag })
+
+          // Send 100 Trying
+          setTimeout(() => {
             const trying =
-              'SIP/2.0 100 Trying\r\n' +
-              'Via: SIP/2.0/WS fake;branch=z9hG4bK123\r\n' +
-              'From: <sip:testuser@example.com>;tag=123\r\n' +
-              'To: <sip:destination@example.com>\r\n' +
-              'Call-ID: test-call-id-2\r\n' +
-              'CSeq: 1 INVITE\r\n' +
-              'Content-Length: 0\r\n\r\n'
+              `SIP/2.0 100 Trying\r\n` +
+              `Via: SIP/2.0/WS fake;branch=${branch}\r\n` +
+              `From: <${fromUri}>;tag=${fromTag}\r\n` +
+              `To: <${toUri}>\r\n` +
+              `Call-ID: ${callId}\r\n` +
+              `CSeq: ${cseq} INVITE\r\n` +
+              `Content-Length: 0\r\n\r\n`
 
             this.dispatchEvent(new MessageEvent('message', { data: trying }))
 
             // Send 180 Ringing
             setTimeout(() => {
               const ringing =
-                'SIP/2.0 180 Ringing\r\n' +
-                'Via: SIP/2.0/WS fake;branch=z9hG4bK123\r\n' +
-                'From: <sip:testuser@example.com>;tag=123\r\n' +
-                'To: <sip:destination@example.com>;tag=789\r\n' +
-                'Call-ID: test-call-id-2\r\n' +
-                'CSeq: 1 INVITE\r\n' +
-                'Content-Length: 0\r\n\r\n'
+                `SIP/2.0 180 Ringing\r\n` +
+                `Via: SIP/2.0/WS fake;branch=${branch}\r\n` +
+                `From: <${fromUri}>;tag=${fromTag}\r\n` +
+                `To: <${toUri}>;tag=${toTag}\r\n` +
+                `Call-ID: ${callId}\r\n` +
+                `CSeq: ${cseq} INVITE\r\n` +
+                `Content-Length: 0\r\n\r\n`
 
               this.dispatchEvent(new MessageEvent('message', { data: ringing }))
-            }, 100)
-          }, 50)
+
+              // Auto-answer after ringing (optional - can be disabled)
+              // Uncomment to auto-answer:
+              // setTimeout(() => {
+              //   const ok =
+              //     `SIP/2.0 200 OK\r\n` +
+              //     `Via: SIP/2.0/WS fake;branch=${branch}\r\n` +
+              //     `From: <${fromUri}>;tag=${fromTag}\r\n` +
+              //     `To: <${toUri}>;tag=${toTag}\r\n` +
+              //     `Call-ID: ${callId}\r\n` +
+              //     `CSeq: ${cseq} INVITE\r\n` +
+              //     `Contact: <${toUri}>\r\n` +
+              //     `Content-Type: application/sdp\r\n` +
+              //     `Content-Length: 0\r\n\r\n`
+
+              //   this.dispatchEvent(new MessageEvent('message', { data: ok }))
+              // }, delays.INVITE_200)
+            }, delays.INVITE_180 - delays.INVITE_100)
+          }, delays.INVITE_100)
+        }
+
+        private handleBye(data: string, callId: string, cseq: string, branch: string) {
+          setTimeout(() => {
+            const callInfo = this.activeCalls.get(callId)
+            if (callInfo) {
+              const response =
+                `SIP/2.0 200 OK\r\n` +
+                `Via: SIP/2.0/WS fake;branch=${branch}\r\n` +
+                `From: <${callInfo.fromUri}>;tag=${callInfo.fromTag}\r\n` +
+                `To: <${callInfo.toUri}>;tag=${callInfo.toTag}\r\n` +
+                `Call-ID: ${callId}\r\n` +
+                `CSeq: ${cseq} BYE\r\n` +
+                `Content-Length: 0\r\n\r\n`
+
+              this.dispatchEvent(new MessageEvent('message', { data: response }))
+              this.activeCalls.delete(callId)
+            }
+          }, delays.BYE_200)
+        }
+
+        private handleCancel(data: string, callId: string, cseq: string, branch: string) {
+          setTimeout(() => {
+            const callInfo = this.activeCalls.get(callId)
+            if (callInfo) {
+              // Send 200 OK for CANCEL
+              const cancelOk =
+                `SIP/2.0 200 OK\r\n` +
+                `Via: SIP/2.0/WS fake;branch=${branch}\r\n` +
+                `From: <${callInfo.fromUri}>;tag=${callInfo.fromTag}\r\n` +
+                `To: <${callInfo.toUri}>\r\n` +
+                `Call-ID: ${callId}\r\n` +
+                `CSeq: ${cseq} CANCEL\r\n` +
+                `Content-Length: 0\r\n\r\n`
+
+              this.dispatchEvent(new MessageEvent('message', { data: cancelOk }))
+
+              // Send 487 Request Terminated for original INVITE
+              const inviteCseq = extractCSeq(data)
+              const terminated =
+                `SIP/2.0 487 Request Terminated\r\n` +
+                `Via: SIP/2.0/WS fake;branch=${branch}\r\n` +
+                `From: <${callInfo.fromUri}>;tag=${callInfo.fromTag}\r\n` +
+                `To: <${callInfo.toUri}>;tag=${callInfo.toTag}\r\n` +
+                `Call-ID: ${callId}\r\n` +
+                `CSeq: ${inviteCseq} INVITE\r\n` +
+                `Content-Length: 0\r\n\r\n`
+
+              setTimeout(() => {
+                this.dispatchEvent(new MessageEvent('message', { data: terminated }))
+                this.activeCalls.delete(callId)
+              }, 20)
+            }
+          }, delays.CANCEL_200)
+        }
+
+        private handleAck(data: string, callId: string) {
+          // ACK doesn't get a response, just process it
+          setTimeout(() => {
+            console.log('Mock WS: ACK processed for', callId)
+          }, delays.ACK_PROCESS)
+        }
+
+        private handleOptions(data: string, callId: string, cseq: string, branch: string) {
+          setTimeout(() => {
+            const fromUri = extractFromUri(data)
+            const toUri = extractToUri(data)
+            const fromTag = extractFromTag(data)
+
+            const response =
+              `SIP/2.0 200 OK\r\n` +
+              `Via: SIP/2.0/WS fake;branch=${branch}\r\n` +
+              `From: <${fromUri}>;tag=${fromTag}\r\n` +
+              `To: <${toUri}>;tag=options-${Date.now()}\r\n` +
+              `Call-ID: ${callId}\r\n` +
+              `CSeq: ${cseq} OPTIONS\r\n` +
+              `Allow: INVITE, ACK, CANCEL, BYE, OPTIONS, INFO, UPDATE\r\n` +
+              `Accept: application/sdp\r\n` +
+              `Content-Length: 0\r\n\r\n`
+
+            this.dispatchEvent(new MessageEvent('message', { data: response }))
+          }, delays.OPTIONS_200)
+        }
+
+        private handleUpdate(data: string, callId: string, cseq: string, branch: string) {
+          setTimeout(() => {
+            const callInfo = this.activeCalls.get(callId)
+            if (callInfo) {
+              const response =
+                `SIP/2.0 200 OK\r\n` +
+                `Via: SIP/2.0/WS fake;branch=${branch}\r\n` +
+                `From: <${callInfo.fromUri}>;tag=${callInfo.fromTag}\r\n` +
+                `To: <${callInfo.toUri}>;tag=${callInfo.toTag}\r\n` +
+                `Call-ID: ${callId}\r\n` +
+                `CSeq: ${cseq} UPDATE\r\n` +
+                `Content-Length: 0\r\n\r\n`
+
+              this.dispatchEvent(new MessageEvent('message', { data: response }))
+            }
+          }, delays.OPTIONS_200)
+        }
+
+        private handleInfo(data: string, callId: string, cseq: string, branch: string) {
+          setTimeout(() => {
+            const callInfo = this.activeCalls.get(callId)
+            if (callInfo) {
+              const response =
+                `SIP/2.0 200 OK\r\n` +
+                `Via: SIP/2.0/WS fake;branch=${branch}\r\n` +
+                `From: <${callInfo.fromUri}>;tag=${callInfo.fromTag}\r\n` +
+                `To: <${callInfo.toUri}>;tag=${callInfo.toTag}\r\n` +
+                `Call-ID: ${callId}\r\n` +
+                `CSeq: ${cseq} INFO\r\n` +
+                `Content-Length: 0\r\n\r\n`
+
+              this.dispatchEvent(new MessageEvent('message', { data: response }))
+            }
+          }, delays.OPTIONS_200)
+        }
+
+        close() {
+          this.readyState = 3 // CLOSED
+          this.activeCalls.clear()
+          this.dispatchEvent(new CloseEvent('close', { code: 1000, reason: 'Normal closure' }))
         }
       }
 
-      close() {
-        this.readyState = 3 // CLOSED
-        const closeEvent = new CloseEvent('close', { code: 1000, reason: 'Normal closure' })
-        this.dispatchEvent(closeEvent)
-      }
-    }
-
-    // Replace global WebSocket
-    ;(window as any).WebSocket = MockWebSocket
-  })
+      // Replace global WebSocket
+      ;(window as any).WebSocket = MockWebSocket
+    },
+    { delays: SIP_DELAYS }
+  )
 }
 
 /**
