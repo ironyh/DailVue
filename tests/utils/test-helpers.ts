@@ -348,9 +348,10 @@ export function simulateSipRegistrationFailure(mockUA: any, delay: number = 10) 
 export function simulateIncomingCall(mockUA: any, sessionId: string = 'session-123') {
   const mockSession = createMockRTCSession(sessionId)
 
-  let newRTCSessionHandler: Function | null = null
+  let newRTCSessionHandler: ((...args: any[]) => void) | null = null
 
-  mockUA.on.mockImplementation((event: string, handler: Function) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  mockUA.on.mockImplementation((event: string, handler: (...args: any[]) => void) => {
     if (event === 'newRTCSession') {
       newRTCSessionHandler = handler
     }
@@ -375,9 +376,10 @@ export function simulateIncomingCall(mockUA: any, sessionId: string = 'session-1
  * Simulate call progress states
  */
 export function simulateCallProgress(mockSession: any, state: 'progress' | 'accepted' | 'confirmed' | 'ended') {
-  const handlers: Record<string, Function> = {}
+  const handlers: Record<string, (...args: any[]) => void> = {}
 
-  mockSession.on.mockImplementation((event: string, handler: Function) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  mockSession.on.mockImplementation((event: string, handler: (...args: any[]) => void) => {
     handlers[event] = handler
   })
 
@@ -450,8 +452,8 @@ export function setupIndexedDBMock() {
       contains: vi.fn().mockReturnValue(false),
     }
 
-    transaction = vi.fn((storeNames: string[], mode: string) => ({
-      objectStore: vi.fn((name: string) => ({
+    transaction = vi.fn((_storeNames: string[], _mode: string) => ({
+      objectStore: vi.fn((_name: string) => ({
         add: vi.fn().mockReturnValue({
           onsuccess: null,
           onerror: null,
@@ -484,7 +486,7 @@ export function setupIndexedDBMock() {
       })),
     }))
 
-    createObjectStore = vi.fn((name: string, options: any) => ({
+    createObjectStore = vi.fn((_name: string, _options: any) => ({
       createIndex: vi.fn(),
     }))
 
@@ -499,7 +501,7 @@ export function setupIndexedDBMock() {
   }
 
   const mockIndexedDB = {
-    open: vi.fn((name: string, version: number) => {
+    open: vi.fn((_name: string, _version: number) => {
       const request = new MockIDBOpenDBRequest()
       setTimeout(() => {
         if (request.onsuccess) {
@@ -590,9 +592,9 @@ export function checkEventBusListeners(eventBus: EventBus, eventName?: string): 
   if (eventName) {
     return eventBus.listenerCount(eventName)
   }
-  // Return total listener count across all events
-  const allEvents = (eventBus as any)._events || {}
-  return Object.keys(allEvents).reduce((total, event) => {
+  // Return total listener count across all events using public API
+  const allEventNames = eventBus.eventNames()
+  return allEventNames.reduce((total, event) => {
     return total + eventBus.listenerCount(event)
   }, 0)
 }

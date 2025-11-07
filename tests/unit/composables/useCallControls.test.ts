@@ -287,7 +287,7 @@ describe('useCallControls', () => {
       const { initiateAttendedTransfer, transferState } = useCallControls(sipClientRef)
 
       await expect(initiateAttendedTransfer('call-123', 'sip:consult@example.com')).rejects.toThrow(
-        'Call failed'
+        'SipClient.makeCall() is not implemented'
       )
 
       // Transfer state remains idle because activeTransfer wasn't created yet
