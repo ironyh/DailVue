@@ -7,7 +7,7 @@
  * @module composables/types
  */
 
-import type { CallSession } from '../types/call.types'
+import type { CallSession, CallOptions } from '../types/call.types'
 
 /**
  * Extended CallSession interface with transfer capabilities
@@ -48,12 +48,15 @@ export interface ExtendedCallSession extends CallSession {
 
 /**
  * Type guard to check if CallSession has a specific method
+ * @param session - The call session to check (can be null or undefined)
+ * @param method - The method name to check for
+ * @returns True if the session has the specified method
  */
 export function hasCallSessionMethod<K extends keyof ExtendedCallSession>(
-  session: any,
+  session: CallSession | null | undefined,
   method: K
 ): session is ExtendedCallSession & Required<Pick<ExtendedCallSession, K>> {
-  return session && typeof session[method] === 'function'
+  return session != null && typeof session[method] === 'function'
 }
 
 /**
@@ -83,16 +86,21 @@ export interface ExtendedSipClient {
 
   /**
    * Make an outgoing call and return CallSession instance
+   * @param target - Target SIP URI
+   * @param options - Optional call configuration
    */
-  call(target: string, options?: any): Promise<CallSession>
+  call(target: string, options?: CallOptions): Promise<CallSession>
 
   /**
    * Make an outgoing call and return call ID (backward compatible)
+   * @param target - Target SIP URI
+   * @param options - Optional call configuration
    */
-  makeCall(target: string, options?: any): Promise<string>
+  makeCall(target: string, options?: CallOptions): Promise<string>
 
   /**
    * Get an active call by ID
+   * @param callId - The ID of the call to retrieve
    */
   getActiveCall(callId: string): CallSession | undefined
 

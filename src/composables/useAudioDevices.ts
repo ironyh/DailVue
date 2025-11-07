@@ -1,5 +1,5 @@
 import { ref, onMounted, type Ref } from 'vue'
-import type { AudioDevice } from '../types'
+import type { AudioDevice } from '@/types/media.types'
 import { MediaDeviceKind } from '@/types/media.types'
 
 export interface UseAudioDevicesReturn {

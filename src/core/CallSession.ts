@@ -195,6 +195,14 @@ export class CallSession {
   }
 
   /**
+   * Get the underlying RTCPeerConnection
+   * Used for accessing RTP senders/receivers for features like DTMF and mute
+   */
+  get connection(): RTCPeerConnection | undefined {
+    return this.rtcSession?.connection
+  }
+
+  /**
    * Get the current call session as an interface
    */
   toInterface(): ICallSession {
