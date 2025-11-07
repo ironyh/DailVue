@@ -20,11 +20,14 @@ export interface TurnServerConfig {
 /**
  * Media configuration for audio and video streams
  */
+/**
+ * Media configuration (readonly-compatible for Vue reactivity)
+ */
 export interface MediaConfiguration {
   /** Audio constraints */
-  audio?: boolean | MediaTrackConstraints
+  audio?: boolean | MediaTrackConstraints | { readonly [key: string]: any }
   /** Video constraints */
-  video?: boolean | MediaTrackConstraints
+  video?: boolean | MediaTrackConstraints | { readonly [key: string]: any }
   /** Enable echo cancellation (default: true) */
   echoCancellation?: boolean
   /** Enable noise suppression (default: true) */
@@ -105,7 +108,7 @@ export interface SipClientConfig {
   /** WebSocket connection options */
   wsOptions?: {
     /** WebSocket protocols */
-    protocols?: string[]
+    protocols?: readonly string[]
     /** Connection timeout in milliseconds (default: 10000) */
     connectionTimeout?: number
     /** Maximum reconnection attempts (default: 5) */
