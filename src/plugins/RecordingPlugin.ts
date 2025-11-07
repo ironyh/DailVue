@@ -336,7 +336,7 @@ export class RecordingPlugin implements Plugin<RecordingPluginConfig> {
     }
 
     // Start recording
-    recorder.start(recordingOptions.timeSlice)
+    recorder.start(recordingOptions.timeslice)
 
     this.activeRecordings.set(callId, recorder)
 
@@ -548,7 +548,9 @@ export class RecordingPlugin implements Plugin<RecordingPluginConfig> {
               )
             })
         } else {
-          reject(new Error(`Failed to save recording to IndexedDB: ${error?.message || 'Unknown error'}`))
+          reject(
+            new Error(`Failed to save recording to IndexedDB: ${error?.message || 'Unknown error'}`)
+          )
         }
       }
     })

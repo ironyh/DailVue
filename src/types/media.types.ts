@@ -201,14 +201,18 @@ export interface RecordingOptions {
 export interface RecordingData {
   /** Recording ID */
   id: string
+  /** Call ID associated with this recording */
+  callId?: string
+  /** Current recording state */
+  state?: RecordingState
   /** Blob data */
-  blob: Blob
+  blob?: Blob
   /** MIME type */
   mimeType: string
   /** Duration in milliseconds */
-  duration: number
+  duration?: number
   /** Size in bytes */
-  size: number
+  size?: number
   /** Start time */
   startTime: Date
   /** End time */
