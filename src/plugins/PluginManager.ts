@@ -232,7 +232,7 @@ export class PluginManager implements IPluginManager {
       logger.info(`Plugin installed: ${pluginName}`)
 
       // Emit event
-      this.eventBus.emit('plugin:installed', { pluginName, metadata: entry.plugin.metadata })
+      this.eventBus.emit('plugin:installed', { pluginName, metadata: entry.plugin.metadata } as any)
     } catch (error) {
       entry.state = PluginState.Failed
       entry.error = error instanceof Error ? error : new Error(String(error))
@@ -240,7 +240,7 @@ export class PluginManager implements IPluginManager {
       logger.error(`Plugin installation failed: ${pluginName}`, error)
 
       // Emit error event
-      this.eventBus.emit('plugin:error', { pluginName, error })
+      this.eventBus.emit('plugin:error', { pluginName, error } as any)
 
       throw error
     }
@@ -281,7 +281,7 @@ export class PluginManager implements IPluginManager {
       logger.info(`Plugin unregistered: ${pluginName}`)
 
       // Emit event
-      this.eventBus.emit('plugin:unregistered', { pluginName })
+      this.eventBus.emit('plugin:unregistered', { pluginName } as any)
     }
 
     // Throw error after cleanup if uninstall failed
@@ -346,7 +346,7 @@ export class PluginManager implements IPluginManager {
     logger.info(`Plugin config updated: ${pluginName}`)
 
     // Emit event
-    this.eventBus.emit('plugin:configUpdated', { pluginName, config: entry.config })
+    this.eventBus.emit('plugin:configUpdated', { pluginName, config: entry.config } as any)
   }
 
   /**

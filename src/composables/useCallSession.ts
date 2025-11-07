@@ -310,7 +310,7 @@ export function useCallSession(
 
     const validation = validateSipUri(target)
     if (!validation.isValid) {
-      const error = `Invalid target URI: ${validation.errors.join(', ')}`
+      const error = `Invalid target URI: ${validation.errors?.join(', ') || validation.error || 'Unknown error'}`
       log.error(error, { target, validation })
       throw new Error(error)
     }
