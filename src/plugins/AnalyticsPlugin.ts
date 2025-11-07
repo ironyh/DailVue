@@ -204,7 +204,7 @@ export class AnalyticsPlugin implements Plugin<AnalyticsPluginConfig> {
    * @param context - Plugin context
    * @param config - New configuration
    */
-  async updateConfig(context: PluginContext, config: AnalyticsPluginConfig): Promise<void> {
+  async updateConfig(_context: PluginContext, config: AnalyticsPluginConfig): Promise<void> {
     const oldConfig = this.config
     this.config = { ...this.config, ...config }
 
@@ -659,7 +659,9 @@ export class AnalyticsPlugin implements Plugin<AnalyticsPluginConfig> {
         this.eventQueue.unshift(...eventsToRequeue)
 
         if (eventsToRequeue.length < events.length) {
-          logger.warn(`Could not requeue all events, dropped ${events.length - eventsToRequeue.length}`)
+          logger.warn(
+            `Could not requeue all events, dropped ${events.length - eventsToRequeue.length}`
+          )
         }
       } else {
         logger.warn(`Queue full, dropped ${events.length} events`)

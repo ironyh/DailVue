@@ -23,7 +23,6 @@ import {
 } from '../types/conference.types'
 import { createLogger } from '../utils/logger'
 import { CONFERENCE_CONSTANTS } from './constants'
-import { type ExtendedSipClient, hasSipClientMethod } from './types'
 
 const log = createLogger('useConference')
 
@@ -339,7 +338,10 @@ export function useConference(sipClient: Ref<SipClient | null>): UseConferenceRe
       throw new Error('Conference is locked')
     }
 
-    if (participantCount.value >= (conference.value.maxParticipants || CONFERENCE_CONSTANTS.DEFAULT_MAX_PARTICIPANTS)) {
+    if (
+      participantCount.value >=
+      (conference.value.maxParticipants || CONFERENCE_CONSTANTS.DEFAULT_MAX_PARTICIPANTS)
+    ) {
       throw new Error('Conference is full')
     }
 
@@ -690,11 +692,13 @@ export function useConference(sipClient: Ref<SipClient | null>): UseConferenceRe
     audioLevelInterval = window.setInterval(() => {
       if (!conference.value || !sipClient.value) return
 
-      // Get audio levels from SIP client
-      const levels = sipClient.value.getConferenceAudioLevels?.(conference.value.id)
+      // Get audio levels from SIP client (Phase 11+ feature)
+      const levels = sipClient.value.getConferenceAudioLevels?.(conference.value.id) as
+        | Map<string, number>
+        | undefined
       if (levels) {
         // Update participant audio levels
-        levels.forEach((level, uri) => {
+        levels.forEach((level: number, uri: string) => {
           const participant = participants.value.find((p) => p.uri === uri)
           if (participant) {
             participant.audioLevel = level

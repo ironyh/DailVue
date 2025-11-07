@@ -112,6 +112,24 @@ export class EventBus {
   }
 
   /**
+   * Remove an event listener by ID (across all events)
+   */
+  removeById(id: string): boolean {
+    for (const [eventName, listeners] of this.listeners.entries()) {
+      const index = listeners.findIndex((l) => l.id === id)
+      if (index !== -1) {
+        listeners.splice(index, 1)
+        if (listeners.length === 0) {
+          this.listeners.delete(eventName)
+        }
+        logger.debug(`Listener ${id} removed from event: ${eventName}`)
+        return true
+      }
+    }
+    return false
+  }
+
+  /**
    * Emit an event
    */
   async emit<K extends keyof EventMap>(event: K, data: EventMap[K]): Promise<void> {
@@ -189,6 +207,7 @@ export class EventBus {
   waitFor<K extends keyof EventMap>(event: K, timeout?: number): Promise<EventMap[K]> {
     return new Promise((resolve, reject) => {
       let timeoutId: NodeJS.Timeout | number | undefined
+      // eslint-disable-next-line prefer-const
       let listenerId: string | undefined
 
       // Setup timeout if specified

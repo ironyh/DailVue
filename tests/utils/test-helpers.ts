@@ -375,7 +375,7 @@ export function simulateIncomingCall(mockUA: any, sessionId: string = 'session-1
  * Simulate call progress states
  */
 export function simulateCallProgress(mockSession: any, state: 'progress' | 'accepted' | 'confirmed' | 'ended') {
-  let handlers: Record<string, Function> = {}
+  const handlers: Record<string, Function> = {}
 
   mockSession.on.mockImplementation((event: string, handler: Function) => {
     handlers[event] = handler

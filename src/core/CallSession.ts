@@ -96,8 +96,14 @@ export class CallSession {
   private isTerminating = false
   private isHoldPending = false
 
+  // Timers
+  private holdTimeoutTimer?: ReturnType<typeof setTimeout>
+
   // DTMF queue
   private dtmfQueue: string[] = []
+
+  // Constants
+  private readonly HOLD_TIMEOUT_MS = 10000 // 10 seconds timeout for hold/unhold operations
   private isDtmfSending = false
 
   constructor(options: CallSessionOptions) {
@@ -388,6 +394,15 @@ export class CallSession {
 
     this.isHoldPending = true
 
+    // Set timeout to prevent flag from getting stuck
+    this.holdTimeoutTimer = setTimeout(() => {
+      if (this.isHoldPending) {
+        logger.error(`Hold operation timed out after ${this.HOLD_TIMEOUT_MS}ms: ${this._id}`)
+        this.isHoldPending = false
+        this.holdTimeoutTimer = undefined
+      }
+    }, this.HOLD_TIMEOUT_MS)
+
     try {
       logger.info(`Putting call on hold: ${this._id}`)
 
@@ -397,6 +412,7 @@ export class CallSession {
       // The 'hold' event will update state and reset flag
     } catch (error) {
       logger.error(`Failed to hold call: ${this._id}`, error)
+      this.clearHoldTimeout()
       this.isHoldPending = false
       throw error
     }
@@ -417,6 +433,15 @@ export class CallSession {
 
     this.isHoldPending = true
 
+    // Set timeout to prevent flag from getting stuck
+    this.holdTimeoutTimer = setTimeout(() => {
+      if (this.isHoldPending) {
+        logger.error(`Unhold operation timed out after ${this.HOLD_TIMEOUT_MS}ms: ${this._id}`)
+        this.isHoldPending = false
+        this.holdTimeoutTimer = undefined
+      }
+    }, this.HOLD_TIMEOUT_MS)
+
     try {
       logger.info(`Resuming call from hold: ${this._id}`)
 
@@ -426,6 +451,7 @@ export class CallSession {
       // The 'unhold' event will update state and reset flag
     } catch (error) {
       logger.error(`Failed to unhold call: ${this._id}`, error)
+      this.clearHoldTimeout()
       this.isHoldPending = false
       throw error
     }
@@ -757,6 +783,7 @@ export class CallSession {
       if (e.originator === 'local') {
         this._isOnHold = true
         this.updateState('held' as CallState)
+        this.clearHoldTimeout() // Clear timeout
         this.isHoldPending = false // Reset operation lock
       } else {
         this.updateState('remote_held' as CallState)
@@ -773,6 +800,7 @@ export class CallSession {
 
       if (e.originator === 'local') {
         this._isOnHold = false
+        this.clearHoldTimeout() // Clear timeout
         this.isHoldPending = false // Reset operation lock
       }
 
@@ -940,8 +968,21 @@ export class CallSession {
   /**
    * Clean up resources
    */
+  /**
+   * Clear hold/unhold timeout
+   */
+  private clearHoldTimeout(): void {
+    if (this.holdTimeoutTimer) {
+      clearTimeout(this.holdTimeoutTimer)
+      this.holdTimeoutTimer = undefined
+    }
+  }
+
   private cleanup(): void {
     logger.debug(`Cleaning up call session: ${this._id}`)
+
+    // Clear any pending timeouts
+    this.clearHoldTimeout()
 
     // Stop local stream tracks
     if (this._localStream) {

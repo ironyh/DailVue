@@ -29,7 +29,8 @@ export function useAudioDevices(): UseAudioDevicesReturn {
         .map((device) => ({
           deviceId: device.deviceId,
           label: device.label || `Microphone ${device.deviceId.slice(0, 5)}`,
-          kind: device.kind,
+          kind: device.kind as any,
+          groupId: device.groupId,
         }))
 
       audioOutputDevices.value = devices
@@ -37,7 +38,8 @@ export function useAudioDevices(): UseAudioDevicesReturn {
         .map((device) => ({
           deviceId: device.deviceId,
           label: device.label || `Speaker ${device.deviceId.slice(0, 5)}`,
-          kind: device.kind,
+          kind: device.kind as any,
+          groupId: device.groupId,
         }))
 
       // Set default devices if not already set

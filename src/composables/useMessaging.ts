@@ -21,7 +21,6 @@ import {
 } from '../types/messaging.types'
 import { createLogger } from '../utils/logger'
 import { MESSAGING_CONSTANTS } from './constants'
-import { type ExtendedSipClient, hasSipClientMethod } from './types'
 
 const log = createLogger('useMessaging')
 
@@ -188,7 +187,11 @@ export function useMessaging(sipClient: Ref<SipClient | null>): UseMessagingRetu
   /**
    * Handle incoming message
    */
-  const handleIncomingMessage = (from: string, content: string, contentType: MessageContentType = MessageContentType.Text): void => {
+  const handleIncomingMessage = (
+    from: string,
+    content: string,
+    contentType: MessageContentType = MessageContentType.Text
+  ): void => {
     log.info(`Received message from ${from}`)
 
     const message: Message = {

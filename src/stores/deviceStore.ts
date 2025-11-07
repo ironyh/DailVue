@@ -59,7 +59,7 @@ const state = reactive<DeviceStoreState>({
 /**
  * Computed values
  */
-const computed_values = {
+const computed_values: Record<string, any> = {
   /** Total number of available devices */
   totalDevices: computed(
     () =>
@@ -604,5 +604,36 @@ export const deviceStore = {
       lastEnumerationTime: state.lastEnumerationTime,
       hasDeviceChangeListener: state.hasDeviceChangeListener,
     }
+  },
+
+  /**
+   * Set all devices at once (bulk update)
+   */
+  setDevices(devices: MediaDeviceInfo[]): void {
+    state.audioInputDevices = devices
+      .filter((d) => d.kind === 'audioinput')
+      .map((d) => ({
+        deviceId: d.deviceId,
+        kind: d.kind as any,
+        label: d.label,
+        groupId: d.groupId,
+      }))
+    state.audioOutputDevices = devices
+      .filter((d) => d.kind === 'audiooutput')
+      .map((d) => ({
+        deviceId: d.deviceId,
+        kind: d.kind as any,
+        label: d.label,
+        groupId: d.groupId,
+      }))
+    state.videoInputDevices = devices
+      .filter((d) => d.kind === 'videoinput')
+      .map((d) => ({
+        deviceId: d.deviceId,
+        kind: d.kind as any,
+        label: d.label,
+        groupId: d.groupId,
+      }))
+    state.lastEnumerationTime = new Date()
   },
 }

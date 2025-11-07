@@ -40,7 +40,7 @@ export interface CallHistoryEntry {
   /** Was video call */
   hasVideo: boolean
   /** Custom tags */
-  tags?: string[]
+  tags?: readonly string[]
   /** Custom metadata */
   metadata?: Record<string, any>
 }
@@ -64,7 +64,7 @@ export interface HistoryFilter {
   /** Filter by date range (to) */
   dateTo?: Date
   /** Filter by tags */
-  tags?: string[]
+  tags?: readonly string[]
   /** Search query (searches in URI and display name) */
   searchQuery?: string
   /** Sort field */
@@ -136,7 +136,7 @@ export interface HistoryStatistics {
  */
 export interface HistorySearchResult {
   /** Matched entries */
-  entries: CallHistoryEntry[]
+  entries: readonly CallHistoryEntry[]
   /** Total count (before pagination) */
   totalCount: number
   /** Has more results */

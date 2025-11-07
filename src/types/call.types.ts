@@ -75,7 +75,11 @@ export enum TerminationCause {
  * Call options for making a call
  */
 export interface CallOptions {
-  /** Media constraints */
+  /** Enable audio (shorthand for mediaConstraints.audio) */
+  audio?: boolean | MediaTrackConstraints
+  /** Enable video (shorthand for mediaConstraints.video) */
+  video?: boolean | MediaTrackConstraints
+  /** Media constraints (detailed configuration) */
   mediaConstraints?: {
     audio?: boolean | MediaTrackConstraints
     video?: boolean | MediaTrackConstraints
@@ -98,7 +102,11 @@ export interface CallOptions {
  * Answer options for incoming calls
  */
 export interface AnswerOptions {
-  /** Media constraints */
+  /** Enable audio (shorthand for mediaConstraints.audio) */
+  audio?: boolean | MediaTrackConstraints
+  /** Enable video (shorthand for mediaConstraints.video) */
+  video?: boolean | MediaTrackConstraints
+  /** Media constraints (detailed configuration) */
   mediaConstraints?: {
     audio?: boolean | MediaTrackConstraints
     video?: boolean | MediaTrackConstraints
@@ -119,6 +127,8 @@ export interface DTMFOptions {
   interToneGap?: number
   /** Transport type */
   transportType?: 'RFC2833' | 'INFO'
+  /** Transport type (alias for transportType) */
+  transport?: 'RFC2833' | 'INFO'
 }
 
 /**

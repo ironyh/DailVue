@@ -149,7 +149,13 @@ export * from './providers'
  * await sipClient.start()
  * ```
  */
-export * from './core'
+// Export core classes (CallSession class from core takes precedence over interface from types)
+export { EventBus } from './core/EventBus'
+export { TransportManager } from './core/TransportManager'
+export { SipClient } from './core/SipClient'
+export { CallSession } from './core/CallSession' // Class, not the interface from types
+export { MediaManager } from './core/MediaManager'
+// Note: CallSessionOptions exported from composables, not core
 
 // ============================================================================
 // State Stores
@@ -206,7 +212,10 @@ export * from './stores'
  * }))
  * ```
  */
-export * from './plugins'
+// Export plugin system (PluginManager class from plugins takes precedence)
+export { HookManager, PluginManager } from './plugins'
+export { AnalyticsPlugin, createAnalyticsPlugin } from './plugins'
+export { RecordingPlugin, createRecordingPlugin } from './plugins'
 
 // ============================================================================
 // Utilities
@@ -233,7 +242,13 @@ export * from './plugins'
  * logger.info('Application started')
  * ```
  */
-export * from './utils'
+// Export utilities (excluding duplicates: getStorageQuota, getStorageUsageSummary from stores, STORAGE_KEYS from types)
+export * from './utils/validators'
+export * from './utils/formatters'
+export * from './utils/logger'
+export * from './utils/encryption'
+// storageQuota functions exported from stores instead
+// constants partially exported (STORAGE_KEYS from types instead)
 
 // ============================================================================
 // Storage Adapters
@@ -271,7 +286,7 @@ export * from './storage'
 // ============================================================================
 
 import type { App, Plugin } from 'vue'
-import { createLogger, type LogLevel } from './utils/logger'
+import { createLogger, setLogLevel, type LogLevel } from './utils/logger'
 import { configStore } from './stores'
 
 /**
@@ -399,9 +414,9 @@ export function createVueSip(options: VueSipOptions = {}): Plugin {
 
       // Configure logging
       if (debug) {
-        logger.setLevel('debug')
+        setLogLevel('debug')
       } else if (logLevel) {
-        logger.setLevel(logLevel)
+        setLogLevel(logLevel)
       }
 
       // Initialize configuration store if config provided

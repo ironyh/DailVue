@@ -105,10 +105,11 @@ const namespaceColors = new Map<string, string>()
 function getNamespaceColor(namespace: string): string {
   if (!namespaceColors.has(namespace)) {
     const colorIndex = namespaceColors.size % NAMESPACE_COLORS.length
-    namespaceColors.set(namespace, NAMESPACE_COLORS[colorIndex])
+    const assignedColor = NAMESPACE_COLORS[colorIndex] || NAMESPACE_COLORS[0]!
+    namespaceColors.set(namespace, assignedColor)
   }
   const color = namespaceColors.get(namespace)
-  return color || NAMESPACE_COLORS[0]
+  return color || NAMESPACE_COLORS[0]!
 }
 
 /**

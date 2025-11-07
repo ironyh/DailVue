@@ -297,6 +297,29 @@ export const callStore = {
   },
 
   /**
+   * Add a call to active calls (alias for addCall)
+   * Provided for backward compatibility with composables
+   *
+   * @param call - Call session to add
+   * @returns True if added successfully, false if max limit reached
+   */
+  addActiveCall(call: CallSession): boolean {
+    return callStore.addCall(call)
+  },
+
+  /**
+   * Remove a call from active calls (alias for removeCall)
+   * Provided for backward compatibility with composables
+   *
+   * @param callId - Call ID to remove
+   * @returns True if removed successfully, false if not found
+   */
+  removeActiveCall(callId: string): boolean {
+    const removed = callStore.removeCall(callId)
+    return removed !== undefined
+  },
+
+  /**
    * Get a call by ID
    *
    * @param callId - Call ID to lookup

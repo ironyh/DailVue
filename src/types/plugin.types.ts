@@ -10,6 +10,10 @@ import type { SipClient } from '../core/SipClient'
 import type { CallSession } from '../core/CallSession'
 import type { MediaManager } from '../core/MediaManager'
 import type { SipClientConfig } from './config.types'
+import type { RecordingState, RecordingOptions, RecordingData } from './media.types'
+
+// Re-export recording types for convenience
+export type { RecordingState, RecordingOptions, RecordingData }
 
 /**
  * Hook priority levels
@@ -354,59 +358,6 @@ export interface AnalyticsPluginConfig extends PluginConfig {
   maxPayloadSize?: number
   /** Validate event data (null, undefined, empty objects) */
   validateEventData?: boolean
-}
-
-/**
- * Recording state
- */
-export enum RecordingState {
-  Idle = 'idle',
-  Starting = 'starting',
-  Recording = 'recording',
-  Paused = 'paused',
-  Stopping = 'stopping',
-  Stopped = 'stopped',
-  Failed = 'failed',
-}
-
-/**
- * Recording options
- */
-export interface RecordingOptions {
-  /** Include audio */
-  audio?: boolean
-  /** Include video */
-  video?: boolean
-  /** MIME type for recording */
-  mimeType?: string
-  /** Audio bits per second */
-  audioBitsPerSecond?: number
-  /** Video bits per second */
-  videoBitsPerSecond?: number
-  /** Time slice for ondataavailable (ms) */
-  timeSlice?: number
-}
-
-/**
- * Recording data
- */
-export interface RecordingData {
-  /** Recording ID */
-  id: string
-  /** Call session ID */
-  callId: string
-  /** Recording start time */
-  startTime: Date
-  /** Recording end time */
-  endTime?: Date
-  /** Recording duration (ms) */
-  duration?: number
-  /** Recorded blob */
-  blob?: Blob
-  /** MIME type */
-  mimeType: string
-  /** Recording state */
-  state: RecordingState
 }
 
 /**

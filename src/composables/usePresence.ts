@@ -19,7 +19,6 @@ import {
 } from '../types/presence.types'
 import { createLogger } from '../utils/logger'
 import { PRESENCE_CONSTANTS } from './constants'
-import { type ExtendedSipClient, hasSipClientMethod } from './types'
 
 const log = createLogger('usePresence')
 
@@ -164,7 +163,7 @@ export function usePresence(sipClient: Ref<SipClient | null>): UsePresenceReturn
    */
   const setStatus = async (
     state: PresenceState,
-    options: PresencePublishOptions = {}
+    options: Omit<PresencePublishOptions, 'state'> = {}
   ): Promise<void> => {
     if (!sipClient.value) {
       throw new Error('SIP client not initialized')
@@ -380,9 +379,11 @@ export function usePresence(sipClient: Ref<SipClient | null>): UsePresenceReturn
 
     const promises: Promise<void>[] = []
     subscriptions.value.forEach((_, uri) => {
-      promises.push(unsubscribe(uri).catch((error) => {
-        log.error(`Failed to unsubscribe from ${uri}:`, error)
-      }))
+      promises.push(
+        unsubscribe(uri).catch((error) => {
+          log.error(`Failed to unsubscribe from ${uri}:`, error)
+        })
+      )
     })
 
     await Promise.allSettled(promises)

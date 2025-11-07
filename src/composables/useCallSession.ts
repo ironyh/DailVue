@@ -185,7 +185,13 @@ export function useCallSession(
 
   const isActive = computed(() => {
     const s = state.value
-    return s === 'active' || s === 'ringing' || s === 'connecting'
+    return (
+      s === 'active' ||
+      s === 'ringing' ||
+      s === 'calling' ||
+      s === 'answering' ||
+      s === 'early_media'
+    )
   })
 
   const isOnHold = computed(() => session.value?.isOnHold ?? false)
@@ -248,8 +254,8 @@ export function useCallSession(
       try {
         if (newState === 'active' && oldState !== 'active') {
           startDurationTracking()
-        } else if (newState === 'ended' || newState === 'failed') {
-          // Stop timer on ended OR failed state to prevent leaks
+        } else if (newState === 'terminated' || newState === 'failed') {
+          // Stop timer on terminated OR failed state to prevent leaks
           if (oldState !== newState) {
             stopDurationTracking()
           }
@@ -304,7 +310,7 @@ export function useCallSession(
 
     const validation = validateSipUri(target)
     if (!validation.isValid) {
-      const error = `Invalid target URI: ${validation.errors.join(', ')}`
+      const error = `Invalid target URI: ${validation.errors?.join(', ') || validation.error || 'Unknown error'}`
       log.error(error, { target, validation })
       throw new Error(error)
     }
@@ -682,7 +688,7 @@ export function useCallSession(
 
   return {
     // State
-    session,
+    session: session as Ref<CallSession | null>,
     state,
     callId,
     direction,

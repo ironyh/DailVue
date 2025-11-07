@@ -117,7 +117,8 @@ describe('registrationStore', () => {
 
       expect(registrationStore.secondsUntilExpiry).toBe(600)
 
-      // Advance time by 300 seconds
+      // Advance time by 300 seconds (both timers and system time)
+      vi.setSystemTime(new Date(now.getTime() + 300 * 1000))
       vi.advanceTimersByTime(300 * 1000)
       expect(registrationStore.secondsUntilExpiry).toBe(300)
     })
@@ -132,11 +133,13 @@ describe('registrationStore', () => {
       expect(registrationStore.isExpiringSoon).toBe(false)
 
       // Advance to 35 seconds remaining
+      vi.setSystemTime(new Date(now.getTime() + 25 * 1000))
       vi.advanceTimersByTime(25 * 1000)
       expect(registrationStore.secondsUntilExpiry).toBe(35)
       expect(registrationStore.isExpiringSoon).toBe(false)
 
       // Advance to 25 seconds remaining
+      vi.setSystemTime(new Date(now.getTime() + 35 * 1000))
       vi.advanceTimersByTime(10 * 1000)
       expect(registrationStore.secondsUntilExpiry).toBe(25)
       expect(registrationStore.isExpiringSoon).toBe(true)
@@ -151,6 +154,7 @@ describe('registrationStore', () => {
       expect(registrationStore.hasExpired).toBe(false)
 
       // Advance past expiry
+      vi.setSystemTime(new Date(now.getTime() + 61 * 1000))
       vi.advanceTimersByTime(61 * 1000)
       expect(registrationStore.hasExpired).toBe(true)
     })

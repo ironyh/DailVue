@@ -99,10 +99,7 @@ export class TransportManager {
    * Check if currently connected
    */
   get isConnected(): boolean {
-    return (
-      this.currentState === ConnectionState.Connected &&
-      this.ws?.readyState === WebSocket.OPEN
-    )
+    return this.currentState === ConnectionState.Connected && this.ws?.readyState === WebSocket.OPEN
   }
 
   /**
@@ -207,7 +204,8 @@ export class TransportManager {
             this.ws?.close()
             this.setState(ConnectionState.ConnectionFailed)
             reject(new Error('Connection timeout'))
-            this.handleReconnection()
+            // Note: handleReconnection() is not called here because we're rejecting the promise.
+            // Reconnection will be handled by the onclose event handler if autoReconnect is enabled.
           }
         }, this.config.connectionTimeout)
 

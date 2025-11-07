@@ -17,8 +17,12 @@ import { SIP_URI_REGEX, E164_PHONE_REGEX, WEBSOCKET_URL_REGEX } from './constant
 export interface SimpleValidationResult {
   /** Whether the input is valid */
   valid: boolean
+  /** Alias for valid (backward compatibility) */
+  isValid?: boolean
   /** Error message if validation failed */
   error: string | null
+  /** Errors array (backward compatibility - same as error but in array form) */
+  errors?: string[]
   /** Normalized/cleaned version of the input if valid */
   normalized: string | null
 }
@@ -545,6 +549,7 @@ export function validateDtmfSequence(sequence: string): SimpleValidationResult {
 
   for (let i = 0; i < sequence.length; i++) {
     const tone = sequence[i]
+    if (!tone) continue
     const result = validateDtmfTone(tone)
 
     if (!result.valid) {

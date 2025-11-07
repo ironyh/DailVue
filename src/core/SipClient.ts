@@ -4,16 +4,19 @@
  * @packageDocumentation
  */
 
-import JsSIP, { type UA, type UAConfiguration, type Socket } from 'jssip'
+import JsSIP, { type UA, type Socket } from 'jssip'
+import type { UAConfiguration } from 'jssip/lib/UA'
 import type { EventBus } from './EventBus'
-import type {
-  SipClientConfig,
-  ValidationResult,
-} from '@/types/config.types'
-import type {
+import type { SipClientConfig, ValidationResult } from '@/types/config.types'
+import type { ConferenceOptions } from '@/types/conference.types'
+import type { PresencePublishOptions, PresenceSubscriptionOptions } from '@/types/presence.types'
+import type { CallSession, CallOptions } from '@/types/call.types'
+// Note: JsSIP types are defined in jssip.types.ts for documentation purposes,
+// but we use 'any' for JsSIP event handlers since the library doesn't export proper types
+import {
   RegistrationState,
   ConnectionState,
-  AuthenticationCredentials,
+  type AuthenticationCredentials,
 } from '@/types/sip.types'
 import { createLogger } from '@/utils/logger'
 import { validateSipConfig } from '@/utils/validators'
@@ -61,7 +64,6 @@ export class SipClient {
   private config: SipClientConfig
   private eventBus: EventBus
   private state: SipClientState
-  private registrator: any = null
   private isStarting = false
   private isStopping = false
 
@@ -69,8 +71,8 @@ export class SipClient {
     this.config = config
     this.eventBus = eventBus
     this.state = {
-      connectionState: 'disconnected',
-      registrationState: 'unregistered',
+      connectionState: ConnectionState.Disconnected,
+      registrationState: RegistrationState.Unregistered,
     }
 
     // Enable JsSIP debug mode if configured
@@ -124,6 +126,14 @@ export class SipClient {
   }
 
   /**
+   * Get current configuration
+   * @returns The SIP client configuration
+   */
+  getConfig(): Readonly<SipClientConfig> {
+    return { ...this.config }
+  }
+
+  /**
    * Validate configuration
    */
   validateConfig(): ValidationResult {
@@ -165,7 +175,7 @@ export class SipClient {
 
       // Start UA (connect to WebSocket)
       logger.info('Starting SIP client')
-      this.updateConnectionState('connecting')
+      this.updateConnectionState(ConnectionState.Connecting)
       this.ua.start()
 
       // Wait for connection
@@ -179,7 +189,7 @@ export class SipClient {
       }
     } catch (error) {
       logger.error('Failed to start SIP client:', error)
-      this.updateConnectionState('connection_failed')
+      this.updateConnectionState(ConnectionState.ConnectionFailed)
       throw error
     } finally {
       this.isStarting = false
@@ -215,10 +225,9 @@ export class SipClient {
 
       // Clear UA instance
       this.ua = null
-      this.registrator = null
 
-      this.updateConnectionState('disconnected')
-      this.updateRegistrationState('unregistered')
+      this.updateConnectionState(ConnectionState.Disconnected)
+      this.updateRegistrationState(RegistrationState.Unregistered)
 
       logger.info('SIP client stopped successfully')
     } catch (error) {
@@ -247,7 +256,7 @@ export class SipClient {
     }
 
     logger.info('Registering with SIP server')
-    this.updateRegistrationState('registering')
+    this.updateRegistrationState(RegistrationState.Registering)
 
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -257,26 +266,26 @@ export class SipClient {
       const onSuccess = () => {
         clearTimeout(timeout)
         logger.info('Registration successful')
-        this.updateRegistrationState('registered')
+        this.updateRegistrationState(RegistrationState.Registered)
         this.state.registeredUri = this.config.sipUri
         this.state.lastRegistrationTime = new Date()
         this.state.registrationExpiry = this.config.registrationOptions?.expires ?? 600
         resolve()
       }
 
-      const onFailure = (cause: any) => {
+      const onFailure = (cause: unknown) => {
         clearTimeout(timeout)
         logger.error('Registration failed:', cause)
-        this.updateRegistrationState('registration_failed')
-        reject(new Error(`Registration failed: ${cause}`))
+        this.updateRegistrationState(RegistrationState.RegistrationFailed)
+        reject(new Error(`Registration failed: ${String(cause)}`))
       }
 
       // Register using JsSIP
-      this.ua.register()
+      this.ua!.register()
 
       // Listen for registration events
-      this.ua.once('registered', onSuccess)
-      this.ua.once('registrationFailed', onFailure)
+      this.ua!.once('registered', onSuccess)
+      this.ua!.once('registrationFailed', onFailure)
     })
   }
 
@@ -294,7 +303,7 @@ export class SipClient {
     }
 
     logger.info('Unregistering from SIP server')
-    this.updateRegistrationState('unregistering')
+    this.updateRegistrationState(RegistrationState.Unregistering)
 
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -304,24 +313,24 @@ export class SipClient {
       const onSuccess = () => {
         clearTimeout(timeout)
         logger.info('Unregistration successful')
-        this.updateRegistrationState('unregistered')
+        this.updateRegistrationState(RegistrationState.Unregistered)
         this.state.registeredUri = undefined
         this.state.lastRegistrationTime = undefined
         this.state.registrationExpiry = undefined
         resolve()
       }
 
-      const onFailure = (cause: any) => {
+      const onFailure = (cause: unknown) => {
         clearTimeout(timeout)
         logger.error('Unregistration failed:', cause)
-        reject(new Error(`Unregistration failed: ${cause}`))
+        reject(new Error(`Unregistration failed: ${String(cause)}`))
       }
 
       // Unregister using JsSIP
-      this.ua.unregister()
+      this.ua!.unregister()
 
       // Listen for unregistration events
-      this.ua.once('unregistered', onSuccess)
+      this.ua!.once('unregistered', onSuccess)
       // Note: JsSIP doesn't emit 'unregistrationFailed', but handle it anyway
       setTimeout(() => {
         if (this.state.registrationState === 'unregistering') {
@@ -338,9 +347,7 @@ export class SipClient {
     const config = this.config
 
     // Build sockets configuration
-    const sockets: Socket[] = [
-      new JsSIP.WebSocketInterface(config.uri) as Socket,
-    ]
+    const sockets: Socket[] = [new JsSIP.WebSocketInterface(config.uri) as Socket]
 
     // Build authentication credentials
     const authConfig: Partial<UAConfiguration> = {}
@@ -392,65 +399,65 @@ export class SipClient {
     // Connection events
     this.ua.on('connected', (e: any) => {
       logger.debug('UA connected')
-      this.updateConnectionState('connected')
+      this.updateConnectionState(ConnectionState.Connected)
       this.eventBus.emitSync('sip:connected', {
         timestamp: new Date(),
         transport: e.socket?.url,
-      })
+      } as any)
     })
 
     this.ua.on('disconnected', (e: any) => {
       logger.debug('UA disconnected:', e)
-      this.updateConnectionState('disconnected')
+      this.updateConnectionState(ConnectionState.Disconnected)
       this.eventBus.emitSync('sip:disconnected', {
         timestamp: new Date(),
         error: e.error,
-      })
+      } as any)
     })
 
-    this.ua.on('connecting', (e: any) => {
+    this.ua.on('connecting', (_e: any) => {
       logger.debug('UA connecting')
-      this.updateConnectionState('connecting')
+      this.updateConnectionState(ConnectionState.Connecting)
     })
 
     // Registration events
     this.ua.on('registered', (e: any) => {
       logger.info('UA registered')
-      this.updateRegistrationState('registered')
+      this.updateRegistrationState(RegistrationState.Registered)
       this.state.registeredUri = this.config.sipUri
       this.state.lastRegistrationTime = new Date()
       this.eventBus.emitSync('sip:registered', {
         timestamp: new Date(),
         uri: this.config.sipUri,
         expires: e.response?.getHeader('Expires'),
-      })
+      } as any)
     })
 
     this.ua.on('unregistered', (e: any) => {
       logger.info('UA unregistered')
-      this.updateRegistrationState('unregistered')
+      this.updateRegistrationState(RegistrationState.Unregistered)
       this.state.registeredUri = undefined
       this.eventBus.emitSync('sip:unregistered', {
         timestamp: new Date(),
         cause: e.cause,
-      })
+      } as any)
     })
 
     this.ua.on('registrationFailed', (e: any) => {
       logger.error('UA registration failed:', e)
-      this.updateRegistrationState('registration_failed')
+      this.updateRegistrationState(RegistrationState.RegistrationFailed)
       this.eventBus.emitSync('sip:registration_failed', {
         timestamp: new Date(),
         cause: e.cause,
         response: e.response,
-      })
+      } as any)
     })
 
     this.ua.on('registrationExpiring', () => {
       logger.debug('Registration expiring, refreshing')
       this.eventBus.emitSync('sip:registration_expiring', {
         timestamp: new Date(),
-      })
+      } as any)
     })
 
     // Call events (will be handled by CallSession)
@@ -461,7 +468,7 @@ export class SipClient {
         session: e.session,
         originator: e.originator,
         request: e.request,
-      })
+      } as any)
     })
 
     // Message events
@@ -472,7 +479,7 @@ export class SipClient {
         message: e.message,
         originator: e.originator,
         request: e.request,
-      })
+      } as any)
     })
 
     // SIP events
@@ -482,7 +489,7 @@ export class SipClient {
         timestamp: new Date(),
         event: e.event,
         request: e.request,
-      })
+      } as any)
     })
   }
 
@@ -583,7 +590,103 @@ export class SipClient {
    */
   private extractUsername(sipUri: string): string {
     const match = sipUri.match(/sips?:([^@]+)@/)
-    return match ? match[1] : ''
+    return match ? match[1]! : ''
+  }
+
+  /**
+   * Create a conference (Phase 11+ feature - stub implementation)
+   * @todo Implement conference functionality in Phase 11
+   */
+  async createConference(_conferenceId: string, _options?: ConferenceOptions): Promise<void> {
+    throw new Error('Conference functionality not yet implemented (Phase 11+)')
+  }
+
+  /**
+   * Join a conference (Phase 11+ feature - stub implementation)
+   * @todo Implement conference functionality in Phase 11
+   */
+  async joinConference(_conferenceUri: string, _options?: ConferenceOptions): Promise<void> {
+    throw new Error('Conference functionality not yet implemented (Phase 11+)')
+  }
+
+  /**
+   * Invite participant to conference (Phase 11+ feature - stub implementation)
+   * @todo Implement conference functionality in Phase 11
+   */
+  async inviteToConference(_conferenceId: string, _participantUri: string): Promise<void> {
+    throw new Error('Conference functionality not yet implemented (Phase 11+)')
+  }
+
+  /**
+   * Remove participant from conference (Phase 11+ feature - stub implementation)
+   * @todo Implement conference functionality in Phase 11
+   */
+  async removeFromConference(_conferenceId: string, _participantId: string): Promise<void> {
+    throw new Error('Conference functionality not yet implemented (Phase 11+)')
+  }
+
+  /**
+   * Mute conference participant (Phase 11+ feature - stub implementation)
+   * @todo Implement conference functionality in Phase 11
+   */
+  async muteParticipant(_conferenceId: string, _participantId: string): Promise<void> {
+    throw new Error('Conference functionality not yet implemented (Phase 11+)')
+  }
+
+  /**
+   * Unmute conference participant (Phase 11+ feature - stub implementation)
+   * @todo Implement conference functionality in Phase 11
+   */
+  async unmuteParticipant(_conferenceId: string, _participantId: string): Promise<void> {
+    throw new Error('Conference functionality not yet implemented (Phase 11+)')
+  }
+
+  /**
+   * End a conference (Phase 11+ feature - stub implementation)
+   * @todo Implement conference functionality in Phase 11
+   */
+  async endConference(_conferenceId: string): Promise<void> {
+    throw new Error('Conference functionality not yet implemented (Phase 11+)')
+  }
+
+  /**
+   * Start conference recording (Phase 11+ feature - stub implementation)
+   * @todo Implement conference functionality in Phase 11
+   */
+  async startConferenceRecording(_conferenceId: string): Promise<void> {
+    throw new Error('Conference functionality not yet implemented (Phase 11+)')
+  }
+
+  /**
+   * Stop conference recording (Phase 11+ feature - stub implementation)
+   * @todo Implement conference functionality in Phase 11
+   */
+  async stopConferenceRecording(_conferenceId: string): Promise<void> {
+    throw new Error('Conference functionality not yet implemented (Phase 11+)')
+  }
+
+  /**
+   * Get conference audio levels (Phase 11+ feature - stub implementation)
+   * @todo Implement conference functionality in Phase 11
+   */
+  getConferenceAudioLevels?(_conferenceId: string): Map<string, number> | undefined {
+    throw new Error('Conference functionality not yet implemented (Phase 11+)')
+  }
+
+  /**
+   * Mute audio (Phase 11+ feature - stub implementation)
+   * @todo Implement audio control functionality
+   */
+  async muteAudio(): Promise<void> {
+    throw new Error('Audio control functionality not yet implemented (Phase 11+)')
+  }
+
+  /**
+   * Unmute audio (Phase 11+ feature - stub implementation)
+   * @todo Implement audio control functionality
+   */
+  async unmuteAudio(): Promise<void> {
+    throw new Error('Audio control functionality not yet implemented (Phase 11+)')
   }
 
   /**
@@ -595,7 +698,74 @@ export class SipClient {
       this.ua.stop()
       this.ua = null
     }
-    this.registrator = null
+  }
+
+  // ============================================================================
+  // Messaging & Presence Methods (Phase 11+)
+  // ============================================================================
+
+  /**
+   * Set incoming message handler
+   * @param handler - Message handler function
+   */
+  onIncomingMessage(_handler: (from: string, content: string, contentType?: string) => void): void {
+    throw new Error('Messaging functionality not yet implemented (Phase 11+)')
+  }
+
+  /**
+   * Set composing indicator handler
+   * @param handler - Composing indicator handler function
+   */
+  onComposingIndicator(_handler: (from: string, isComposing: boolean) => void): void {
+    throw new Error('Messaging functionality not yet implemented (Phase 11+)')
+  }
+
+  /**
+   * Publish presence information
+   * @param presence - Presence data
+   */
+  async publishPresence(_presence: PresencePublishOptions): Promise<void> {
+    throw new Error('Presence functionality not yet implemented (Phase 11+)')
+  }
+
+  /**
+   * Subscribe to presence updates
+   * @param uri - URI to subscribe to
+   * @param options - Subscription options
+   */
+  async subscribePresence(_uri: string, _options?: PresenceSubscriptionOptions): Promise<void> {
+    throw new Error('Presence functionality not yet implemented (Phase 11+)')
+  }
+
+  /**
+   * Unsubscribe from presence updates
+   * @param uri - URI to unsubscribe from
+   */
+  async unsubscribePresence(_uri: string): Promise<void> {
+    throw new Error('Presence functionality not yet implemented (Phase 11+)')
+  }
+
+  // ============================================================================
+  // Call Management Methods (Phase 11+)
+  // ============================================================================
+
+  /**
+   * Get an active call session by ID
+   * @param callId - Call ID to retrieve
+   * @returns Call session or undefined if not found
+   */
+  getActiveCall(_callId: string): CallSession | undefined {
+    throw new Error('Call management functionality not yet implemented (Phase 11+)')
+  }
+
+  /**
+   * Make an outgoing call
+   * @param target - Target SIP URI
+   * @param options - Call options
+   * @returns Promise resolving to call ID
+   */
+  async makeCall(_target: string, _options?: CallOptions): Promise<string> {
+    throw new Error('Call management functionality not yet implemented (Phase 11+)')
   }
 }
 

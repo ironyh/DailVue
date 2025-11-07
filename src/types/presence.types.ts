@@ -73,6 +73,8 @@ export interface PresenceEvent {
  * Presence options for publishing status
  */
 export interface PresencePublishOptions {
+  /** Presence state */
+  state: PresenceState
   /** Status message */
   statusMessage?: string
   /** Expiry time in seconds */
@@ -89,4 +91,6 @@ export interface PresenceSubscriptionOptions {
   expires?: number
   /** Custom headers */
   extraHeaders?: string[]
+  /** Callback for presence notifications */
+  onNotify?: (status: PresenceStatus) => void
 }

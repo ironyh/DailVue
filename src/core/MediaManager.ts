@@ -1160,7 +1160,7 @@ export class MediaManager {
     // Add STUN servers
     if (config?.stunServers && config.stunServers.length > 0) {
       iceServers.push({
-        urls: config.stunServers,
+        urls: [...config.stunServers],
       })
     } else {
       // Default STUN servers
@@ -1173,7 +1173,7 @@ export class MediaManager {
     if (config?.turnServers && config.turnServers.length > 0) {
       config.turnServers.forEach((turn) => {
         const server: RTCIceServer = {
-          urls: turn.urls,
+          urls: typeof turn.urls === 'string' ? turn.urls : [...turn.urls],
           username: turn.username,
           credential: turn.credential,
         }
@@ -1288,5 +1288,21 @@ export class MediaManager {
     // Clear state
     this.devices = []
     this.remoteStream = undefined
+  }
+
+  /**
+   * Set available devices (Phase 11+)
+   * @param devices - Devices to set
+   */
+  setDevices(_devices: MediaDeviceInfo[]): void {
+    throw new Error('setDevices not yet implemented (Phase 11+)')
+  }
+
+  /**
+   * Test a specific device (Phase 11+)
+   * @param deviceId - Device ID to test
+   */
+  async testDevice(_deviceId: string): Promise<{ success: boolean; audioLevel?: number }> {
+    throw new Error('testDevice not yet implemented (Phase 11+)')
   }
 }

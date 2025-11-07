@@ -14,7 +14,6 @@ import type {
   HistoryFilter,
   HistorySearchResult,
   HistoryStatistics,
-  HistoryExportFormat,
   HistoryExportOptions,
 } from '../types/history.types'
 import { CallDirection } from '../types/call.types'
@@ -32,9 +31,9 @@ export interface UseCallHistoryReturn {
   // ============================================================================
 
   /** All call history entries */
-  history: ComputedRef<CallHistoryEntry[]>
+  history: ComputedRef<readonly CallHistoryEntry[]>
   /** Filtered history entries */
-  filteredHistory: ComputedRef<CallHistoryEntry[]>
+  filteredHistory: ComputedRef<readonly CallHistoryEntry[]>
   /** Total number of calls in history */
   totalCalls: ComputedRef<number>
   /** Total number of missed calls */
@@ -61,9 +60,9 @@ export interface UseCallHistoryReturn {
   /** Set current filter */
   setFilter: (filter: HistoryFilter | null) => void
   /** Get missed calls only */
-  getMissedCalls: () => CallHistoryEntry[]
+  getMissedCalls: () => readonly CallHistoryEntry[]
   /** Get recent calls (last N) */
-  getRecentCalls: (limit?: number) => CallHistoryEntry[]
+  getRecentCalls: (limit?: number) => readonly CallHistoryEntry[]
 }
 
 /**
@@ -106,7 +105,7 @@ export function useCallHistory(): UseCallHistoryReturn {
   // Computed Values
   // ============================================================================
 
-  const history = computed(() => callStore.getCallHistory())
+  const history = computed(() => callStore.callHistory)
 
   const filteredHistory = computed(() => {
     if (!currentFilter.value) {
@@ -117,8 +116,8 @@ export function useCallHistory(): UseCallHistoryReturn {
 
   const totalCalls = computed(() => history.value.length)
 
-  const missedCallsCount = computed(() =>
-    history.value.filter((entry) => entry.wasMissed && !entry.wasAnswered).length
+  const missedCallsCount = computed(
+    () => history.value.filter((entry) => entry.wasMissed && !entry.wasAnswered).length
   )
 
   // ============================================================================
@@ -129,7 +128,7 @@ export function useCallHistory(): UseCallHistoryReturn {
    * Apply filter to history entries
    */
   const applyFilter = (
-    entries: CallHistoryEntry[],
+    entries: readonly CallHistoryEntry[],
     filter: HistoryFilter
   ): HistorySearchResult => {
     let filtered = [...entries]
@@ -169,9 +168,7 @@ export function useCallHistory(): UseCallHistoryReturn {
 
     // Filter by tags
     if (filter.tags && filter.tags.length > 0) {
-      filtered = filtered.filter((entry) =>
-        filter.tags!.some((tag) => entry.tags?.includes(tag))
-      )
+      filtered = filtered.filter((entry) => filter.tags!.some((tag) => entry.tags?.includes(tag)))
     }
 
     // Search query
@@ -273,7 +270,7 @@ export function useCallHistory(): UseCallHistoryReturn {
   const clearHistory = async (): Promise<void> => {
     try {
       log.info('Clearing all call history')
-      callStore.clearCallHistory()
+      callStore.clearHistory()
       log.info('Call history cleared successfully')
     } catch (error) {
       log.error('Failed to clear history:', error)
@@ -287,7 +284,7 @@ export function useCallHistory(): UseCallHistoryReturn {
   const deleteEntry = async (entryId: string): Promise<void> => {
     try {
       log.debug(`Deleting history entry: ${entryId}`)
-      callStore.removeHistoryEntry(entryId)
+      callStore.deleteHistoryEntry(entryId)
       log.info(`History entry ${entryId} deleted successfully`)
     } catch (error) {
       log.error(`Failed to delete entry ${entryId}:`, error)
@@ -298,14 +295,16 @@ export function useCallHistory(): UseCallHistoryReturn {
   /**
    * Get missed calls only
    */
-  const getMissedCalls = (): CallHistoryEntry[] => {
+  const getMissedCalls = (): readonly CallHistoryEntry[] => {
     return history.value.filter((entry) => entry.wasMissed && !entry.wasAnswered)
   }
 
   /**
    * Get recent calls
    */
-  const getRecentCalls = (limit: number = HISTORY_CONSTANTS.DEFAULT_LIMIT): CallHistoryEntry[] => {
+  const getRecentCalls = (
+    limit: number = HISTORY_CONSTANTS.DEFAULT_LIMIT
+  ): readonly CallHistoryEntry[] => {
     return history.value.slice(0, limit)
   }
 
@@ -381,7 +380,10 @@ export function useCallHistory(): UseCallHistoryReturn {
   /**
    * Convert entries to CSV format
    */
-  const convertToCSV = (entries: CallHistoryEntry[], includeMetadata?: boolean): string => {
+  const convertToCSV = (
+    entries: readonly CallHistoryEntry[],
+    includeMetadata?: boolean
+  ): string => {
     const headers = [
       'ID',
       'Direction',

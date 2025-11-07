@@ -4,6 +4,10 @@
  * Tests the complete SIP workflow including connection, registration, calls, and media.
  */
 
+/* eslint-disable @typescript-eslint/ban-types */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { SipClient } from '../../src/core/SipClient'
 import { CallSession } from '../../src/core/CallSession'
@@ -60,6 +64,24 @@ vi.mock('jssip', () => {
     },
   }
 })
+
+// Helper function to create CallSession with proper options
+function createMockCallSession(
+  rtcSession: any,
+  direction: 'outgoing' | 'incoming',
+  eventBus: EventBus,
+  callId: string = 'call-123'
+): CallSession {
+  return new CallSession({
+    id: callId,
+    direction,
+    localUri: 'sip:testuser@example.com',
+    remoteUri: 'sip:remote@example.com',
+    remoteDisplayName: 'Remote User',
+    rtcSession,
+    eventBus,
+  })
+}
 
 describe('SIP Workflow Integration Tests', () => {
   let eventBus: EventBus
@@ -198,12 +220,12 @@ describe('SIP Workflow Integration Tests', () => {
       mockUA.call.mockReturnValue(mockRTCSession)
 
       // Setup session event handlers
-      let sessionHandlers: Record<string, Function> = {}
+      const sessionHandlers: Record<string, Function> = {}
       mockRTCSession.on.mockImplementation((event: string, handler: Function) => {
         sessionHandlers[event] = handler
       })
 
-      const callSession = new CallSession(mockRTCSession as any, 'local', eventBus)
+      const callSession = createMockCallSession(mockRTCSession as any, 'outgoing', eventBus)
 
       // Simulate call progress
       mockRTCSession.isInProgress.mockReturnValue(true)
@@ -249,7 +271,7 @@ describe('SIP Workflow Integration Tests', () => {
         })
       }
 
-      const callSession = new CallSession(mockRTCSession as any, 'remote', eventBus)
+      const callSession = createMockCallSession(mockRTCSession as any, 'incoming', eventBus)
 
       expect(callSession).toBeDefined()
       expect(callSession.direction).toBe('incoming')
@@ -264,12 +286,12 @@ describe('SIP Workflow Integration Tests', () => {
       eventBus.on('call:ended', () => events.push('ended'))
 
       // Setup session handlers
-      let sessionHandlers: Record<string, Function> = {}
+      const sessionHandlers: Record<string, Function> = {}
       mockRTCSession.on.mockImplementation((event: string, handler: Function) => {
         sessionHandlers[event] = handler
       })
 
-      const callSession = new CallSession(mockRTCSession as any, 'local', eventBus)
+      const callSession = createMockCallSession(mockRTCSession as any, 'outgoing', eventBus)
 
       // Simulate call lifecycle
       mockRTCSession.isInProgress.mockReturnValue(true)
@@ -338,7 +360,7 @@ describe('SIP Workflow Integration Tests', () => {
 
   describe('DTMF Handling', () => {
     it('should send DTMF tones', async () => {
-      const callSession = new CallSession(mockRTCSession as any, 'local', eventBus)
+      const callSession = createMockCallSession(mockRTCSession as any, 'outgoing', eventBus)
 
       callSession.sendDTMF('1')
       expect(mockRTCSession.sendDTMF).toHaveBeenCalledWith('1', expect.any(Object))
@@ -350,7 +372,7 @@ describe('SIP Workflow Integration Tests', () => {
 
   describe('Call Transfer', () => {
     it('should transfer call (blind transfer)', async () => {
-      const callSession = new CallSession(mockRTCSession as any, 'local', eventBus)
+      const callSession = createMockCallSession(mockRTCSession as any, 'outgoing', eventBus)
 
       mockRTCSession.isEstablished.mockReturnValue(true)
 
@@ -362,7 +384,7 @@ describe('SIP Workflow Integration Tests', () => {
 
   describe('Hold/Unhold', () => {
     it('should hold and unhold call', async () => {
-      const callSession = new CallSession(mockRTCSession as any, 'local', eventBus)
+      const callSession = createMockCallSession(mockRTCSession as any, 'outgoing', eventBus)
 
       mockRTCSession.isEstablished.mockReturnValue(true)
 
@@ -378,15 +400,17 @@ describe('SIP Workflow Integration Tests', () => {
     it('should handle multiple concurrent calls', async () => {
       const activeCalls = new Map()
 
-      const call1 = new CallSession(
+      const call1 = createMockCallSession(
         { ...mockRTCSession, id: 'call-1' } as any,
-        'local',
-        eventBus
+        'outgoing',
+        eventBus,
+        'call-1'
       )
-      const call2 = new CallSession(
+      const call2 = createMockCallSession(
         { ...mockRTCSession, id: 'call-2' } as any,
-        'remote',
-        eventBus
+        'incoming',
+        eventBus,
+        'call-2'
       )
 
       activeCalls.set('call-1', call1)

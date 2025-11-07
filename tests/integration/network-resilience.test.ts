@@ -4,6 +4,10 @@
  * Tests for network disconnect, reconnection, and connection thrashing scenarios
  */
 
+/* eslint-disable @typescript-eslint/ban-types */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { SipClient } from '../../src/core/SipClient'
 import { CallSession } from '../../src/core/CallSession'
@@ -96,6 +100,7 @@ describe('Network Resilience Integration Tests', () => {
   describe('Network Disconnect During Active Call', () => {
     it('should handle WebSocket disconnect during active call', async () => {
       // Setup connected state
+      // eslint-disable-next-line @typescript-eslint/ban-types
       mockUA.once.mockImplementation((event: string, handler: Function) => {
         if (event === 'connected') {
           setTimeout(() => handler({}), 10)
@@ -106,7 +111,15 @@ describe('Network Resilience Integration Tests', () => {
       await sipClient.start()
 
       // Setup active call
-      const callSession = new CallSession(mockRTCSession as any, 'local', eventBus)
+      const _callSession = new CallSession({
+        id: 'call-123',
+        direction: 'outgoing',
+        localUri: 'sip:testuser@example.com',
+        remoteUri: 'sip:remote@example.com',
+        remoteDisplayName: 'Remote User',
+        rtcSession: mockRTCSession as any,
+        eventBus,
+      })
       mockRTCSession.isEstablished.mockReturnValue(true)
 
       // Track events
@@ -115,7 +128,10 @@ describe('Network Resilience Integration Tests', () => {
       eventBus.on('call:ended', () => events.push('call:ended'))
 
       // Simulate network disconnect
+      // eslint-disable-next-line @typescript-eslint/ban-types
       let disconnectedHandler: Function | null = null
+      // eslint-disable-next-line @typescript-eslint/ban-types
+      // eslint-disable-next-line @typescript-eslint/ban-types
       mockUA.on.mockImplementation((event: string, handler: Function) => {
         if (event === 'disconnected') {
           disconnectedHandler = handler
@@ -133,6 +149,7 @@ describe('Network Resilience Integration Tests', () => {
     })
 
     it('should attempt reconnection after disconnect', async () => {
+      // eslint-disable-next-line @typescript-eslint/ban-types
       mockUA.once.mockImplementation((event: string, handler: Function) => {
         if (event === 'connected') {
           setTimeout(() => handler({}), 10)
@@ -144,6 +161,7 @@ describe('Network Resilience Integration Tests', () => {
 
       // Disconnect
       mockUA.isConnected.mockReturnValue(false)
+      // eslint-disable-next-line @typescript-eslint/ban-types
       mockUA.once.mockImplementation((event: string, handler: Function) => {
         if (event === 'disconnected') {
           setTimeout(() => handler({}), 10)
@@ -156,6 +174,7 @@ describe('Network Resilience Integration Tests', () => {
 
       // Reconnect
       mockUA.isConnected.mockReturnValue(true)
+      // eslint-disable-next-line @typescript-eslint/ban-types
       mockUA.once.mockImplementation((event: string, handler: Function) => {
         if (event === 'connected') {
           setTimeout(() => handler({}), 10)
@@ -174,7 +193,8 @@ describe('Network Resilience Integration Tests', () => {
 
       for (let i = 0; i < cycles; i++) {
         // Connect
-        mockUA.once.mockImplementation((event: string, handler: Function) => {
+        // eslint-disable-next-line @typescript-eslint/ban-types
+      mockUA.once.mockImplementation((event: string, handler: Function) => {
           if (event === 'connected') {
             setTimeout(() => handler({}), 5)
           }
@@ -199,7 +219,8 @@ describe('Network Resilience Integration Tests', () => {
       const promises: Promise<void>[] = []
 
       for (let i = 0; i < 5; i++) {
-        mockUA.once.mockImplementation((event: string, handler: Function) => {
+        // eslint-disable-next-line @typescript-eslint/ban-types
+      mockUA.once.mockImplementation((event: string, handler: Function) => {
           if (event === 'connected') {
             setTimeout(() => handler({}), 1)
           }
@@ -223,7 +244,8 @@ describe('Network Resilience Integration Tests', () => {
       const initialListenerCount = eventBus.listenerCount()
 
       for (let i = 0; i < 5; i++) {
-        mockUA.once.mockImplementation((event: string, handler: Function) => {
+        // eslint-disable-next-line @typescript-eslint/ban-types
+      mockUA.once.mockImplementation((event: string, handler: Function) => {
           if (event === 'connected') {
             setTimeout(() => handler({}), 5)
           }
@@ -257,6 +279,7 @@ describe('Network Resilience Integration Tests', () => {
 
     it('should handle registration timeout', async () => {
       // Connect first
+      // eslint-disable-next-line @typescript-eslint/ban-types
       mockUA.once.mockImplementation((event: string, handler: Function) => {
         if (event === 'connected') {
           setTimeout(() => handler({}), 10)
@@ -279,6 +302,7 @@ describe('Network Resilience Integration Tests', () => {
     it('should handle connection that disconnects immediately after connecting', async () => {
       let connectCount = 0
 
+      // eslint-disable-next-line @typescript-eslint/ban-types
       mockUA.once.mockImplementation((event: string, handler: Function) => {
         if (event === 'connected') {
           connectCount++
@@ -306,6 +330,7 @@ describe('Network Resilience Integration Tests', () => {
       eventBus.on('sip:connection_failed', () => events.push('failed'))
 
       // First attempt - success
+      // eslint-disable-next-line @typescript-eslint/ban-types
       mockUA.once.mockImplementation((event: string, handler: Function) => {
         if (event === 'connected') {
           setTimeout(() => handler({}), 10)
@@ -327,6 +352,7 @@ describe('Network Resilience Integration Tests', () => {
 
   describe('Concurrent Connection Operations', () => {
     it('should handle multiple concurrent start() calls', async () => {
+      // eslint-disable-next-line @typescript-eslint/ban-types
       mockUA.once.mockImplementation((event: string, handler: Function) => {
         if (event === 'connected') {
           setTimeout(() => handler({}), 10)
@@ -345,6 +371,7 @@ describe('Network Resilience Integration Tests', () => {
 
     it('should handle start() during stop()', async () => {
       // Connect first
+      // eslint-disable-next-line @typescript-eslint/ban-types
       mockUA.once.mockImplementation((event: string, handler: Function) => {
         if (event === 'connected') {
           setTimeout(() => handler({}), 10)
@@ -358,6 +385,7 @@ describe('Network Resilience Integration Tests', () => {
       const stopPromise = sipClient.stop()
 
       // Try to start while stopping
+      // eslint-disable-next-line @typescript-eslint/ban-types
       mockUA.once.mockImplementation((event: string, handler: Function) => {
         if (event === 'connected') {
           setTimeout(() => handler({}), 10)
@@ -378,10 +406,12 @@ describe('Network Resilience Integration Tests', () => {
       const states = ['connecting', 'connected', 'closing', 'closed']
       const events: string[] = []
 
+      // eslint-disable-next-line @typescript-eslint/ban-types
       mockUA.on.mockImplementation((event: string, handler: Function) => {
         events.push(event)
       })
 
+      // eslint-disable-next-line @typescript-eslint/ban-types
       mockUA.once.mockImplementation((event: string, handler: Function) => {
         if (event === 'connected') {
           setTimeout(() => handler({}), 10)
@@ -396,6 +426,7 @@ describe('Network Resilience Integration Tests', () => {
     })
 
     it('should handle unexpected WebSocket errors', async () => {
+      // eslint-disable-next-line @typescript-eslint/ban-types
       mockUA.once.mockImplementation((event: string, handler: Function) => {
         if (event === 'disconnected') {
           setTimeout(
@@ -416,6 +447,7 @@ describe('Network Resilience Integration Tests', () => {
   describe('Registration During Network Issues', () => {
     it('should handle registration failure due to network', async () => {
       // Connect first
+      // eslint-disable-next-line @typescript-eslint/ban-types
       mockUA.once.mockImplementation((event: string, handler: Function) => {
         if (event === 'connected') {
           setTimeout(() => handler({}), 10)
@@ -426,6 +458,7 @@ describe('Network Resilience Integration Tests', () => {
       await sipClient.start()
 
       // Registration fails
+      // eslint-disable-next-line @typescript-eslint/ban-types
       mockUA.once.mockImplementation((event: string, handler: Function) => {
         if (event === 'registrationFailed') {
           setTimeout(() => handler({ cause: 'Network timeout' }), 10)
@@ -438,6 +471,7 @@ describe('Network Resilience Integration Tests', () => {
 
     it('should unregister when connection lost', async () => {
       // Connect and register
+      // eslint-disable-next-line @typescript-eslint/ban-types
       mockUA.once.mockImplementation((event: string, handler: Function) => {
         if (event === 'connected') {
           setTimeout(() => handler({}), 10)

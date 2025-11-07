@@ -143,7 +143,7 @@ export function parseSipUri(uri: string): Partial<SipUri> | null {
     scheme: scheme as 'sip' | 'sips',
     user,
     host,
-    port: port ? parseInt(port, 10) : null,
+    port: port ? parseInt(port, 10) : undefined,
   }
 }
 
@@ -162,20 +162,20 @@ export function parseSipUri(uri: string): Partial<SipUri> | null {
  * extractDisplayName('sip:alice@example.com') // null
  * ```
  */
-export function extractDisplayName(uri: string): string | null {
+export function extractDisplayName(uri: string): string | null | undefined {
   if (!uri || typeof uri !== 'string') {
     return null
   }
 
   // Match quoted display name: "Name" <sip:...>
   const quotedMatch = /^"([^"]+)"\s*</.exec(uri)
-  if (quotedMatch) {
+  if (quotedMatch?.[1]) {
     return quotedMatch[1]
   }
 
   // Match unquoted display name: Name <sip:...>
   const unquotedMatch = /^([^<]+)\s*</.exec(uri)
-  if (unquotedMatch) {
+  if (unquotedMatch?.[1]) {
     return unquotedMatch[1].trim()
   }
 

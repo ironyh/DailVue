@@ -21,6 +21,8 @@ const log = createLogger('useDTMF')
 export interface DTMFSequenceOptions extends DTMFOptions {
   /** Inter-tone gap in milliseconds (default: 70ms) */
   interToneGap?: number
+  /** Transport method for sending DTMF */
+  transport?: 'RFC2833' | 'INFO'
   /** Callback for each tone sent */
   onToneSent?: (tone: string) => void
   /** Callback when sequence completes */
@@ -269,6 +271,7 @@ export function useDTMF(session: Ref<CallSession | null>): UseDTMFReturn {
         }
 
         const tone = tones[i]
+        if (!tone) continue
 
         try {
           // Send tone

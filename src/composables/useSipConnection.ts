@@ -4,7 +4,10 @@ import { ref, computed, type Ref } from 'vue'
 // Future: Create adapter pattern to support both jssip.UA and sip.js.UserAgent
 // @ts-expect-error - sip.js not installed yet, will support both libraries
 import { UserAgent, Registerer, RegistererState } from 'sip.js'
-import type { SipConfig, SipError } from '../types'
+
+// Type aliases for sip.js compatibility (future support)
+type SipConfig = any // Will be properly typed when sip.js support is added
+type SipError = Error & { code?: number; reason?: string; cause?: Error }
 
 export interface UseSipConnectionReturn {
   isConnected: Ref<boolean>
@@ -72,6 +75,7 @@ export function useSipConnection(config: SipConfig): UseSipConnectionReturn {
       }
     } catch (err) {
       error.value = {
+        name: 'ConnectionError',
         code: -1,
         message: 'Failed to connect to SIP server',
         cause: err as Error,
@@ -97,6 +101,7 @@ export function useSipConnection(config: SipConfig): UseSipConnectionReturn {
       isRegistered.value = false
     } catch (err) {
       error.value = {
+        name: 'SipError',
         code: -1,
         message: 'Failed to disconnect from SIP server',
         cause: err as Error,
@@ -118,6 +123,7 @@ export function useSipConnection(config: SipConfig): UseSipConnectionReturn {
       await registerer.register()
     } catch (err) {
       error.value = {
+        name: 'SipError',
         code: -1,
         message: 'Failed to register with SIP server',
         cause: err as Error,
@@ -136,6 +142,7 @@ export function useSipConnection(config: SipConfig): UseSipConnectionReturn {
       isRegistered.value = false
     } catch (err) {
       error.value = {
+        name: 'SipError',
         code: -1,
         message: 'Failed to unregister from SIP server',
         cause: err as Error,

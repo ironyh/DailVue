@@ -53,7 +53,7 @@ const state = reactive<RegistrationStoreState>({
 /**
  * Computed values
  */
-const computed_values = {
+const computed_values: Record<string, any> = {
   /** Whether currently registered */
   isRegistered: computed(() => state.state === RegistrationState.Registered),
 

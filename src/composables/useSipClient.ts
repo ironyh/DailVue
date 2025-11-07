@@ -13,7 +13,7 @@ import { EventBus } from '@/core/EventBus'
 import { configStore } from '@/stores/configStore'
 import { registrationStore } from '@/stores/registrationStore'
 import type { SipClientConfig, ValidationResult } from '@/types/config.types'
-import type { ConnectionState, RegistrationState } from '@/types/sip.types'
+import { ConnectionState, RegistrationState } from '@/types/sip.types'
 import { createLogger } from '@/utils/logger'
 
 const logger = createLogger('useSipClient')
@@ -215,7 +215,7 @@ export function useSipClient(
    * Falls back to 'disconnected' if client not initialized
    */
   const connectionState = computed(() => {
-    return sipClient.value?.connectionState ?? 'disconnected'
+    return sipClient.value?.connectionState ?? ConnectionState.Disconnected
   })
 
   const isConnected = computed(() => {
@@ -227,7 +227,7 @@ export function useSipClient(
   })
 
   const registrationState = computed(() => {
-    return sipClient.value?.registrationState ?? 'unregistered'
+    return sipClient.value?.registrationState ?? RegistrationState.Unregistered
   })
 
   const registeredUri = computed(() => {
@@ -353,7 +353,8 @@ export function useSipClient(
       // Create SIP client if not exists
       if (!sipClient.value) {
         logger.info('Creating SIP client')
-        sipClient.value = new SipClient(config, eventBus)
+        // Cast away readonly wrapper from Vue reactivity system
+        sipClient.value = new SipClient(config as any, eventBus)
       }
 
       // Start the client with timeout
@@ -541,7 +542,7 @@ export function useSipClient(
    * Get the underlying SIP client instance
    */
   function getClient(): SipClient | null {
-    return sipClient.value
+    return sipClient.value as SipClient | null
   }
 
   /**

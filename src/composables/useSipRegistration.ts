@@ -13,7 +13,6 @@ import { RegistrationState } from '../types/sip.types'
 import { createLogger } from '../utils/logger'
 import type { SipClient } from '../core/SipClient'
 import { REGISTRATION_CONSTANTS, RETRY_CONFIG } from './constants'
-import { type ExtendedSipClient, hasSipClientMethod } from './types'
 
 const log = createLogger('useSipRegistration')
 
@@ -138,7 +137,7 @@ export function useSipRegistration(
     expires = REGISTRATION_CONSTANTS.DEFAULT_EXPIRES,
     maxRetries = REGISTRATION_CONSTANTS.DEFAULT_MAX_RETRIES,
     autoRefresh = true,
-    userAgent,
+    userAgent: _userAgent,
   } = options
 
   // ============================================================================
@@ -304,11 +303,8 @@ export function useSipRegistration(
     try {
       log.info('Starting registration...')
 
-      // Get URI - prefer from SipClient if available, fallback to store
-      const extendedClient = sipClient.value as ExtendedSipClient
-      const uri = hasSipClientMethod(extendedClient, 'getConfig')
-        ? extendedClient.getConfig!().uri
-        : registeredUri.value || 'unknown'
+      // Get URI from SipClient config
+      const uri = sipClient.value.getConfig().uri || registeredUri.value || 'unknown'
 
       registrationStore.setRegistering(uri)
 
@@ -318,20 +314,7 @@ export function useSipRegistration(
       }
 
       // Perform registration via SIP client
-      // Check if SipClient.register() accepts options (extended API)
-      if (hasSipClientMethod(extendedClient, 'register')) {
-        // Try calling with options first (extended API)
-        try {
-          await extendedClient.register!({ expires, userAgent })
-        } catch (err) {
-          // If that fails, fallback to basic register() without parameters
-          log.debug('Extended register() not available, using basic register()')
-          await sipClient.value.register()
-        }
-      } else {
-        // Use the base SipClient.register() method
-        await sipClient.value.register()
-      }
+      await sipClient.value.register()
 
       // Update store state
       registrationStore.setRegistered(uri, expires)

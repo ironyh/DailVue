@@ -131,16 +131,16 @@ import type { MediaDevice, PermissionStatus } from './media.types'
 export interface MediaProviderContext {
   // Readonly state - devices
   /** Available audio input devices */
-  readonly audioInputDevices: MediaDevice[]
+  readonly audioInputDevices: readonly MediaDevice[]
 
   /** Available audio output devices */
-  readonly audioOutputDevices: MediaDevice[]
+  readonly audioOutputDevices: readonly MediaDevice[]
 
   /** Available video input devices */
-  readonly videoInputDevices: MediaDevice[]
+  readonly videoInputDevices: readonly MediaDevice[]
 
   /** All available devices */
-  readonly allDevices: MediaDevice[]
+  readonly allDevices: readonly MediaDevice[]
 
   // Readonly state - selected devices
   /** Selected audio input device ID */
