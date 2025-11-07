@@ -191,7 +191,11 @@ export class MockSipServer {
   }
 
   /**
-   * Simulate an incoming call
+   * Simulate an incoming call from a remote party
+   * @param from - SIP URI of the caller (e.g., "sip:caller@example.com")
+   * @param to - SIP URI of the callee (e.g., "sip:callee@example.com")
+   * @returns The created mock RTC session
+   * @throws Error if URI format is invalid
    */
   simulateIncomingCall(from: string, to: string): MockRTCSession {
     const session = this.createSession()
@@ -216,7 +220,8 @@ export class MockSipServer {
   }
 
   /**
-   * Simulate call progress (ringing)
+   * Simulate call progress (ringing state)
+   * @param session - The mock RTC session to update
    */
   simulateCallProgress(session: MockRTCSession): void {
     session.isInProgress.mockReturnValue(true)
@@ -227,7 +232,8 @@ export class MockSipServer {
   }
 
   /**
-   * Simulate call acceptance
+   * Simulate call being accepted by the remote party
+   * @param session - The mock RTC session to update
    */
   simulateCallAccepted(session: MockRTCSession): void {
     session.isEstablished.mockReturnValue(true)
@@ -240,7 +246,8 @@ export class MockSipServer {
   }
 
   /**
-   * Simulate call confirmation
+   * Simulate call confirmation (ACK received)
+   * @param session - The mock RTC session to update
    */
   simulateCallConfirmed(session: MockRTCSession): void {
     this.createTimeout(() => {
@@ -251,6 +258,9 @@ export class MockSipServer {
 
   /**
    * Simulate call termination
+   * @param session - The mock RTC session to terminate
+   * @param originator - Who initiated the termination ('local' or 'remote')
+   * @param cause - Reason for termination (default: 'Bye')
    */
   simulateCallEnded(session: MockRTCSession, originator: 'local' | 'remote' = 'remote', cause = 'Bye'): void {
     session.isEnded.mockReturnValue(true)
@@ -285,6 +295,8 @@ export class MockSipServer {
 
   /**
    * Simulate network disconnect
+   * @param code - WebSocket close code (default: 1006)
+   * @param reason - Disconnect reason (default: 'Connection lost')
    */
   simulateDisconnect(code = 1006, reason = 'Connection lost'): void {
     this.mockUA.isConnected.mockReturnValue(false)
@@ -301,7 +313,8 @@ export class MockSipServer {
   }
 
   /**
-   * Simulate successful connection
+   * Simulate successful WebSocket connection
+   * @param url - WebSocket URL (default: 'wss://sip.example.com')
    */
   simulateConnect(url = 'wss://sip.example.com'): void {
     this.mockUA.isConnected.mockReturnValue(true)
@@ -317,7 +330,8 @@ export class MockSipServer {
   }
 
   /**
-   * Simulate successful registration
+   * Simulate successful SIP registration
+   * @param expires - Registration expiration time in seconds (default: from config)
    */
   simulateRegistered(expires?: number): void {
     this.mockUA.isRegistered.mockReturnValue(true)
