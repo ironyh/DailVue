@@ -688,7 +688,7 @@ export function useCallSession(
 
   return {
     // State
-    session,
+    session: session as Ref<CallSession | null>,
     state,
     callId,
     direction,
