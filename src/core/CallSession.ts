@@ -590,6 +590,82 @@ export class CallSession {
   }
 
   /**
+   * Perform blind transfer (REFER without consultation)
+   * Transfers the call to a target URI using SIP REFER method
+   *
+   * @param targetUri - Target SIP URI to transfer to
+   * @param extraHeaders - Optional SIP headers
+   */
+  async transfer(targetUri: string, extraHeaders?: string[]): Promise<void> {
+    if (this._state !== ('active' as CallState)) {
+      throw new Error(`Cannot transfer call in state: ${this._state}`)
+    }
+
+    logger.info(`Initiating blind transfer to: ${targetUri}`)
+
+    try {
+      // Use JsSIP refer method for blind transfer
+      const referOptions: any = {}
+
+      if (extraHeaders && extraHeaders.length > 0) {
+        referOptions.extraHeaders = extraHeaders
+      }
+
+      // JsSIP refer method sends REFER to target URI
+      this.rtcSession.refer(targetUri, referOptions)
+
+      logger.info(`Blind transfer initiated successfully to: ${targetUri}`)
+
+      // Emit transfer event
+      this.emitCallEvent('call:transfer_initiated', {
+        target: targetUri,
+        transferType: 'blind',
+      })
+    } catch (error) {
+      logger.error(`Failed to transfer call: ${this._id}`, error)
+      throw error
+    }
+  }
+
+  /**
+   * Perform attended transfer (REFER with Replaces header)
+   * Transfers the call after consultation with target
+   *
+   * @param targetUri - Target SIP URI
+   * @param replaceCallId - Call ID of the consultation call to replace
+   */
+  async attendedTransfer(targetUri: string, replaceCallId: string): Promise<void> {
+    if (this._state !== ('active' as CallState)) {
+      throw new Error(`Cannot transfer call in state: ${this._state}`)
+    }
+
+    logger.info(`Initiating attended transfer to: ${targetUri} (replacing call: ${replaceCallId})`)
+
+    try {
+      // For attended transfer, we need to add Replaces header
+      // The replaceCallId should reference the consultation call
+      const referOptions: any = {
+        replaces: replaceCallId, // JsSIP will construct the Replaces header
+      }
+
+      // JsSIP refer method with replaces option
+      this.rtcSession.refer(targetUri, referOptions)
+
+      logger.info(`Attended transfer initiated successfully to: ${targetUri}`)
+
+      // Emit transfer event
+      this.emitCallEvent('call:transfer_initiated', {
+        target: targetUri,
+        transferType: 'attended',
+        replaceCallId,
+      })
+    } catch (error) {
+      logger.error(`Failed to perform attended transfer: ${this._id}`, error)
+      throw error
+    }
+  }
+
+  /**
    * Utility delay function
    */
   private delay(ms: number): Promise<void> {

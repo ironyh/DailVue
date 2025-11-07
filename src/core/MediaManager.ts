@@ -1291,18 +1291,130 @@ export class MediaManager {
   }
 
   /**
-   * Set available devices (Phase 11+)
+   * Set available devices (manually update device list)
    * @param devices - Devices to set
    */
-  setDevices(_devices: MediaDeviceInfo[]): void {
-    throw new Error('setDevices not yet implemented (Phase 11+)')
+  setDevices(devices: MediaDeviceInfo[]): void {
+    logger.info('Setting devices manually', { count: devices.length })
+
+    this.devices = devices.map((device) => ({
+      deviceId: device.deviceId,
+      kind: device.kind as MediaDeviceKind,
+      label: device.label || `${device.kind} (${device.deviceId})`,
+      groupId: device.groupId,
+      isDefault: device.deviceId === 'default',
+    }))
+
+    logger.info('Devices set', {
+      total: this.devices.length,
+      audio: this.devices.filter((d) => d.kind === MediaDeviceKind.AudioInput).length,
+      video: this.devices.filter((d) => d.kind === MediaDeviceKind.VideoInput).length,
+    })
+
+    // Emit device change event
+    const event: MediaDeviceChangeEvent = {
+      type: 'devicechange',
+      addedDevices: [],
+      removedDevices: [],
+      currentDevices: this.devices,
+      timestamp: new Date(),
+    }
+
+    this.eventBus.emitSync(EventNames.MEDIA_DEVICE_CHANGED, event)
   }
 
   /**
-   * Test a specific device (Phase 11+)
+   * Test a specific device (audio or video)
    * @param deviceId - Device ID to test
    */
-  async testDevice(_deviceId: string): Promise<{ success: boolean; audioLevel?: number }> {
-    throw new Error('testDevice not yet implemented (Phase 11+)')
+  async testDevice(deviceId: string): Promise<{ success: boolean; audioLevel?: number }> {
+    logger.info('Testing device', { deviceId })
+
+    // Find the device
+    const device = this.devices.find((d) => d.deviceId === deviceId)
+    if (!device) {
+      logger.error('Device not found', { deviceId })
+      return { success: false }
+    }
+
+    // Test based on device kind
+    switch (device.kind) {
+      case MediaDeviceKind.AudioInput:
+        return await this.testAudioInputWithLevel(deviceId)
+
+      case MediaDeviceKind.VideoInput:
+        const videoResult = await this.testVideoInput(deviceId)
+        return { success: videoResult.success }
+
+      case MediaDeviceKind.AudioOutput:
+        // Audio output can't be tested directly in browser
+        logger.warn('Audio output testing not supported in browser')
+        return { success: true }
+
+      default:
+        logger.warn('Unknown device kind', { kind: device.kind })
+        return { success: false }
+    }
+  }
+
+  /**
+   * Test audio input device with audio level measurement
+   */
+  private async testAudioInputWithLevel(deviceId: string): Promise<{ success: boolean; audioLevel?: number }> {
+    logger.info('Testing audio input device with level', { deviceId })
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { deviceId: { exact: deviceId } },
+      })
+
+      // Create audio context to measure level
+      let audioLevel: number | undefined
+
+      try {
+        const audioContext = new AudioContext()
+        const source = audioContext.createMediaStreamSource(stream)
+        const analyzer = audioContext.createAnalyser()
+        analyzer.fftSize = 256
+
+        source.connect(analyzer)
+
+        const bufferLength = analyzer.frequencyBinCount
+        const dataArray = new Uint8Array(bufferLength)
+
+        // Measure audio level for a short period
+        await new Promise<void>((resolve) => {
+          setTimeout(() => {
+            analyzer.getByteFrequencyData(dataArray)
+
+            // Calculate average level
+            const sum = dataArray.reduce((a, b) => a + b, 0)
+            audioLevel = sum / bufferLength / 255 // Normalize to 0-1
+
+            // Cleanup
+            source.disconnect()
+            audioContext.close()
+            resolve()
+          }, 250) // Sample for 250ms for more accurate measurement
+        })
+      } catch (audioContextError) {
+        logger.warn('Failed to measure audio level:', audioContextError)
+        // Continue without audio level
+      }
+
+      // Stop stream after test
+      stream.getTracks().forEach((track) => track.stop())
+
+      return {
+        success: true,
+        audioLevel,
+      }
+    } catch (error: any) {
+      logger.error('Audio input test with level failed', { error })
+      return {
+        success: false,
+        audioLevel: undefined,
+      }
+    }
   }
 }

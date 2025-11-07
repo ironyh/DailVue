@@ -6,6 +6,8 @@
 import type { CallEvent } from './call.types'
 import type { RegistrationEvent, ConnectionEvent } from './sip.types'
 import type { MediaStreamEvent, MediaTrackEvent, MediaDeviceChangeEvent } from './media.types'
+import type { ConferenceStateInterface, Participant } from './conference.types'
+import type { PresencePublishOptions, PresenceSubscriptionOptions } from './presence.types'
 
 /**
  * Base event interface
@@ -170,6 +172,45 @@ export interface EventMap {
   [EventNames.MEDIA_TRACK_UNMUTED]: MediaTrackEvent
   [EventNames.MEDIA_DEVICE_CHANGED]: MediaDeviceChangeEvent
 
+  // Transfer events
+  'call:transfer_initiated': CallTransferInitiatedEvent
+  'call:transfer_accepted': CallTransferAcceptedEvent
+  'call:transfer_failed': CallTransferFailedEvent
+  'call:transfer_completed': CallTransferCompletedEvent
+
+  // SIP events (with sip: prefix)
+  'sip:connected': SipConnectedEvent
+  'sip:disconnected': SipDisconnectedEvent
+  'sip:registered': SipRegisteredEvent
+  'sip:unregistered': SipUnregisteredEvent
+  'sip:registration_failed': SipRegistrationFailedEvent
+  'sip:registration_expiring': SipRegistrationExpiringEvent
+  'sip:new_session': SipNewSessionEvent
+  'sip:new_message': SipNewMessageEvent
+  'sip:event': SipGenericEvent
+
+  // Conference events
+  'sip:conference:created': ConferenceCreatedEvent
+  'sip:conference:joined': ConferenceJoinedEvent
+  'sip:conference:ended': ConferenceEndedEvent
+  'sip:conference:participant:joined': ConferenceParticipantJoinedEvent
+  'sip:conference:participant:left': ConferenceParticipantLeftEvent
+  'sip:conference:participant:invited': ConferenceParticipantInvitedEvent
+  'sip:conference:participant:removed': ConferenceParticipantRemovedEvent
+  'sip:conference:participant:muted': ConferenceParticipantMutedEvent
+  'sip:conference:participant:unmuted': ConferenceParticipantUnmutedEvent
+  'sip:conference:recording:started': ConferenceRecordingStartedEvent
+  'sip:conference:recording:stopped': ConferenceRecordingStoppedEvent
+
+  // Audio events
+  'sip:audio:muted': AudioMutedEvent
+  'sip:audio:unmuted': AudioUnmutedEvent
+
+  // Presence events
+  'sip:presence:publish': PresencePublishEvent
+  'sip:presence:subscribe': PresenceSubscribeEvent
+  'sip:presence:unsubscribe': PresenceUnsubscribeEvent
+
   // Generic event fallback
   [key: string]: BaseEvent
 }
@@ -185,6 +226,313 @@ export interface ErrorEvent extends BaseEvent {
   context?: string
   /** Error severity */
   severity?: 'low' | 'medium' | 'high' | 'critical'
+}
+
+/**
+ * SIP Connected event
+ */
+export interface SipConnectedEvent extends BaseEvent {
+  type: 'sip:connected'
+  /** Transport URL */
+  transport?: string
+}
+
+/**
+ * SIP Disconnected event
+ */
+export interface SipDisconnectedEvent extends BaseEvent {
+  type: 'sip:disconnected'
+  /** Error if applicable */
+  error?: any
+}
+
+/**
+ * SIP Registered event
+ */
+export interface SipRegisteredEvent extends BaseEvent {
+  type: 'sip:registered'
+  /** Registered URI */
+  uri: string
+  /** Expiry time in seconds */
+  expires?: string | number
+}
+
+/**
+ * SIP Unregistered event
+ */
+export interface SipUnregisteredEvent extends BaseEvent {
+  type: 'sip:unregistered'
+  /** Unregistration cause */
+  cause?: string
+}
+
+/**
+ * SIP Registration Failed event
+ */
+export interface SipRegistrationFailedEvent extends BaseEvent {
+  type: 'sip:registration_failed'
+  /** Failure cause */
+  cause?: string
+  /** Response object */
+  response?: any
+}
+
+/**
+ * SIP Registration Expiring event
+ */
+export interface SipRegistrationExpiringEvent extends BaseEvent {
+  type: 'sip:registration_expiring'
+}
+
+/**
+ * SIP New Session event
+ */
+export interface SipNewSessionEvent extends BaseEvent {
+  type: 'sip:new_session'
+  /** Session object */
+  session: any
+  /** Session originator */
+  originator: 'local' | 'remote'
+  /** SIP request object */
+  request?: any
+  /** Call ID */
+  callId: string
+}
+
+/**
+ * SIP New Message event
+ */
+export interface SipNewMessageEvent extends BaseEvent {
+  type: 'sip:new_message'
+  /** Message object */
+  message: any
+  /** Message originator */
+  originator: 'local' | 'remote'
+  /** SIP request object */
+  request?: any
+  /** Sender URI */
+  from: string
+  /** Message content */
+  content: string
+  /** Content type */
+  contentType?: string
+}
+
+/**
+ * SIP Generic Event
+ */
+export interface SipGenericEvent extends BaseEvent {
+  type: 'sip:event'
+  /** Event object */
+  event: any
+  /** Request object */
+  request: any
+}
+
+/**
+ * Conference Created event
+ */
+export interface ConferenceCreatedEvent extends BaseEvent {
+  type: 'sip:conference:created'
+  /** Conference ID */
+  conferenceId: string
+  /** Conference state */
+  conference: ConferenceStateInterface
+}
+
+/**
+ * Conference Joined event
+ */
+export interface ConferenceJoinedEvent extends BaseEvent {
+  type: 'sip:conference:joined'
+  /** Conference ID */
+  conferenceId: string
+  /** Conference state */
+  conference: ConferenceStateInterface
+}
+
+/**
+ * Conference Ended event
+ */
+export interface ConferenceEndedEvent extends BaseEvent {
+  type: 'sip:conference:ended'
+  /** Conference ID */
+  conferenceId: string
+  /** Conference state */
+  conference: ConferenceStateInterface
+}
+
+/**
+ * Conference Participant Joined event
+ */
+export interface ConferenceParticipantJoinedEvent extends BaseEvent {
+  type: 'sip:conference:participant:joined'
+  /** Conference ID */
+  conferenceId: string
+  /** Participant */
+  participant: Participant
+}
+
+/**
+ * Conference Participant Left event
+ */
+export interface ConferenceParticipantLeftEvent extends BaseEvent {
+  type: 'sip:conference:participant:left'
+  /** Conference ID */
+  conferenceId: string
+  /** Participant */
+  participant: Participant
+}
+
+/**
+ * Conference Participant Invited event
+ */
+export interface ConferenceParticipantInvitedEvent extends BaseEvent {
+  type: 'sip:conference:participant:invited'
+  /** Conference ID */
+  conferenceId: string
+  /** Participant */
+  participant: Participant
+}
+
+/**
+ * Conference Participant Removed event
+ */
+export interface ConferenceParticipantRemovedEvent extends BaseEvent {
+  type: 'sip:conference:participant:removed'
+  /** Conference ID */
+  conferenceId: string
+  /** Participant */
+  participant: Participant
+}
+
+/**
+ * Conference Participant Muted event
+ */
+export interface ConferenceParticipantMutedEvent extends BaseEvent {
+  type: 'sip:conference:participant:muted'
+  /** Conference ID */
+  conferenceId: string
+  /** Participant */
+  participant: Participant
+}
+
+/**
+ * Conference Participant Unmuted event
+ */
+export interface ConferenceParticipantUnmutedEvent extends BaseEvent {
+  type: 'sip:conference:participant:unmuted'
+  /** Conference ID */
+  conferenceId: string
+  /** Participant */
+  participant: Participant
+}
+
+/**
+ * Conference Recording Started event
+ */
+export interface ConferenceRecordingStartedEvent extends BaseEvent {
+  type: 'sip:conference:recording:started'
+  /** Conference ID */
+  conferenceId: string
+}
+
+/**
+ * Conference Recording Stopped event
+ */
+export interface ConferenceRecordingStoppedEvent extends BaseEvent {
+  type: 'sip:conference:recording:stopped'
+  /** Conference ID */
+  conferenceId: string
+}
+
+/**
+ * Audio Muted event
+ */
+export interface AudioMutedEvent extends BaseEvent {
+  type: 'sip:audio:muted'
+}
+
+/**
+ * Audio Unmuted event
+ */
+export interface AudioUnmutedEvent extends BaseEvent {
+  type: 'sip:audio:unmuted'
+}
+
+/**
+ * Presence Publish event
+ */
+export interface PresencePublishEvent extends BaseEvent {
+  type: 'sip:presence:publish'
+  /** Presence options */
+  presence: PresencePublishOptions
+  /** PIDF XML body */
+  body: string
+  /** Extra SIP headers */
+  extraHeaders?: string[]
+}
+
+/**
+ * Presence Subscribe event
+ */
+export interface PresenceSubscribeEvent extends BaseEvent {
+  type: 'sip:presence:subscribe'
+  /** Target URI */
+  uri: string
+  /** Subscription options */
+  options?: PresenceSubscriptionOptions
+}
+
+/**
+ * Presence Unsubscribe event
+ */
+export interface PresenceUnsubscribeEvent extends BaseEvent {
+  type: 'sip:presence:unsubscribe'
+  /** Target URI */
+  uri: string
+}
+
+/**
+ * Call Transfer Initiated event
+ */
+export interface CallTransferInitiatedEvent extends BaseEvent {
+  type: 'call:transfer_initiated'
+  /** Transfer target URI */
+  target: string
+  /** Transfer method */
+  transferType: 'blind' | 'attended'
+  /** Replace call ID (for attended transfers) */
+  replaceCallId?: string
+}
+
+/**
+ * Call Transfer Accepted event
+ */
+export interface CallTransferAcceptedEvent extends BaseEvent {
+  type: 'call:transfer_accepted'
+  /** Transfer target URI */
+  target: string
+}
+
+/**
+ * Call Transfer Failed event
+ */
+export interface CallTransferFailedEvent extends BaseEvent {
+  type: 'call:transfer_failed'
+  /** Transfer target URI */
+  target: string
+  /** Error message */
+  error?: string
+}
+
+/**
+ * Call Transfer Completed event
+ */
+export interface CallTransferCompletedEvent extends BaseEvent {
+  type: 'call:transfer_completed'
+  /** Transfer target URI */
+  target: string
 }
 
 /**
