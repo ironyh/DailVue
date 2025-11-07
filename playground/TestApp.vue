@@ -3,6 +3,11 @@
     <div class="container">
       <h1>VueSip - E2E Test Application</h1>
 
+      <!-- Initialization Error -->
+      <div v-if="initializationError" data-testid="initialization-error" class="error-message">
+        <strong>Initialization Error:</strong> {{ initializationError }}
+      </div>
+
       <!-- Connection Status -->
       <div class="status-bar">
         <div class="status-item">
@@ -61,6 +66,9 @@
         <div v-if="settingsSaved" data-testid="settings-saved-message" class="success-message">
           Settings saved successfully!
         </div>
+        <div v-if="validationError" data-testid="validation-error" class="error-message">
+          {{ validationError }}
+        </div>
       </div>
 
       <!-- Main Interface -->
@@ -71,17 +79,19 @@
             v-if="!isConnected"
             class="btn btn-primary"
             data-testid="connect-button"
+            :disabled="isConnecting"
             @click="handleConnect"
           >
-            Connect
+            {{ isConnecting ? 'Connecting...' : 'Connect' }}
           </button>
           <button
             v-else
             class="btn btn-danger"
             data-testid="disconnect-button"
+            :disabled="isDisconnecting"
             @click="handleDisconnect"
           >
-            Disconnect
+            {{ isDisconnecting ? 'Disconnecting...' : 'Disconnect' }}
           </button>
         </div>
 
@@ -100,10 +110,10 @@
               <button
                 class="btn btn-success"
                 data-testid="call-button"
-                :disabled="!dialNumber || !isConnected"
+                :disabled="!dialNumber || !isConnected || isMakingCall"
                 @click="handleMakeCall"
               >
-                <i class="pi pi-phone"></i> Call
+                <i class="pi pi-phone"></i> {{ isMakingCall ? 'Calling...' : 'Call' }}
               </button>
             </div>
 
@@ -148,9 +158,10 @@
                   v-if="callState === 'ringing' && direction === 'incoming'"
                   class="btn btn-success"
                   data-testid="answer-button"
+                  :disabled="isAnswering"
                   @click="handleAnswer"
                 >
-                  Answer
+                  {{ isAnswering ? 'Answering...' : 'Answer' }}
                 </button>
                 <button
                   v-if="callState === 'ringing'"
@@ -187,9 +198,10 @@
                 <button
                   class="btn btn-danger"
                   data-testid="hangup-button"
+                  :disabled="isHangingUp"
                   @click="handleHangup"
                 >
-                  Hangup
+                  {{ isHangingUp ? 'Hanging up...' : 'Hangup' }}
                 </button>
               </div>
 
@@ -284,7 +296,6 @@
               <select
                 v-model="selectedAudioInputId"
                 data-testid="audio-input-select"
-                data-testid="audio-input-devices"
                 @change="handleInputChange"
               >
                 <option v-for="device in audioInputDevices" :key="device.deviceId" :value="device.deviceId">
@@ -297,7 +308,6 @@
               <select
                 v-model="selectedAudioOutputId"
                 data-testid="audio-output-select"
-                data-testid="audio-output-devices"
                 @change="handleOutputChange"
               >
                 <option v-for="device in audioOutputDevices" :key="device.deviceId" :value="device.deviceId">
@@ -329,7 +339,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import {
   useSipClient,
   useCallSession,
@@ -337,6 +347,8 @@ import {
   useMediaDevices,
   useCallHistory,
   useCallControls,
+  validateSipUri,
+  validateWebSocketUri,
   type SipClientConfig,
 } from '../src'
 
@@ -360,106 +372,202 @@ const deviceChanged = ref(false)
 const dtmfFeedback = ref('')
 const videoEnabled = ref(false)
 const registrationError = ref('')
+const validationError = ref('')
+const initializationError = ref('')
 
-// SIP Client
-const sipClient = useSipClient({
-  autoConnect: false,
-  autoCleanup: true,
-})
+// Loading states
+const isConnecting = ref(false)
+const isDisconnecting = ref(false)
+const isMakingCall = ref(false)
+const isAnswering = ref(false)
+const isHangingUp = ref(false)
 
-const {
-  isConnected,
-  isRegistered,
-  connectionState,
-  lastError,
-  connect,
-  disconnect,
-  updateConfig,
-} = sipClient
+// Store timeout IDs for cleanup
+const timeouts = ref<number[]>([])
 
-// Call Session
-const callSession = useCallSession(sipClient)
-const {
-  callState,
-  direction,
-  remoteUri,
-  isLocalHeld,
-  isMuted,
-  answerTime,
-  makeCall,
-  answer,
-  reject,
-  hangup,
-  hold,
-  unhold,
-  mute,
-  unmute,
-} = callSession
+// Initialize composables with error handling
+let sipClient: ReturnType<typeof useSipClient>
+let callSession: ReturnType<typeof useCallSession>
+let dtmf: ReturnType<typeof useDTMF>
+let mediaDevices: ReturnType<typeof useMediaDevices>
+let callHistory: ReturnType<typeof useCallHistory>
+let callControls: ReturnType<typeof useCallControls>
 
-// DTMF
-const dtmf = useDTMF(callSession)
+// Composable return values
+let isConnected: any
+let isRegistered: any
+let connectionState: any
+let lastError: any
+let connect: any
+let disconnect: any
+let updateConfig: any
+let callState: any
+let direction: any
+let remoteUri: any
+let isLocalHeld: any
+let isMuted: any
+let answerTime: any
+let makeCall: any
+let answer: any
+let reject: any
+let hangup: any
+let hold: any
+let unhold: any
+let mute: any
+let unmute: any
+let audioInputDevices: any
+let audioOutputDevices: any
+let selectedAudioInputId: any
+let selectedAudioOutputId: any
+let selectAudioInput: any
+let selectAudioOutput: any
+let history: any
+
+try {
+  // SIP Client
+  sipClient = useSipClient({
+    autoConnect: false,
+    autoCleanup: true,
+  })
+
+  ;({
+    isConnected,
+    isRegistered,
+    connectionState,
+    lastError,
+    connect,
+    disconnect,
+    updateConfig,
+  } = sipClient)
+
+  // Call Session
+  callSession = useCallSession(sipClient)
+  ;({
+    callState,
+    direction,
+    remoteUri,
+    isLocalHeld,
+    isMuted,
+    answerTime,
+    makeCall,
+    answer,
+    reject,
+    hangup,
+    hold,
+    unhold,
+    mute,
+    unmute,
+  } = callSession)
+
+  // DTMF
+  dtmf = useDTMF(callSession)
+
+  // Media Devices
+  mediaDevices = useMediaDevices()
+  ;({
+    audioInputDevices,
+    audioOutputDevices,
+    selectedAudioInputId,
+    selectedAudioOutputId,
+    selectAudioInput,
+    selectAudioOutput,
+  } = mediaDevices)
+
+  // Call History
+  callHistory = useCallHistory()
+  ;({ history } = callHistory)
+
+  // Call Controls
+  callControls = useCallControls(callSession)
+} catch (error: any) {
+  initializationError.value = `Failed to initialize: ${error.message || 'Unknown error'}`
+  console.error('Composable initialization error:', error)
+}
+
 const dtmfDigits = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#']
-
-// Media Devices
-const mediaDevices = useMediaDevices()
-const {
-  audioInputDevices,
-  audioOutputDevices,
-  selectedAudioInputId,
-  selectedAudioOutputId,
-  selectAudioInput,
-  selectAudioOutput,
-} = mediaDevices
-
-// Call History
-const callHistory = useCallHistory()
-const { history } = callHistory
-
-// Call Controls
-const callControls = useCallControls(callSession)
 
 // Methods
 const saveSettings = () => {
-  if (tempConfig.value.uri && tempConfig.value.sipUri && tempConfig.value.password) {
-    updateConfig(tempConfig.value as SipClientConfig)
-    settingsSaved.value = true
-    setTimeout(() => {
-      settingsSaved.value = false
-    }, 3000)
+  validationError.value = ''
+  settingsSaved.value = false
+
+  // Validate all required fields are present
+  if (!tempConfig.value.uri || !tempConfig.value.sipUri || !tempConfig.value.password) {
+    validationError.value = 'All fields are required'
+    return
   }
+
+  // Validate WebSocket URI format
+  const uriValidation = validateWebSocketUri(tempConfig.value.uri)
+  if (!uriValidation.isValid) {
+    validationError.value = `Invalid Server URI: ${uriValidation.error}`
+    return
+  }
+
+  // Validate SIP URI format
+  const sipUriValidation = validateSipUri(tempConfig.value.sipUri)
+  if (!sipUriValidation.isValid) {
+    validationError.value = `Invalid SIP URI: ${sipUriValidation.error}`
+    return
+  }
+
+  // Validation passed - save configuration
+  updateConfig(tempConfig.value as SipClientConfig)
+  settingsSaved.value = true
+
+  // Clear success message after 3 seconds
+  const timeoutId = window.setTimeout(() => {
+    settingsSaved.value = false
+  }, 3000)
+  timeouts.value.push(timeoutId)
 }
 
 const handleConnect = async () => {
+  if (isConnecting.value) return
+  isConnecting.value = true
   try {
     registrationError.value = ''
     await connect()
   } catch (err: any) {
     registrationError.value = err.message || 'Connection failed'
+  } finally {
+    isConnecting.value = false
   }
 }
 
 const handleDisconnect = async () => {
+  if (isDisconnecting.value) return
+  isDisconnecting.value = true
   try {
     await disconnect()
   } catch (err) {
     console.error('Disconnect error:', err)
+  } finally {
+    isDisconnecting.value = false
   }
 }
 
 const handleMakeCall = async () => {
-  if (!dialNumber.value) return
+  if (!dialNumber.value || isMakingCall.value) return
+  isMakingCall.value = true
   try {
     await makeCall(dialNumber.value)
   } catch (err) {
     console.error('Call error:', err)
+  } finally {
+    isMakingCall.value = false
   }
 }
 
 const handleAnswer = async () => {
+  if (isAnswering.value) return
+  isAnswering.value = true
   try {
     await answer()
   } catch (err) {
     console.error('Answer error:', err)
+  } finally {
+    isAnswering.value = false
   }
 }
 
@@ -472,10 +580,14 @@ const handleReject = async () => {
 }
 
 const handleHangup = async () => {
+  if (isHangingUp.value) return
+  isHangingUp.value = true
   try {
     await hangup()
   } catch (err) {
     console.error('Hangup error:', err)
+  } finally {
+    isHangingUp.value = false
   }
 }
 
@@ -515,11 +627,12 @@ const sendDTMF = async (digit: string) => {
   try {
     await dtmf.sendTone(digit)
     dtmfFeedback.value = (dtmfFeedback.value + digit).slice(-10)
-    setTimeout(() => {
+    const timeoutId = window.setTimeout(() => {
       if (dtmfFeedback.value.endsWith(digit)) {
         dtmfFeedback.value = ''
       }
     }, 3000)
+    timeouts.value.push(timeoutId)
   } catch (err) {
     console.error('DTMF error:', err)
   }
@@ -540,9 +653,10 @@ const handleInputChange = () => {
   if (selectedAudioInputId.value) {
     selectAudioInput(selectedAudioInputId.value)
     deviceChanged.value = true
-    setTimeout(() => {
+    const timeoutId = window.setTimeout(() => {
       deviceChanged.value = false
     }, 3000)
+    timeouts.value.push(timeoutId)
   }
 }
 
@@ -550,9 +664,10 @@ const handleOutputChange = () => {
   if (selectedAudioOutputId.value) {
     selectAudioOutput(selectedAudioOutputId.value)
     deviceChanged.value = true
-    setTimeout(() => {
+    const timeoutId = window.setTimeout(() => {
       deviceChanged.value = false
     }, 3000)
+    timeouts.value.push(timeoutId)
   }
 }
 
@@ -570,6 +685,13 @@ watch(lastError, (error) => {
   if (error) {
     console.error('SIP Error:', error)
   }
+})
+
+// Cleanup on component unmount
+onUnmounted(() => {
+  // Clear all pending timeouts to prevent memory leaks
+  timeouts.value.forEach((timeoutId) => clearTimeout(timeoutId))
+  timeouts.value = []
 })
 </script>
 
