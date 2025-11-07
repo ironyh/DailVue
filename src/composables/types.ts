@@ -9,7 +9,7 @@
 
 import type { CallSession, CallOptions } from '../types/call.types'
 import type { SipClientConfig } from '../types/config.types'
-import type { PresenceState, PresencePublishOptions, PresenceSubscriptionOptions } from '../types/presence.types'
+import type { PresenceState, PresenceSubscriptionOptions } from '../types/presence.types'
 import type { MessageContentType } from '../types/messaging.types'
 import type { ConferenceOptions } from '../types/conference.types'
 

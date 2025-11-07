@@ -13,7 +13,6 @@ import type { SipClient } from '../core/SipClient'
 import {
   TransferState,
   TransferType,
-  type TransferOptions,
   type TransferEvent,
   type TransferProgress,
 } from '../types/transfer.types'

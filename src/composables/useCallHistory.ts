@@ -14,7 +14,6 @@ import type {
   HistoryFilter,
   HistorySearchResult,
   HistoryStatistics,
-  HistoryExportFormat,
   HistoryExportOptions,
 } from '../types/history.types'
 import { CallDirection } from '../types/call.types'
@@ -106,7 +105,7 @@ export function useCallHistory(): UseCallHistoryReturn {
   // Computed Values
   // ============================================================================
 
-  const history = computed(() => callStore.getCallHistory())
+  const history = computed(() => callStore.callHistory)
 
   const filteredHistory = computed(() => {
     if (!currentFilter.value) {
@@ -273,7 +272,7 @@ export function useCallHistory(): UseCallHistoryReturn {
   const clearHistory = async (): Promise<void> => {
     try {
       log.info('Clearing all call history')
-      callStore.clearCallHistory()
+      callStore.clearHistory()
       log.info('Call history cleared successfully')
     } catch (error) {
       log.error('Failed to clear history:', error)
@@ -287,7 +286,7 @@ export function useCallHistory(): UseCallHistoryReturn {
   const deleteEntry = async (entryId: string): Promise<void> => {
     try {
       log.debug(`Deleting history entry: ${entryId}`)
-      callStore.removeHistoryEntry(entryId)
+      callStore.deleteHistoryEntry(entryId)
       log.info(`History entry ${entryId} deleted successfully`)
     } catch (error) {
       log.error(`Failed to delete entry ${entryId}:`, error)
