@@ -35,13 +35,13 @@ export interface UseMediaDevicesReturn {
   // ============================================================================
 
   /** Audio input devices */
-  audioInputDevices: ComputedRef<MediaDevice[]>
+  audioInputDevices: ComputedRef<readonly MediaDevice[]>
   /** Audio output devices */
-  audioOutputDevices: ComputedRef<MediaDevice[]>
+  audioOutputDevices: ComputedRef<readonly MediaDevice[]>
   /** Video input devices */
-  videoInputDevices: ComputedRef<MediaDevice[]>
+  videoInputDevices: ComputedRef<readonly MediaDevice[]>
   /** All devices */
-  allDevices: ComputedRef<MediaDevice[]>
+  allDevices: ComputedRef<readonly MediaDevice[]>
   /** Selected audio input device ID */
   selectedAudioInputId: Ref<string | null>
   /** Selected audio output device ID */
@@ -287,15 +287,17 @@ export function useMediaDevices(
       log.info('Enumerating devices')
 
       let devices: MediaDevice[]
+      let rawDevices: MediaDeviceInfo[]
 
       if (mediaManager?.value) {
         // Use MediaManager if available
         devices = await mediaManager.value.enumerateDevices()
+        rawDevices = await navigator.mediaDevices.enumerateDevices()
       } else {
         // Fallback to direct API
-        const mediaDevices = await navigator.mediaDevices.enumerateDevices()
+        rawDevices = await navigator.mediaDevices.enumerateDevices()
 
-        devices = mediaDevices.map((device) => ({
+        devices = rawDevices.map((device) => ({
           deviceId: device.deviceId,
           label: device.label || `${device.kind} ${device.deviceId.slice(0, 5)}`,
           kind: device.kind as MediaDeviceKind,
@@ -303,8 +305,8 @@ export function useMediaDevices(
         }))
       }
 
-      // Update store
-      deviceStore.setDevices(devices)
+      // Update store with raw browser MediaDeviceInfo[]
+      deviceStore.setDevices(rawDevices)
 
       log.info(`Enumerated ${devices.length} devices`)
       return devices

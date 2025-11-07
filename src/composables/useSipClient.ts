@@ -215,7 +215,7 @@ export function useSipClient(
    * Falls back to 'disconnected' if client not initialized
    */
   const connectionState = computed(() => {
-    return sipClient.value?.connectionState ?? 'disconnected'
+    return sipClient.value?.connectionState ?? ConnectionState.Disconnected
   })
 
   const isConnected = computed(() => {
@@ -227,7 +227,7 @@ export function useSipClient(
   })
 
   const registrationState = computed(() => {
-    return sipClient.value?.registrationState ?? 'unregistered'
+    return sipClient.value?.registrationState ?? RegistrationState.Unregistered
   })
 
   const registeredUri = computed(() => {
