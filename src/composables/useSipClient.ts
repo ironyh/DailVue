@@ -353,7 +353,8 @@ export function useSipClient(
       // Create SIP client if not exists
       if (!sipClient.value) {
         logger.info('Creating SIP client')
-        sipClient.value = new SipClient(config, eventBus)
+        // Cast away readonly wrapper from Vue reactivity system
+        sipClient.value = new SipClient(config as any, eventBus)
       }
 
       // Start the client with timeout
@@ -541,7 +542,7 @@ export function useSipClient(
    * Get the underlying SIP client instance
    */
   function getClient(): SipClient | null {
-    return sipClient.value
+    return sipClient.value as SipClient | null
   }
 
   /**

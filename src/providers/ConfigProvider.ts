@@ -224,7 +224,8 @@ export const ConfigProvider = defineComponent({
     const providerContext: ConfigProviderContext = {
       // Readonly state
       get sipConfig() {
-        return sipConfig.value
+        // Cast away readonly wrapper from Vue reactivity system
+        return sipConfig.value as any
       },
       get mediaConfig() {
         return mediaConfig.value

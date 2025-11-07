@@ -41,7 +41,7 @@ export interface PersistenceConfig {
 class StorePersistenceManager {
   private localStorage: LocalStorageAdapter | null = null
   private indexedDB: IndexedDBAdapter | null = null
-  private managers: Map<string, PersistenceManager<unknown>> = new Map()
+  private managers: Map<string, PersistenceManager<any>> = new Map()
   private config: PersistenceConfig = {}
 
   /**
@@ -127,7 +127,8 @@ class StorePersistenceManager {
       getState: () => configStore.sipConfig,
       setState: (config) => {
         if (config) {
-          configStore.setSipConfig(config, false) // Don't validate on load
+          // Cast away readonly wrapper from Vue reactivity system
+          configStore.setSipConfig(config as any, false) // Don't validate on load
         }
       },
       watchSource: () => configStore.sipConfig,
