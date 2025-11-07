@@ -30,16 +30,45 @@
  * 3. Re-selects on device changes if current device is no longer available
  *
  * **Browser Compatibility:**
- * - Chrome/Edge 53+: Full support including audio output device selection
- * - Firefox 63+: Full support (audio output selection added in v110)
- * - Safari 11+: Partial support (no audio output device selection API)
- * - Mobile browsers: Limited support, especially for device enumeration without permissions
+ * - Chrome 49+ / Edge 79+: Full support including audio output device selection
+ * - Firefox 63+: Full support (audio output selection added in v116, August 2023)
+ * - Safari 11+: Partial support (no audio output device selection API in production builds)
+ *   - Note: Safari has experimental setSinkId support in Develop > Experimental Features
+ *   - Must enable "Allow Speaker Device Selection" for testing
+ * - Mobile browsers: Chrome Android has enumeration support but limited setSinkId; iOS Safari lacks setSinkId support
  *
  * **Security Requirements:**
  * - HTTPS required: getUserMedia() only works on secure origins (https:// or localhost)
  * - Permissions API: User must explicitly grant microphone/camera access
  * - Permission persistence: Granted permissions are remembered per-origin
  * - Feature Policy: Ensure your application has proper permissions policies set
+ *
+ * **Type Definitions:**
+ *
+ * ```typescript
+ * // Media device information (from MediaDeviceInfo API)
+ * // See: ../types/media.types.ts for complete MediaDevice type definition
+ * interface MediaDevice {
+ *   deviceId: string        // Unique device identifier (persistent across sessions)
+ *   kind: 'audioinput' | 'audiooutput' | 'videoinput'  // Device type
+ *   label: string          // Human-readable device name (requires permissions)
+ *   groupId: string        // Devices with same groupId belong to same physical device
+ *   isDefault?: boolean    // Whether this is the system default device
+ * }
+ *
+ * // Audio test result structure
+ * interface AudioTestResult {
+ *   hasAudio: boolean        // Whether audio was detected during test
+ *   averageVolume: number    // Average volume level (0.0 to 1.0, where 1.0 is maximum)
+ *   peakVolume: number       // Peak volume level (0.0 to 1.0, where 1.0 is maximum)
+ * }
+ *
+ * // Device testing configuration options
+ * interface DeviceTestOptions {
+ *   duration?: number              // Test duration in milliseconds (default: 2000)
+ *   audioLevelThreshold?: number   // Minimum volume to consider as "has audio" (default: 0.01)
+ * }
+ * ```
  *
  * @see {@link https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices MDN: MediaDevices}
  * @see {@link https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia MDN: getUserMedia}
@@ -210,7 +239,9 @@
  * **Advanced: Combining with ConfigProvider:**
  * ```vue
  * <template>
+ *   <!-- ConfigProvider makes config available to all descendants via provide/inject -->
  *   <ConfigProvider :media-config="mediaConfig">
+ *     <!-- MediaProvider can also accept config directly for explicit configuration -->
  *     <MediaProvider
  *       :media-config="mediaConfig"
  *       :auto-enumerate="true"
@@ -310,6 +341,8 @@
  *   }
  * }
  *
+ * // Note: User agent detection is fragile and should be used cautiously
+ * // Consider using a dedicated library like 'bowser' or 'platform.js' for production
  * const getBrowserPermissionInstructions = () => {
  *   const isChrome = /Chrome/.test(navigator.userAgent)
  *   const isFirefox = /Firefox/.test(navigator.userAgent)
@@ -476,7 +509,7 @@
  * **Advanced: Handling Concurrent Permission Requests:**
  * ```vue
  * <template>
- *   <MediaProvider ref="mediaProvider" @error="handleError">
+ *   <MediaProvider @error="handleError">
  *     <div>
  *       <button @click="requestWithQueue('audio')" :disabled="isRequesting">
  *         Request Microphone
@@ -495,13 +528,13 @@
  *   </MediaProvider>
  * </template>
  *
- * <script setup>
+ * <script setup lang="ts">
  * import { useMediaProvider } from 'vuesip'
  * import { ref } from 'vue'
  *
  * const media = useMediaProvider()
  * const isRequesting = ref(false)
- * const requestQueue = ref([])
+ * const requestQueue = ref<Array<'audio' | 'video' | 'both'>>([])
  * const processingQueue = ref(false)
  *
  * /**
@@ -568,7 +601,7 @@
  * ```vue
  * <script setup>
  * import { useMediaProvider } from 'vuesip'
- * import { ref, watch } from 'vue'
+ * import { ref, watch, onMounted, onUnmounted } from 'vue'
  *
  * const media = useMediaProvider()
  * const deviceHealth = ref({
@@ -799,7 +832,7 @@
  * @packageDocumentation
  */
 
-import { defineComponent, provide, watch, onMounted, onUnmounted, type PropType } from 'vue'
+import { defineComponent, provide, watch, onMounted, onUnmounted, inject, type PropType } from 'vue'
 import { useMediaDevices, type DeviceTestOptions } from '../composables/useMediaDevices'
 import { deviceStore } from '../stores/deviceStore'
 import { createLogger } from '../utils/logger'
@@ -853,6 +886,7 @@ export const MediaProvider = defineComponent({
      * user media streams.
      *
      * @example
+     * **Basic configuration:**
      * ```js
      * {
      *   audio: {
@@ -863,6 +897,29 @@ export const MediaProvider = defineComponent({
      *   video: {
      *     width: { ideal: 1280 },
      *     height: { ideal: 720 }
+     *   }
+     * }
+     * ```
+     *
+     * @example
+     * **Advanced configuration with constraints:**
+     * ```js
+     * {
+     *   audio: {
+     *     deviceId: 'specific-device-id',  // Use specific device
+     *     echoCancellation: { exact: true },
+     *     noiseSuppression: { ideal: true },
+     *     autoGainControl: { ideal: true },
+     *     sampleRate: { ideal: 48000 },
+     *     channelCount: { ideal: 2 }
+     *   },
+     *   video: {
+     *     deviceId: 'specific-camera-id',
+     *     width: { min: 640, ideal: 1280, max: 1920 },
+     *     height: { min: 480, ideal: 720, max: 1080 },
+     *     aspectRatio: { ideal: 16/9 },
+     *     frameRate: { min: 15, ideal: 30, max: 60 },
+     *     facingMode: { ideal: 'user' }  // 'user' | 'environment'
      *   }
      * }
      * ```
@@ -901,6 +958,17 @@ export const MediaProvider = defineComponent({
      * **Performance Note:**
      * Enumeration is synchronous and fast, but triggers browser's device detection.
      * Safe to enable for most use cases.
+     *
+     * **When to Disable (set to false):**
+     * - To reduce initial page load overhead in performance-critical applications
+     * - When device selection UI is hidden by default or in a settings modal
+     * - To delay enumeration until user explicitly opens device settings
+     * - In applications where media functionality is optional/secondary
+     *
+     * **When to Keep Enabled (default true):**
+     * - For call/video applications where device info is needed immediately
+     * - When showing device status or counts in the initial UI
+     * - To enable quick device selection without additional loading states
      *
      * @see {@link autoRequestPermissions} For automatically requesting permissions
      * @see {@link https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/enumerateDevices MDN: enumerateDevices}
@@ -1792,10 +1860,14 @@ export const MediaProvider = defineComponent({
      * **Available State (Reactive):**
      *
      * *Device Lists (readonly MediaDevice[]):*
-     * - `audioInputDevices` - Array of microphone devices (always array, never null)
-     * - `audioOutputDevices` - Array of speaker/headphone devices (always array, never null)
-     * - `videoInputDevices` - Array of camera devices (always array, never null)
-     * - `allDevices` - Combined array of all devices (always array, never null)
+     * - `audioInputDevices` - Array of microphone devices
+     * - `audioOutputDevices` - Array of speaker/headphone devices
+     * - `videoInputDevices` - Array of camera devices
+     * - `allDevices` - Combined array of all devices
+     *
+     * **Array Guarantee:** All device arrays are guaranteed to always be arrays, never null or undefined.
+     * Empty arrays (`[]`) are returned when no devices are available. This means you can safely use
+     * `.length`, `.map()`, `.filter()` etc. without null checks.
      *
      * *Selected Device IDs (string | null):*
      * - `selectedAudioInputId` - Current microphone device ID (null if none selected)
@@ -1807,8 +1879,10 @@ export const MediaProvider = defineComponent({
      * - `selectedAudioOutputDevice` - Full speaker device object (undefined if none selected)
      * - `selectedVideoInputDevice` - Full camera device object (undefined if none selected)
      *
-     * **Type Note:** Device objects are `undefined` (not `null`) when no device is selected.
-     * This is intentional for TypeScript type safety with array.find() semantics.
+     * **Type Note:** Different null semantics for IDs vs objects:
+     * - Device IDs use `null` when none is selected (explicit nullable type)
+     * - Device objects use `undefined` when not found (follows array.find() semantics)
+     * - This distinction is intentional for TypeScript type safety and API consistency
      *
      * *Permission States (PermissionStatus):*
      * - `audioPermission` - Audio permission state enum value
@@ -2257,6 +2331,3 @@ export function useMediaProvider(): MediaProviderContext {
 
 // Named export for convenience
 export { MEDIA_PROVIDER_KEY }
-
-// Import inject after the component definition
-import { inject } from 'vue'
