@@ -11,10 +11,11 @@ import type {
   SessionDescriptionHandler,
   RTCRtpSenderWithDTMF,
 } from '@/types/media.types'
+import { abortableSleep, throwIfAborted } from '@/utils/abortController'
 
 export interface UseSipDtmfReturn {
   sendDtmf: (digit: string) => Promise<void>
-  sendDtmfSequence: (digits: string, interval?: number) => Promise<void>
+  sendDtmfSequence: (digits: string, interval?: number, signal?: AbortSignal) => Promise<void>
 }
 
 /**
@@ -54,10 +55,45 @@ export function useSipDtmf(currentSession: Ref<any | null>): UseSipDtmfReturn {
     }
   }
 
-  const sendDtmfSequence = async (digits: string, interval = 160) => {
-    for (const digit of digits) {
+  /**
+   * Send a sequence of DTMF tones with configurable interval
+   * @param digits - String of digits to send (0-9, A-D, *, #)
+   * @param interval - Milliseconds between tones (default: 160)
+   * @param signal - Optional AbortSignal to cancel the sequence
+   * @throws DOMException with name 'AbortError' if aborted
+   *
+   * @example
+   * ```typescript
+   * // Basic usage (backward compatible)
+   * await sendDtmfSequence('123')
+   *
+   * // With custom interval
+   * await sendDtmfSequence('*789#', 200)
+   *
+   * // With abort support
+   * const controller = new AbortController()
+   * const promise = sendDtmfSequence('1234567890', 160, controller.signal)
+   * // Later: controller.abort()
+   * ```
+   */
+  const sendDtmfSequence = async (
+    digits: string,
+    interval = 160,
+    signal?: AbortSignal
+  ): Promise<void> => {
+    // Check if already aborted before starting
+    throwIfAborted(signal)
+
+    for (let i = 0; i < digits.length; i++) {
+      const digit = digits[i]
+
+      // Send the tone
       await sendDtmf(digit)
-      await new Promise((resolve) => setTimeout(resolve, interval))
+
+      // Wait between tones (except after the last one)
+      if (i < digits.length - 1) {
+        await abortableSleep(interval, signal)
+      }
     }
   }
 

@@ -23,6 +23,7 @@ import type {
 } from '../types/call.types'
 import { createLogger } from '../utils/logger'
 import { validateSipUri } from '../utils/validators'
+import { throwIfAborted, isAbortError } from '../utils/abortController'
 
 const log = createLogger('useCallSession')
 
@@ -87,8 +88,8 @@ export interface UseCallSessionReturn {
   // Methods
   // ============================================================================
 
-  /** Make an outgoing call */
-  makeCall: (target: string, options?: CallSessionOptions) => Promise<void>
+  /** Make an outgoing call with optional abort signal */
+  makeCall: (target: string, options?: CallSessionOptions, signal?: AbortSignal) => Promise<void>
   /** Answer an incoming call */
   answer: (options?: AnswerOptions) => Promise<void>
   /** Reject an incoming call */
@@ -286,7 +287,31 @@ export function useCallSession(
    * @throws {Error} If media acquisition fails
    * @throws {Error} If call initiation fails
    */
-  const makeCall = async (target: string, options: CallSessionOptions = {}): Promise<void> => {
+  /**
+   * Make an outgoing call
+   *
+   * @param target - Target SIP URI
+   * @param options - Call options
+   * @param signal - Optional AbortSignal to cancel the operation
+   * @throws {Error} If call initiation fails
+   * @throws {DOMException} with name 'AbortError' if aborted
+   *
+   * @example
+   * ```typescript
+   * // Basic usage (backward compatible)
+   * await makeCall('sip:user@domain.com')
+   *
+   * // With abort support
+   * const controller = new AbortController()
+   * const promise = makeCall('sip:user@domain.com', {}, controller.signal)
+   * // Later: controller.abort()
+   * ```
+   */
+  const makeCall = async (
+    target: string,
+    options: CallSessionOptions = {},
+    signal?: AbortSignal
+  ): Promise<void> => {
     // Guard against concurrent operations
     if (isOperationInProgress.value) {
       const error = 'Call operation already in progress'
@@ -300,6 +325,9 @@ export function useCallSession(
       log.error(error)
       throw new Error(error)
     }
+
+    // Check if aborted before starting
+    throwIfAborted(signal)
 
     // Validate target URI
     if (!target || target.trim() === '') {
@@ -325,6 +353,9 @@ export function useCallSession(
       // Clear any existing session
       clearSession()
 
+      // Check if aborted after clearing session
+      throwIfAborted(signal)
+
       // Acquire local media if mediaManager is provided
       if (mediaManager?.value) {
         const { audio = true, video = false } = options
@@ -333,6 +364,9 @@ export function useCallSession(
         mediaAcquired = true
         // Store reference to local stream for cleanup if call fails
         localStreamBeforeCall = mediaManager.value.getLocalStream() || null
+
+        // Check if aborted after media acquisition
+        throwIfAborted(signal)
       }
 
       // Initiate call via SIP client
@@ -357,16 +391,22 @@ export function useCallSession(
 
       log.info(`Call initiated: ${newSession.id}`)
     } catch (error) {
-      // Critical fix: Cleanup media if acquired but call failed
+      // Handle abort errors gracefully
+      if (isAbortError(error)) {
+        log.info('Call initiation aborted by user')
+      } else {
+        log.error('Failed to make call:', error)
+      }
+
+      // Critical fix: Cleanup media if acquired but call failed or aborted
       if (mediaAcquired && localStreamBeforeCall) {
-        log.debug('Cleaning up acquired media after call failure')
+        log.debug('Cleaning up acquired media after call failure/abort')
         localStreamBeforeCall.getTracks().forEach((track) => {
           track.stop()
           log.debug(`Stopped track: ${track.kind}`)
         })
       }
 
-      log.error('Failed to make call:', error)
       throw error
     } finally {
       // Always reset operation guard

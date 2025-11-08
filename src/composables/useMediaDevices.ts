@@ -13,6 +13,7 @@ import { deviceStore } from '../stores/deviceStore'
 import type { MediaDevice } from '../types/media.types'
 import { MediaDeviceKind, PermissionStatus } from '../types/media.types'
 import { createLogger } from '../utils/logger'
+import { throwIfAborted } from '../utils/abortController'
 
 const log = createLogger('useMediaDevices')
 
@@ -79,8 +80,8 @@ export interface UseMediaDevicesReturn {
   // Methods
   // ============================================================================
 
-  /** Enumerate devices */
-  enumerateDevices: () => Promise<MediaDevice[]>
+  /** Enumerate devices with optional abort signal */
+  enumerateDevices: (signal?: AbortSignal) => Promise<MediaDevice[]>
   /** Request audio permission */
   requestAudioPermission: () => Promise<boolean>
   /** Request video permission */
@@ -272,10 +273,23 @@ export function useMediaDevices(
   /**
    * Enumerate devices
    *
+   * @param signal - Optional AbortSignal to cancel enumeration
    * @returns Array of media devices
    * @throws Error if enumeration fails
+   * @throws DOMException with name 'AbortError' if aborted
+   *
+   * @example
+   * ```typescript
+   * // Basic usage (backward compatible)
+   * const devices = await enumerateDevices()
+   *
+   * // With abort support
+   * const controller = new AbortController()
+   * const promise = enumerateDevices(controller.signal)
+   * // Later: controller.abort()
+   * ```
    */
-  const enumerateDevices = async (): Promise<MediaDevice[]> => {
+  const enumerateDevices = async (signal?: AbortSignal): Promise<MediaDevice[]> => {
     if (isEnumerating.value) {
       log.debug('Device enumeration already in progress')
       return allDevices.value
@@ -284,6 +298,10 @@ export function useMediaDevices(
     try {
       isEnumerating.value = true
       lastError.value = null
+
+      // Check if aborted before starting
+      throwIfAborted(signal)
+
       log.info('Enumerating devices')
 
       let devices: MediaDevice[]
@@ -292,10 +310,17 @@ export function useMediaDevices(
       if (mediaManager?.value) {
         // Use MediaManager if available
         devices = await mediaManager.value.enumerateDevices()
+
+        // Check signal after first async operation
+        throwIfAborted(signal)
+
         rawDevices = await navigator.mediaDevices.enumerateDevices()
       } else {
         // Fallback to direct API
         rawDevices = await navigator.mediaDevices.enumerateDevices()
+
+        // Check signal after enumeration
+        throwIfAborted(signal)
 
         devices = rawDevices.map((device) => ({
           deviceId: device.deviceId,
