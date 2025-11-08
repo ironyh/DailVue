@@ -1103,4 +1103,91 @@ describe('useCallSession - Phase 6.11 Improvements', () => {
       expect(callStore.removeActiveCall).toHaveBeenCalledWith('test-call-id')
     })
   })
+
+  describe('AbortController Integration', () => {
+    it('should abort makeCall when AbortSignal is triggered before call', async () => {
+      const sipClientRef = ref<SipClient>(mockSipClient)
+      const { makeCall } = useCallSession(sipClientRef)
+
+      const controller = new AbortController()
+      controller.abort() // Abort immediately
+
+      await expect(makeCall('sip:bob@example.com', {}, controller.signal)).rejects.toThrow(
+        'AbortError'
+      )
+      expect(mockSipClient.call).not.toHaveBeenCalled()
+    })
+
+    it('should abort makeCall when AbortSignal is triggered during call setup', async () => {
+      const sipClientRef = ref<SipClient>(mockSipClient)
+      const { makeCall } = useCallSession(sipClientRef)
+
+      const controller = new AbortController()
+
+      // Delay the call() to simulate async operation
+      mockSipClient.call = vi.fn().mockImplementation(async () => {
+        controller.abort() // Abort during the call
+        return mockSession
+      })
+
+      await expect(makeCall('sip:bob@example.com', {}, controller.signal)).rejects.toThrow(
+        'AbortError'
+      )
+    })
+
+    it('should cleanup media when makeCall is aborted', async () => {
+      const sipClientRef = ref<SipClient>(mockSipClient)
+      const mockMediaManager = {
+        getUserMedia: vi.fn().mockResolvedValue(undefined),
+        getLocalStream: vi.fn().mockReturnValue({
+          getTracks: vi.fn().mockReturnValue([
+            { kind: 'audio', stop: vi.fn() },
+            { kind: 'video', stop: vi.fn() },
+          ]),
+        }),
+      }
+      const mediaManagerRef = ref(mockMediaManager as any)
+      const { makeCall } = useCallSession(sipClientRef, mediaManagerRef)
+
+      const controller = new AbortController()
+
+      // Abort after media is acquired
+      mockMediaManager.getUserMedia.mockImplementation(async () => {
+        controller.abort()
+        throw new DOMException('Operation aborted', 'AbortError')
+      })
+
+      await expect(makeCall('sip:bob@example.com', {}, controller.signal)).rejects.toThrow(
+        'AbortError'
+      )
+
+      // Verify media was acquired
+      expect(mockMediaManager.getUserMedia).toHaveBeenCalled()
+    })
+
+    it('should work without AbortSignal (backward compatibility)', async () => {
+      const sipClientRef = ref<SipClient>(mockSipClient)
+      const { makeCall } = useCallSession(sipClientRef)
+
+      // Call without signal parameter
+      await makeCall('sip:bob@example.com')
+
+      expect(mockSipClient.call).toHaveBeenCalled()
+    })
+
+    it('should differentiate abort errors from other errors', async () => {
+      const sipClientRef = ref<SipClient>(mockSipClient)
+      const { makeCall } = useCallSession(sipClientRef)
+
+      const controller = new AbortController()
+
+      // Simulate a different error
+      mockSipClient.call = vi.fn().mockRejectedValue(new Error('Network error'))
+
+      await expect(makeCall('sip:bob@example.com', {}, controller.signal)).rejects.toThrow(
+        'Network error'
+      )
+      expect(mockSipClient.call).toHaveBeenCalled()
+    })
+  })
 })

@@ -889,4 +889,142 @@ describe('useMediaDevices - Comprehensive Tests', () => {
       expect(lastError.value).toBeNull()
     })
   })
+
+  describe('Concurrent Operation Protection', () => {
+    it('should prevent concurrent enumerateDevices calls', async () => {
+      mockEnumerateDevices.mockResolvedValue([
+        { deviceId: 'audio-in-1', kind: 'audioinput', label: 'Mic', groupId: 'group-1' },
+      ])
+
+      const { enumerateDevices, isEnumerating } = useMediaDevices(ref(null), {
+        autoEnumerate: false,
+      })
+
+      // Start first enumeration
+      const call1 = enumerateDevices()
+      expect(isEnumerating.value).toBe(true)
+
+      // Try second concurrent enumeration
+      const call2 = enumerateDevices()
+
+      // Both should complete
+      const [result1, result2] = await Promise.all([call1, call2])
+
+      // Second call should return cached results without re-enumerating
+      expect(mockEnumerateDevices).toHaveBeenCalledTimes(1)
+      expect(result1).toBe(result2) // Same reference
+    })
+
+    it('should set isEnumerating flag during enumeration', async () => {
+      mockEnumerateDevices.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(() => resolve([]), 50)
+          })
+      )
+
+      const { enumerateDevices, isEnumerating } = useMediaDevices(ref(null), {
+        autoEnumerate: false,
+      })
+
+      expect(isEnumerating.value).toBe(false)
+
+      const promise = enumerateDevices()
+      expect(isEnumerating.value).toBe(true)
+
+      await promise
+      expect(isEnumerating.value).toBe(false)
+    })
+
+    it('should reset isEnumerating flag on error', async () => {
+      mockEnumerateDevices.mockRejectedValue(new Error('Enumeration failed'))
+
+      const { enumerateDevices, isEnumerating } = useMediaDevices(ref(null), {
+        autoEnumerate: false,
+      })
+
+      expect(isEnumerating.value).toBe(false)
+
+      await expect(enumerateDevices()).rejects.toThrow('Enumeration failed')
+      expect(isEnumerating.value).toBe(false)
+    })
+  })
+
+  describe('AbortController Integration', () => {
+    it('should abort enumerateDevices when AbortSignal is triggered before enumeration', async () => {
+      const { enumerateDevices } = useMediaDevices(ref(null), { autoEnumerate: false })
+
+      const controller = new AbortController()
+      controller.abort() // Abort immediately
+
+      await expect(enumerateDevices(controller.signal)).rejects.toThrow('AbortError')
+      expect(mockEnumerateDevices).not.toHaveBeenCalled()
+    })
+
+    it('should abort enumerateDevices when AbortSignal is triggered during enumeration', async () => {
+      const { enumerateDevices } = useMediaDevices(ref(null), { autoEnumerate: false })
+
+      const controller = new AbortController()
+
+      // Simulate slow enumeration
+      mockEnumerateDevices.mockImplementation(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50))
+        return []
+      })
+
+      // Start enumeration
+      const promise = enumerateDevices(controller.signal)
+
+      // Abort after a short delay
+      setTimeout(() => controller.abort(), 10)
+
+      await expect(promise).rejects.toThrow('AbortError')
+    })
+
+    it('should abort when using MediaManager', async () => {
+      mockMediaManager.enumerateDevices = vi.fn().mockImplementation(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50))
+        return []
+      })
+
+      const { enumerateDevices } = useMediaDevices(ref(mockMediaManager), {
+        autoEnumerate: false,
+      })
+
+      const controller = new AbortController()
+
+      // Start enumeration with MediaManager
+      const promise = enumerateDevices(controller.signal)
+
+      // Abort after a short delay
+      setTimeout(() => controller.abort(), 10)
+
+      await expect(promise).rejects.toThrow('AbortError')
+    })
+
+    it('should work without AbortSignal (backward compatibility)', async () => {
+      mockEnumerateDevices.mockResolvedValue([
+        { deviceId: 'audio-in-1', kind: 'audioinput', label: 'Mic', groupId: 'group-1' },
+      ])
+
+      const { enumerateDevices } = useMediaDevices(ref(null), { autoEnumerate: false })
+
+      // Call without signal parameter
+      const devices = await enumerateDevices()
+
+      expect(devices.length).toBe(1)
+      expect(mockEnumerateDevices).toHaveBeenCalled()
+    })
+
+    it('should not abort on regular errors', async () => {
+      mockEnumerateDevices.mockRejectedValue(new Error('Device error'))
+
+      const { enumerateDevices } = useMediaDevices(ref(null), { autoEnumerate: false })
+
+      const controller = new AbortController()
+
+      await expect(enumerateDevices(controller.signal)).rejects.toThrow('Device error')
+      expect(mockEnumerateDevices).toHaveBeenCalled()
+    })
+  })
 })

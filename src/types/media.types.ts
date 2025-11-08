@@ -288,3 +288,72 @@ export interface ExtendedMediaStreamConstraints extends MediaStreamConstraints {
   /** Auto gain control */
   autoGainControl?: boolean
 }
+
+/**
+ * DTMF Sender interface
+ *
+ * Represents the DTMF sender for sending dual-tone multi-frequency signaling.
+ * Used for sending telephone keypad tones (0-9, *, #, A-D) during active calls.
+ *
+ * This is a browser API provided by WebRTC's RTCRtpSender.
+ * @see https://developer.mozilla.org/en-US/docs/Web/API/RTCDTMFSender
+ *
+ * @example
+ * ```typescript
+ * const audioSender = peerConnection.getSenders()
+ *   .find(sender => sender.track?.kind === 'audio') as RTCRtpSenderWithDTMF
+ *
+ * if (audioSender?.dtmf) {
+ *   audioSender.dtmf.insertDTMF('123', 100, 70)
+ * }
+ * ```
+ */
+export interface DTMFSender {
+  /**
+   * Insert DTMF tones into the audio stream
+   * @param tones - String of DTMF tones to send (0-9, A-D, *, #)
+   * @param duration - Duration of each tone in milliseconds (default: 100)
+   * @param interToneGap - Gap between tones in milliseconds (default: 70)
+   */
+  insertDTMF(tones: string, duration?: number, interToneGap?: number): void
+
+  /** Tone buffer containing queued DTMF tones */
+  readonly toneBuffer: string
+
+  /** Event handler called when a tone starts playing */
+  ontonechange?: ((event: RTCDTMFToneChangeEvent) => void) | null
+}
+
+/**
+ * RTCRtpSender with DTMF support
+ *
+ * Extends the standard RTCRtpSender with the dtmf property for DTMF signaling.
+ * Not all senders support DTMF (only audio senders typically do).
+ *
+ * @example
+ * ```typescript
+ * const audioSender = senders.find(s => s.track?.kind === 'audio') as RTCRtpSenderWithDTMF
+ * if (audioSender && 'dtmf' in audioSender && audioSender.dtmf) {
+ *   // DTMF is supported
+ * }
+ * ```
+ */
+export interface RTCRtpSenderWithDTMF extends RTCRtpSender {
+  /** DTMF sender for this RTP sender (null if not supported) */
+  readonly dtmf: DTMFSender | null
+}
+
+/**
+ * Session Description Handler interface
+ *
+ * Represents the internal session description handler from JsSIP.
+ * This is a minimal interface for accessing the underlying RTCPeerConnection.
+ *
+ * Note: This interface is intentionally minimal as JsSIP's SessionDescriptionHandler
+ * is an internal implementation detail. We only expose the peerConnection property
+ * which is needed for accessing RTP senders/receivers.
+ */
+export interface SessionDescriptionHandler {
+  /** The peer connection used by this session */
+  peerConnection?: RTCPeerConnection
+}

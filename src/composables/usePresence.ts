@@ -18,6 +18,7 @@ import {
   type PresenceSubscriptionOptions,
 } from '../types/presence.types'
 import { createLogger } from '../utils/logger'
+import { validateSipUri } from '../utils/validators'
 import { PRESENCE_CONSTANTS } from './constants'
 
 const log = createLogger('usePresence')
@@ -221,6 +222,14 @@ export function usePresence(sipClient: Ref<SipClient | null>): UsePresenceReturn
       throw new Error('SIP client not initialized')
     }
 
+    // Validate target URI
+    const uriValidation = validateSipUri(uri)
+    if (!uriValidation.valid) {
+      const error = `Invalid target URI: ${uriValidation.error}`
+      log.error(error, { uri, validation: uriValidation })
+      throw new Error(error)
+    }
+
     // Check if already subscribed
     if (subscriptions.value.has(uri)) {
       log.warn(`Already subscribed to ${uri}`)
@@ -329,6 +338,14 @@ export function usePresence(sipClient: Ref<SipClient | null>): UsePresenceReturn
       throw new Error('SIP client not initialized')
     }
 
+    // Validate target URI
+    const uriValidation = validateSipUri(uri)
+    if (!uriValidation.valid) {
+      const error = `Invalid target URI: ${uriValidation.error}`
+      log.error(error, { uri, validation: uriValidation })
+      throw new Error(error)
+    }
+
     const subscription = subscriptions.value.get(uri)
     if (!subscription) {
       log.warn(`No active subscription for ${uri}`)
@@ -394,6 +411,13 @@ export function usePresence(sipClient: Ref<SipClient | null>): UsePresenceReturn
    * Get presence status for a specific user
    */
   const getStatus = (uri: string): PresenceStatus | null => {
+    // Validate target URI
+    const uriValidation = validateSipUri(uri)
+    if (!uriValidation.valid) {
+      log.warn(`Invalid target URI for getStatus: ${uriValidation.error}`, { uri })
+      return null
+    }
+
     return watchedUsers.value.get(uri) || null
   }
 

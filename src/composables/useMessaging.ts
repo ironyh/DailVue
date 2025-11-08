@@ -20,6 +20,7 @@ import {
   type MessageFilter,
 } from '../types/messaging.types'
 import { createLogger } from '../utils/logger'
+import { validateSipUri } from '../utils/validators'
 import { MESSAGING_CONSTANTS } from './constants'
 
 const log = createLogger('useMessaging')
@@ -192,6 +193,13 @@ export function useMessaging(sipClient: Ref<SipClient | null>): UseMessagingRetu
     content: string,
     contentType: MessageContentType = MessageContentType.Text
   ): void => {
+    // Validate sender URI
+    const uriValidation = validateSipUri(from)
+    if (!uriValidation.valid) {
+      log.warn(`Invalid sender URI for incoming message: ${uriValidation.error}`, { from })
+      return // Skip invalid messages
+    }
+
     log.info(`Received message from ${from}`)
 
     const message: Message = {
@@ -223,6 +231,13 @@ export function useMessaging(sipClient: Ref<SipClient | null>): UseMessagingRetu
    * Handle composing indicator
    */
   const handleComposingIndicator = (from: string, isComposing: boolean): void => {
+    // Validate sender URI
+    const uriValidation = validateSipUri(from)
+    if (!uriValidation.valid) {
+      log.warn(`Invalid sender URI for composing indicator: ${uriValidation.error}`, { from })
+      return // Skip invalid indicators
+    }
+
     log.debug(`Composing indicator from ${from}: ${isComposing}`)
 
     const indicator: ComposingIndicator = {
@@ -275,6 +290,14 @@ export function useMessaging(sipClient: Ref<SipClient | null>): UseMessagingRetu
   ): Promise<string> => {
     if (!sipClient.value) {
       throw new Error('SIP client not initialized')
+    }
+
+    // Validate recipient URI
+    const uriValidation = validateSipUri(to)
+    if (!uriValidation.valid) {
+      const error = `Invalid recipient URI: ${uriValidation.error}`
+      log.error(error, { to, validation: uriValidation })
+      throw new Error(error)
     }
 
     const {
@@ -365,6 +388,13 @@ export function useMessaging(sipClient: Ref<SipClient | null>): UseMessagingRetu
   const sendComposingIndicator = async (to: string, isComposing: boolean): Promise<void> => {
     if (!sipClient.value) {
       throw new Error('SIP client not initialized')
+    }
+
+    // Validate recipient URI
+    const uriValidation = validateSipUri(to)
+    if (!uriValidation.valid) {
+      log.warn(`Invalid recipient URI for composing indicator: ${uriValidation.error}`, { to })
+      return // Don't throw, composing indicators are not critical
     }
 
     try {

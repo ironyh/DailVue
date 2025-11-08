@@ -7,7 +7,7 @@
  * @module composables/useSipClient
  */
 
-import { ref, computed, onUnmounted, readonly, nextTick, type Ref, type ComputedRef } from 'vue'
+import { ref, computed, onUnmounted, readonly, nextTick, toRaw, type Ref, type ComputedRef } from 'vue'
 import { SipClient } from '@/core/SipClient'
 import { EventBus } from '@/core/EventBus'
 import { configStore } from '@/stores/configStore'
@@ -353,8 +353,8 @@ export function useSipClient(
       // Create SIP client if not exists
       if (!sipClient.value) {
         logger.info('Creating SIP client')
-        // Cast away readonly wrapper from Vue reactivity system
-        sipClient.value = new SipClient(config as any, eventBus)
+        // Extract raw config object from Vue reactivity system
+        sipClient.value = new SipClient(toRaw(config), eventBus)
       }
 
       // Start the client with timeout

@@ -238,3 +238,55 @@ export interface SipMessageOptions {
     failed?: (response: any) => void
   }
 }
+
+/**
+ * Registration options
+ *
+ * Configuration options for SIP REGISTER requests.
+ * Used when registering the SIP client with the SIP server.
+ *
+ * @example
+ * ```typescript
+ * const options: RegisterOptions = {
+ *   expires: 3600,  // Register for 1 hour
+ *   extraHeaders: ['X-Custom-Header: value'],
+ *   instanceId: 'unique-device-id'
+ * }
+ * await sipClient.register(options)
+ * ```
+ */
+export interface RegisterOptions {
+  /**
+   * Registration expiry time in seconds
+   * Default is typically 600 seconds (10 minutes)
+   * Range: 60-3600 seconds recommended
+   */
+  expires?: number
+
+  /**
+   * Extra SIP headers to include in REGISTER request
+   * Example: ['X-Custom-Header: value', 'X-Auth-Token: token']
+   */
+  extraHeaders?: string[]
+
+  /**
+   * Extra contact URI parameters
+   * These are appended to the Contact header URI
+   * Example: ['+sip.instance="<urn:uuid:00000000-0000-1000-8000-AABBCCDDEEFF>"']
+   */
+  extraContactUriParams?: string[]
+
+  /**
+   * Instance ID for multiple registrations
+   * Used to uniquely identify this client instance when multiple
+   * devices register with the same SIP URI
+   */
+  instanceId?: string
+
+  /**
+   * Registration refresh interval in seconds
+   * How often to send re-REGISTER requests
+   * Should be less than expires value
+   */
+  refreshInterval?: number
+}

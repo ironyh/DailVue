@@ -22,6 +22,7 @@ import {
   type AudioLevelEvent,
 } from '../types/conference.types'
 import { createLogger } from '../utils/logger'
+import { validateSipUri } from '../utils/validators'
 import { CONFERENCE_CONSTANTS } from './constants'
 
 const log = createLogger('useConference')
@@ -610,6 +611,14 @@ export function useConference(sipClient: Ref<SipClient | null>): UseConferenceRe
       throw new Error('SIP client not initialized')
     }
 
+    // Validate conference URI
+    const uriValidation = validateSipUri(conferenceUri)
+    if (!uriValidation.valid) {
+      const error = `Invalid conference URI: ${uriValidation.error}`
+      log.error(error, { conferenceUri, validation: uriValidation })
+      throw new Error(error)
+    }
+
     try {
       log.info(`Joining conference: ${conferenceUri}`)
 
@@ -710,6 +719,14 @@ export function useConference(sipClient: Ref<SipClient | null>): UseConferenceRe
       (conference.value.maxParticipants || CONFERENCE_CONSTANTS.DEFAULT_MAX_PARTICIPANTS)
     ) {
       throw new Error('Conference is full')
+    }
+
+    // Validate participant URI
+    const uriValidation = validateSipUri(uri)
+    if (!uriValidation.valid) {
+      const error = `Invalid participant URI: ${uriValidation.error}`
+      log.error(error, { uri, validation: uriValidation })
+      throw new Error(error)
     }
 
     try {

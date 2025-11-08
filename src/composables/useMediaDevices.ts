@@ -13,6 +13,12 @@ import { deviceStore } from '../stores/deviceStore'
 import type { MediaDevice } from '../types/media.types'
 import { MediaDeviceKind, PermissionStatus } from '../types/media.types'
 import { createLogger } from '../utils/logger'
+import { throwIfAborted } from '../utils/abortController'
+import {
+  ErrorSeverity,
+  logErrorWithContext,
+  createOperationTimer,
+} from '../utils/errorContext'
 
 const log = createLogger('useMediaDevices')
 
@@ -79,8 +85,8 @@ export interface UseMediaDevicesReturn {
   // Methods
   // ============================================================================
 
-  /** Enumerate devices */
-  enumerateDevices: () => Promise<MediaDevice[]>
+  /** Enumerate devices with optional abort signal */
+  enumerateDevices: (signal?: AbortSignal) => Promise<MediaDevice[]>
   /** Request audio permission */
   requestAudioPermission: () => Promise<boolean>
   /** Request video permission */
@@ -160,6 +166,9 @@ export function useMediaDevices(
 
   const isEnumerating = ref(false)
   const lastError = ref<Error | null>(null)
+
+  // Internal AbortController for automatic cleanup on unmount
+  const internalAbortController = ref(new AbortController())
 
   // Critical fix: Sync flag to prevent infinite loops in bidirectional sync
   const isUpdatingFromStore = ref(false)
@@ -272,18 +281,40 @@ export function useMediaDevices(
   /**
    * Enumerate devices
    *
+   * @param signal - Optional AbortSignal to cancel enumeration
    * @returns Array of media devices
    * @throws Error if enumeration fails
+   * @throws DOMException with name 'AbortError' if aborted
+   *
+   * @example
+   * ```typescript
+   * // Basic usage (backward compatible)
+   * const devices = await enumerateDevices()
+   *
+   * // With abort support
+   * const controller = new AbortController()
+   * const promise = enumerateDevices(controller.signal)
+   * // Later: controller.abort()
+   * ```
    */
-  const enumerateDevices = async (): Promise<MediaDevice[]> => {
+  const enumerateDevices = async (signal?: AbortSignal): Promise<MediaDevice[]> => {
+    // Use internal abort signal if none provided (auto-cleanup on unmount)
+    const effectiveSignal = signal ?? internalAbortController.value.signal
+
     if (isEnumerating.value) {
       log.debug('Device enumeration already in progress')
       return allDevices.value
     }
 
+    const timer = createOperationTimer()
+
     try {
       isEnumerating.value = true
       lastError.value = null
+
+      // Check if aborted before starting
+      throwIfAborted(effectiveSignal)
+
       log.info('Enumerating devices')
 
       let devices: MediaDevice[]
@@ -292,10 +323,17 @@ export function useMediaDevices(
       if (mediaManager?.value) {
         // Use MediaManager if available
         devices = await mediaManager.value.enumerateDevices()
+
+        // Check signal after first async operation
+        throwIfAborted(effectiveSignal)
+
         rawDevices = await navigator.mediaDevices.enumerateDevices()
       } else {
         // Fallback to direct API
         rawDevices = await navigator.mediaDevices.enumerateDevices()
+
+        // Check signal after enumeration
+        throwIfAborted(effectiveSignal)
 
         devices = rawDevices.map((device) => ({
           deviceId: device.deviceId,
@@ -313,7 +351,28 @@ export function useMediaDevices(
     } catch (error) {
       const err = error instanceof Error ? error : new Error('Device enumeration failed')
       lastError.value = err
-      log.error('Failed to enumerate devices:', err)
+
+      logErrorWithContext(
+        log,
+        'Failed to enumerate devices',
+        err,
+        'enumerateDevices',
+        'useMediaDevices',
+        ErrorSeverity.MEDIUM,
+        {
+          context: {
+            hasMediaManager: !!mediaManager?.value,
+          },
+          state: {
+            isEnumerating: isEnumerating.value,
+            currentDeviceCount: allDevices.value.length,
+            audioInputs: audioInputDevices.value.length,
+            audioOutputs: audioOutputDevices.value.length,
+            videoInputs: videoInputDevices.value.length,
+          },
+          duration: timer.elapsed(),
+        }
+      )
       throw err
     } finally {
       isEnumerating.value = false
@@ -742,6 +801,12 @@ export function useMediaDevices(
   onUnmounted(() => {
     log.debug('Composable unmounting, cleaning up')
     stopDeviceChangeMonitoring()
+
+    // Abort any pending async operations
+    if (!internalAbortController.value.signal.aborted) {
+      log.info('Aborting pending operations on unmount')
+      internalAbortController.value.abort()
+    }
   })
 
   // ============================================================================

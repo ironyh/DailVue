@@ -1,5 +1,6 @@
 import { ref, onMounted, type Ref } from 'vue'
-import type { AudioDevice } from '../types'
+import type { AudioDevice } from '@/types/media.types'
+import { MediaDeviceKind } from '@/types/media.types'
 
 export interface UseAudioDevicesReturn {
   audioInputDevices: Ref<AudioDevice[]>
@@ -29,7 +30,7 @@ export function useAudioDevices(): UseAudioDevicesReturn {
         .map((device) => ({
           deviceId: device.deviceId,
           label: device.label || `Microphone ${device.deviceId.slice(0, 5)}`,
-          kind: device.kind as any,
+          kind: device.kind as MediaDeviceKind,
           groupId: device.groupId,
         }))
 
@@ -38,7 +39,7 @@ export function useAudioDevices(): UseAudioDevicesReturn {
         .map((device) => ({
           deviceId: device.deviceId,
           label: device.label || `Speaker ${device.deviceId.slice(0, 5)}`,
-          kind: device.kind as any,
+          kind: device.kind as MediaDeviceKind,
           groupId: device.groupId,
         }))
 

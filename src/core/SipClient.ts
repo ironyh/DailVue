@@ -16,6 +16,7 @@ import type {
   ParticipantState,
 } from '@/types/conference.types'
 import type { PresencePublishOptions, PresenceSubscriptionOptions } from '@/types/presence.types'
+import { CallSession as CallSessionClass, createCallSession } from '@/core/CallSession'
 import type { CallSession, CallOptions } from '@/types/call.types'
 import { CallState, CallDirection } from '@/types/call.types'
 // Note: JsSIP types are defined in jssip.types.ts for documentation purposes,
@@ -102,7 +103,7 @@ export class SipClient {
   private isStopping = false
 
   // Phase 11+ features
-  private activeCalls = new Map<string, any>() // Maps call ID to RTCSession
+  private activeCalls = new Map<string, CallSessionClass>() // Maps call ID to CallSession
   private messageHandlers: Array<(from: string, content: string, contentType?: string) => void> = []
   private composingHandlers: Array<(from: string, isComposing: boolean) => void> = []
   private presenceSubscriptions = new Map<string, any>()
@@ -515,14 +516,24 @@ export class SipClient {
     this.ua.on('newRTCSession', (e: any) => {
       logger.debug('New RTC session:', e)
 
-      const session = e.session
-      const callId = session.id || this.generateCallId()
+      const rtcSession = e.session
+      const callId = rtcSession.id || this.generateCallId()
 
       // Track incoming calls
       if (e.originator === 'remote') {
         logger.info('Incoming call', { callId })
-        this.activeCalls.set(callId, session)
-        this.setupSessionHandlers(session, callId)
+
+        // Create CallSession instance for incoming call
+        const callSession = createCallSession(
+          rtcSession,
+          CallDirection.Incoming,
+          this.config.sipUri,
+          this.eventBus
+        )
+
+        // Store CallSession instance (not JsSIP session)
+        this.activeCalls.set(callId, callSession)
+        this.setupSessionHandlers(rtcSession, callId)
       }
 
       this.eventBus.emitSync('sip:new_session', {
@@ -1642,13 +1653,7 @@ export class SipClient {
    * @returns Call session or undefined if not found
    */
   getActiveCall(callId: string): CallSession | undefined {
-    const session = this.activeCalls.get(callId)
-    if (!session) {
-      return undefined
-    }
-
-    // Convert JsSIP session to CallSession interface
-    return this.sessionToCallSession(session)
+    return this.activeCalls.get(callId)
   }
 
   /**
@@ -1658,6 +1663,18 @@ export class SipClient {
    * @returns Promise resolving to call ID
    */
   async makeCall(target: string, options?: CallOptions): Promise<string> {
+    // Use the new call() method and return just the ID for backward compatibility
+    const callSession = await this.call(target, options)
+    return callSession.id
+  }
+
+  /**
+   * Make an outgoing call and return CallSession instance
+   * @param target - Target SIP URI
+   * @param options - Call options
+   * @returns Promise resolving to CallSession instance
+   */
+  async call(target: string, options?: CallOptions): Promise<CallSessionClass> {
     if (!this.ua) {
       throw new Error('SIP client is not started')
     }
@@ -1692,18 +1709,26 @@ export class SipClient {
 
     try {
       // Initiate call using JsSIP
-      const session = this.ua.call(target, callOptions)
-      const callId = session.id || this.generateCallId()
+      const rtcSession = this.ua.call(target, callOptions)
+      const callId = rtcSession.id || this.generateCallId()
 
-      // Store active call
-      this.activeCalls.set(callId, session)
+      // Create CallSession instance
+      const callSession = createCallSession(
+        rtcSession,
+        CallDirection.Outgoing,
+        this.config.sipUri,
+        this.eventBus
+      )
+
+      // Store CallSession instance (not JsSIP session)
+      this.activeCalls.set(callId, callSession)
 
       // Setup session event handlers
-      this.setupSessionHandlers(session, callId)
+      this.setupSessionHandlers(rtcSession, callId)
 
       logger.info('Call initiated', { callId, target })
 
-      return callId
+      return callSession
     } catch (error) {
       logger.error('Failed to make call:', error)
       throw error
