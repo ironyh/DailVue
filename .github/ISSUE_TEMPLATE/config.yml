@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/ironyh/VueSip#readme
+    about: Check out the VueSip documentation for guides and examples
+  - name: Discussions
+    url: https://github.com/ironyh/VueSip/discussions
+    about: Ask questions and discuss VueSip with the community
+  - name: SIP.js Documentation
+    url: https://sipjs.com/
+    about: Learn more about the underlying SIP.js library
