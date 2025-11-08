@@ -2708,7 +2708,7 @@ Each section is a separate markdown file in `docs/api/`:
   - Document all event types ✅
   - Document EventBus API ✅
   - Show event patterns ✅
-  - **Documented:** 49 event types, 12 EventBus methods
+  - **Documented:** 55 event types (12 conference events), 12 EventBus methods
 
 - [x] Create Utilities API reference
   - **Files:** `docs/api/utilities.md` ✅
