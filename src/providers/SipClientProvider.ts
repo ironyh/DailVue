@@ -234,7 +234,7 @@
  * import { SipClientProvider, useSipClientProvider } from 'vuesip'
  * import { ref, onMounted } from 'vue'
  *
- * const sipConfig = { /* ... */ }
+ * const sipConfig = { uri: 'wss://sip.example.com', sipUri: 'sip:user@example.com', password: 'secret' }
  * const events = ref([])
  *
  * const { eventBus, connectionState, registrationState } = useSipClientProvider()
@@ -318,7 +318,7 @@
  * import { SipClientProvider, useSipClientProvider } from 'vuesip'
  * import { ref, computed } from 'vue'
  *
- * const sipConfig = { /* ... */ }
+ * const sipConfig = { uri: 'wss://sip.example.com', sipUri: 'sip:user@example.com', password: 'secret' }
  *
  * const { error, isReady, connect, connectionState } = useSipClientProvider()
  * const lastError = ref(null)

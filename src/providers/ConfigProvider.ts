@@ -844,7 +844,7 @@
  * @packageDocumentation
  */
 
-import { defineComponent, provide, computed, watch, type PropType } from 'vue'
+import { defineComponent, provide, computed, watch, inject, type PropType } from 'vue'
 import { configStore } from '../stores/configStore'
 import { createLogger } from '../utils/logger'
 import type { SipClientConfig, MediaConfiguration, UserPreferences } from '../types/config.types'
@@ -2333,6 +2333,3 @@ export function useConfigProvider(): ConfigProviderContext {
 
 // Named export for convenience
 export { CONFIG_PROVIDER_KEY }
-
-// Import inject after the component definition
-import { inject } from 'vue'
