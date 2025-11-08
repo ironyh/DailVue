@@ -394,42 +394,59 @@
  *
  * // Update display name when input changes
  * const updateDisplayName = () => {
- *   config.updateSipConfig({ displayName: displayName.value })
- *   console.log('Display name updated:', displayName.value)
+ *   try {
+ *     config.updateSipConfig({ displayName: displayName.value })
+ *     console.log('Display name updated:', displayName.value)
+ *   } catch (error) {
+ *     console.error('Failed to update display name:', error)
+ *   }
  * }
  *
  * // Switch servers dynamically
  * const switchServer = () => {
- *   const newUri = servers[selectedServer.value]
- *   config.updateSipConfig({ uri: newUri })
- *   console.log('Switched to server:', newUri)
- *   // Note: SipClientProvider needs to reconnect for this to take effect
+ *   try {
+ *     const newUri = servers[selectedServer.value]
+ *     config.updateSipConfig({ uri: newUri })
+ *     console.log('Switched to server:', newUri)
+ *     // Note: SipClientProvider needs to reconnect for this to take effect
+ *   } catch (error) {
+ *     console.error('Failed to switch servers:', error)
+ *   }
  * }
  *
  * // Update media config reactively
  * watch(enableEchoCancellation, (newValue) => {
- *   config.updateMediaConfig({
- *     audio: {
- *       echoCancellation: newValue
- *     }
- *   })
+ *   try {
+ *     config.updateMediaConfig({
+ *       audio: {
+ *         echoCancellation: newValue
+ *       }
+ *     })
+ *   } catch (error) {
+ *     console.error('Failed to update media config:', error)
+ *   }
  * })
  *
  * // Save configuration to sessionStorage (more secure than localStorage)
  * const saveConfig = () => {
- *   // Exclude sensitive data like passwords
- *   const { password, ...safeSipConfig } = config.sipConfig || {}
+ *   try {
+ *     // Exclude sensitive data like passwords
+ *     const { password, ...safeSipConfig } = config.sipConfig || {}
  *
- *   const currentConfig = {
- *     sip: safeSipConfig,  // Password excluded for security
- *     media: config.mediaConfig,
- *     preferences: config.userPreferences
+ *     const currentConfig = {
+ *       sip: safeSipConfig,  // Password excluded for security
+ *       media: config.mediaConfig,
+ *       preferences: config.userPreferences
+ *     }
+ *
+ *     // Use sessionStorage instead of localStorage for better security
+ *     // sessionStorage is cleared when the browser tab is closed
+ *     sessionStorage.setItem('vueSipConfig', JSON.stringify(currentConfig))
+ *     console.log('Configuration saved (password excluded for security)')
+ *   } catch (error) {
+ *     console.error('Failed to save configuration:', error)
+ *     // Handle quota exceeded or storage disabled
  *   }
- *
- *   // Use sessionStorage instead of localStorage for better security
- *   // sessionStorage is cleared when the browser tab is closed
- *   sessionStorage.setItem('vueSipConfig', JSON.stringify(currentConfig))
- *   console.log('Configuration saved (password excluded for security)')
  * }
  * </script>
  * ```
@@ -1690,21 +1707,25 @@ export const ConfigProvider = defineComponent({
      *   Completely replaces existing SIP configuration with new configuration.
      *   Clears any fields not present in the new config.
      *   Optional validation (default: true).
+     *   @throws {Error} If validation is enabled and configuration is invalid
      *
      * - `updateSipConfig(updates: Partial<SipClientConfig>, validate?: boolean): void`
      *   Deep merges updates into existing SIP configuration.
      *   Preserves fields not mentioned in updates.
      *   Optional validation (default: true).
+     *   @throws {Error} If validation is enabled and merged configuration is invalid
      *
      * *Media Configuration Methods:*
      * - `setMediaConfig(config: MediaConfiguration, validate?: boolean): void`
      *   Completely replaces existing media configuration.
      *   Optional validation (default: true).
+     *   @throws {Error} If validation is enabled and configuration is invalid
      *
      * - `updateMediaConfig(updates: Partial<MediaConfiguration>, validate?: boolean): void`
      *   Deep merges updates into existing media configuration.
      *   Preserves fields not mentioned in updates.
      *   Optional validation (default: true).
+     *   @throws {Error} If validation is enabled and merged configuration is invalid
      *
      * *User Preferences Methods:*
      * - `setUserPreferences(preferences: UserPreferences): void`
