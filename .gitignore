@@ -10,6 +10,7 @@ coverage
 node_modules
 .pnp
 .pnp.js
+package-lock.json  # Project uses pnpm, not npm
 
 # Testing
 coverage
