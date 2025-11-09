@@ -150,6 +150,11 @@ import SpeedDialDemo from './demos/SpeedDialDemo.vue'
 import DoNotDisturbDemo from './demos/DoNotDisturbDemo.vue'
 import CallQualityDemo from './demos/CallQualityDemo.vue'
 import CustomRingtonesDemo from './demos/CustomRingtonesDemo.vue'
+import CallRecordingDemo from './demos/CallRecordingDemo.vue'
+import ConferenceCallDemo from './demos/ConferenceCallDemo.vue'
+import CallMutePatternsDemo from './demos/CallMutePatternsDemo.vue'
+import NetworkSimulatorDemo from './demos/NetworkSimulatorDemo.vue'
+import ScreenSharingDemo from './demos/ScreenSharingDemo.vue'
 
 // Example definitions
 const examples = [
@@ -611,6 +616,374 @@ watch(state, (newState, oldState) => {
     if (ringtone.value) ringtone.value.currentTime = 0
   }
 })`,
+      },
+    ],
+  },
+  {
+    id: 'call-recording',
+    icon: '📹',
+    title: 'Call Recording',
+    description: 'Record and playback call audio',
+    tags: ['Advanced', 'Recording', 'Media'],
+    component: CallRecordingDemo,
+    setupGuide: '<p>Record call audio using the MediaRecorder API. Save recordings to disk or play them back later. Recordings are stored temporarily in memory.</p>',
+    codeSnippets: [
+      {
+        title: 'Recording Setup',
+        description: 'Start recording call audio',
+        code: `import { ref } from 'vue'
+import { useCallSession } from 'vuesip'
+
+const mediaRecorder = ref<MediaRecorder | null>(null)
+const recordedChunks = ref<Blob[]>([])
+
+const { session } = useCallSession(sipClient)
+
+const startRecording = async () => {
+  if (!session.value?.remoteStream) return
+
+  const stream = session.value.remoteStream
+  mediaRecorder.value = new MediaRecorder(stream, {
+    mimeType: 'audio/webm'
+  })
+
+  recordedChunks.value = []
+
+  mediaRecorder.value.ondataavailable = (event) => {
+    if (event.data.size > 0) {
+      recordedChunks.value.push(event.data)
+    }
+  }
+
+  mediaRecorder.value.start()
+}
+
+const stopRecording = () => {
+  if (mediaRecorder.value) {
+    mediaRecorder.value.stop()
+
+    // Create blob from chunks
+    const blob = new Blob(recordedChunks.value, {
+      type: 'audio/webm'
+    })
+
+    // Download or save
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'recording.webm'
+    a.click()
+  }
+}`,
+      },
+    ],
+  },
+  {
+    id: 'conference-call',
+    icon: '👥',
+    title: 'Conference Call',
+    description: 'Manage multiple simultaneous calls',
+    tags: ['Advanced', 'Multi-party', 'Complex'],
+    component: ConferenceCallDemo,
+    setupGuide: '<p>Manage conference calls with multiple participants. Hold, mute, and control individual participants. Merge calls together.</p>',
+    codeSnippets: [
+      {
+        title: 'Managing Multiple Calls',
+        description: 'Handle multiple simultaneous calls',
+        code: `import { ref } from 'vue'
+import { useSipClient } from 'vuesip'
+
+const activeCalls = ref<Call[]>([])
+
+const { makeCall, sessions } = useSipClient()
+
+// Add participant to conference
+const addParticipant = async (uri: string) => {
+  const callId = await makeCall(uri)
+
+  activeCalls.value.push({
+    id: callId,
+    uri,
+    state: 'connecting'
+  })
+}
+
+// Hold/Resume specific call
+const toggleCallHold = async (callId: string) => {
+  const call = sessions.value.get(callId)
+  if (!call) return
+
+  if (call.isOnHold) {
+    await call.unhold()
+  } else {
+    await call.hold()
+  }
+}
+
+// Mute specific call
+const muteCall = async (callId: string) => {
+  const call = sessions.value.get(callId)
+  await call?.mute()
+}
+
+// End specific call
+const endCall = async (callId: string) => {
+  const call = sessions.value.get(callId)
+  await call?.hangup()
+
+  const index = activeCalls.value.findIndex(c => c.id === callId)
+  if (index !== -1) {
+    activeCalls.value.splice(index, 1)
+  }
+}`,
+      },
+    ],
+  },
+  {
+    id: 'call-mute-patterns',
+    icon: '🔇',
+    title: 'Call Mute Patterns',
+    description: 'Advanced mute controls and patterns',
+    tags: ['Advanced', 'Audio', 'Patterns'],
+    component: CallMutePatternsDemo,
+    setupGuide: '<p>Explore different mute patterns including push-to-talk, auto-mute on silence, and scheduled mute/unmute. Perfect for different use cases like meetings and presentations.</p>',
+    codeSnippets: [
+      {
+        title: 'Push-to-Talk Implementation',
+        description: 'Hold key to unmute temporarily',
+        code: `import { ref, onMounted, onUnmounted } from 'vue'
+import { useCallSession } from 'vuesip'
+
+const { mute, unmute, isMuted } = useCallSession(sipClient)
+const isPushToTalkActive = ref(false)
+
+const handleKeyDown = async (event: KeyboardEvent) => {
+  if (event.code === 'Space' && !isPushToTalkActive.value) {
+    isPushToTalkActive.value = true
+    await unmute()
+  }
+}
+
+const handleKeyUp = async (event: KeyboardEvent) => {
+  if (event.code === 'Space' && isPushToTalkActive.value) {
+    isPushToTalkActive.value = false
+    await mute()
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeyDown)
+  window.addEventListener('keyup', handleKeyUp)
+
+  // Start muted for push-to-talk
+  mute()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeyDown)
+  window.removeEventListener('keyup', handleKeyUp)
+})`,
+      },
+      {
+        title: 'Auto-Mute on Silence',
+        description: 'Automatically mute when no audio detected',
+        code: `const autoMuteDelay = ref(3000) // 3 seconds
+let silenceTimer: number | null = null
+
+// Monitor audio level
+const checkAudioLevel = (level: number) => {
+  if (level < 10) {
+    // Low audio, start silence timer
+    if (!silenceTimer) {
+      silenceTimer = window.setTimeout(async () => {
+        await mute()
+      }, autoMuteDelay.value)
+    }
+  } else {
+    // Audio detected, cancel timer and unmute
+    if (silenceTimer) {
+      clearTimeout(silenceTimer)
+      silenceTimer = null
+    }
+    if (isMuted.value) {
+      await unmute()
+    }
+  }
+}`,
+      },
+    ],
+  },
+  {
+    id: 'network-simulator',
+    icon: '📡',
+    title: 'Network Simulator',
+    description: 'Simulate network conditions',
+    tags: ['Debug', 'Testing', 'Advanced'],
+    component: NetworkSimulatorDemo,
+    setupGuide: '<p>Test your application under various network conditions. Simulate latency, packet loss, jitter, and bandwidth constraints to see how your calls perform.</p>',
+    codeSnippets: [
+      {
+        title: 'Network Condition Profiles',
+        description: 'Pre-defined network profiles',
+        code: `interface NetworkProfile {
+  name: string
+  latency: number     // ms
+  packetLoss: number  // %
+  jitter: number      // ms
+  bandwidth: number   // kbps
+}
+
+const profiles: NetworkProfile[] = [
+  {
+    name: 'Excellent',
+    latency: 20,
+    packetLoss: 0,
+    jitter: 5,
+    bandwidth: 10000
+  },
+  {
+    name: '4G Mobile',
+    latency: 100,
+    packetLoss: 2,
+    jitter: 25,
+    bandwidth: 500
+  },
+  {
+    name: 'Poor WiFi',
+    latency: 300,
+    packetLoss: 10,
+    jitter: 100,
+    bandwidth: 256
+  }
+]
+
+const applyProfile = (profile: NetworkProfile) => {
+  console.log(\`Simulating: \${profile.name}\`)
+  // Apply settings to connection
+}`,
+      },
+      {
+        title: 'Quality Metrics',
+        description: 'Calculate call quality score',
+        code: `const calculateQuality = (
+  latency: number,
+  packetLoss: number,
+  jitter: number
+): string => {
+  let score = 100
+
+  // Penalize for latency
+  if (latency > 400) score -= 50
+  else if (latency > 200) score -= 30
+  else if (latency > 100) score -= 15
+
+  // Penalize for packet loss
+  if (packetLoss > 10) score -= 40
+  else if (packetLoss > 5) score -= 25
+  else if (packetLoss > 2) score -= 10
+
+  // Penalize for jitter
+  if (jitter > 100) score -= 30
+  else if (jitter > 50) score -= 15
+  else if (jitter > 25) score -= 5
+
+  if (score >= 80) return 'Excellent'
+  if (score >= 60) return 'Good'
+  if (score >= 40) return 'Fair'
+  return 'Poor'
+}`,
+      },
+    ],
+  },
+  {
+    id: 'screen-sharing',
+    icon: '🖥️',
+    title: 'Screen Sharing',
+    description: 'Share screen during video calls',
+    tags: ['Video', 'Advanced', 'Screen'],
+    component: ScreenSharingDemo,
+    setupGuide: '<p>Share your screen, application windows, or browser tabs during video calls. Requires WebRTC screen capture API support.</p>',
+    codeSnippets: [
+      {
+        title: 'Start Screen Sharing',
+        description: 'Request screen capture permission',
+        code: `import { ref } from 'vue'
+import { useCallSession } from 'vuesip'
+
+const screenStream = ref<MediaStream | null>(null)
+const { session } = useCallSession(sipClient)
+
+const startScreenShare = async () => {
+  try {
+    // Request screen capture
+    screenStream.value = await navigator.mediaDevices.getDisplayMedia({
+      video: {
+        cursor: 'always'
+      },
+      audio: false
+    })
+
+    // Replace video track in call
+    const videoTrack = screenStream.value.getVideoTracks()[0]
+
+    const sender = session.value.connection
+      .getSenders()
+      .find(s => s.track?.kind === 'video')
+
+    if (sender) {
+      await sender.replaceTrack(videoTrack)
+    }
+
+    // Listen for stop sharing
+    videoTrack.onended = () => {
+      stopScreenShare()
+    }
+  } catch (error) {
+    console.error('Screen sharing failed:', error)
+  }
+}
+
+const stopScreenShare = async () => {
+  if (screenStream.value) {
+    screenStream.value.getTracks().forEach(track => track.stop())
+    screenStream.value = null
+  }
+
+  // Restore camera stream
+  // ... restore original video track
+}`,
+      },
+      {
+        title: 'Screen Share Options',
+        description: 'Configure capture settings',
+        code: `const shareScreen = async (options: {
+  type: 'screen' | 'window' | 'tab'
+  audio: boolean
+  highQuality: boolean
+}) => {
+  const constraints: any = {
+    video: {
+      cursor: 'always',
+      displaySurface: options.type
+    },
+    audio: options.audio
+  }
+
+  if (options.highQuality) {
+    constraints.video.width = { ideal: 1920 }
+    constraints.video.height = { ideal: 1080 }
+    constraints.video.frameRate = { ideal: 30 }
+  } else {
+    constraints.video.width = { ideal: 1280 }
+    constraints.video.height = { ideal: 720 }
+    constraints.video.frameRate = { ideal: 15 }
+  }
+
+  const stream = await navigator.mediaDevices
+    .getDisplayMedia(constraints)
+
+  return stream
+}`,
       },
     ],
   },
