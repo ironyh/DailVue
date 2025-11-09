@@ -1,0 +1,73 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src/index.ts"],
+  "tsconfig": "tsconfig.json",
+  "out": "docs/api/generated",
+  "plugin": ["typedoc-plugin-markdown", "typedoc-plugin-missing-exports"],
+  "name": "VueSip API Reference",
+  "includeVersion": true,
+  "readme": "none",
+  "categorizeByGroup": false,
+  "sort": ["source-order", "required-first", "kind"],
+  "kindSortOrder": [
+    "Function",
+    "Class",
+    "Interface",
+    "TypeAlias",
+    "Variable",
+    "Enum"
+  ],
+  "exclude": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/tests/**",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "**/playground/**",
+    "**/*.d.ts"
+  ],
+  "excludePrivate": true,
+  "excludeProtected": false,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "validation": {
+    "notExported": true,
+    "invalidLink": true,
+    "notDocumented": false
+  },
+  "treatWarningsAsErrors": false,
+  "commentStyle": "jsdoc",
+  "searchInComments": true,
+  "cleanOutputDir": true,
+  "hideGenerator": true,
+  "disableSources": false,
+  "hideParameterTypesInTitle": false,
+  "useCodeBlocks": true,
+  "stripInternal": true,
+  "blockTagsDocOnly": false,
+  "visibilityFilters": {
+    "protected": true,
+    "private": false,
+    "inherited": true,
+    "external": false
+  },
+  "githubPages": false,
+  "navigationLinks": {
+    "GitHub": "https://github.com/ironyh/VueSip",
+    "Documentation": "/"
+  },
+  "outputFileStrategy": "modules",
+  "fileExtension": ".md",
+  "entryFileName": "index.md",
+  "indexFormat": "table",
+  "parametersFormat": "table",
+  "interfacePropertiesFormat": "table",
+  "classPropertiesFormat": "table",
+  "enumMembersFormat": "table",
+  "typeDeclarationFormat": "table",
+  "propertyMembersFormat": "table",
+  "markedOptions": {
+    "breaks": true,
+    "gfm": true
+  }
+}

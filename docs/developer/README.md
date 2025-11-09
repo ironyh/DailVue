@@ -22,6 +22,20 @@ Comprehensive system architecture documentation covering:
 
 **Size:** 36 KB, 4,282 words, 11 Mermaid diagrams
 
+### [TypeDoc Setup and Configuration Guide](typedoc-setup.md)
+**Target Audience:** Developers, Documentation Maintainers, Contributors
+
+Complete guide to VueSip's API documentation generation system:
+- TypeDoc configuration overview and options
+- NPM scripts for documentation generation
+- JSDoc tags and documentation best practices
+- Troubleshooting common documentation issues
+- Integration with VitePress
+- Advanced configuration topics
+- Maintenance and update procedures
+
+**Purpose:** Helps maintain and extend API documentation for the VueSip library.
+
 ---
 
 ## Contributing

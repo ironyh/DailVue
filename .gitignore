@@ -61,3 +61,6 @@ Thumbs.db
 /test-results/
 /playwright-report/
 /playwright/.cache/
+
+# TypeDoc generated documentation
+docs/api/generated/

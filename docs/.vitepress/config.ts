@@ -92,6 +92,13 @@ export default defineConfig({
             { text: 'Utilities', link: '/api/utilities' },
           ],
         },
+        {
+          text: 'Generated API Docs',
+          collapsed: false,
+          items: [
+            { text: 'Full API Reference (TypeDoc)', link: '/api/generated/' },
+          ],
+        },
       ],
 
       '/examples/': [
