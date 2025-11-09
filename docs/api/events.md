@@ -736,7 +736,7 @@ Events related to conference calls and participants.
 |-------|----------|--------------|-------------|
 | `conference:created` | `EventNames.CONFERENCE_CREATED` | `ConferenceCreatedEvent` | Conference created |
 | `conference:joined` | `EventNames.CONFERENCE_JOINED` | `ConferenceJoinedEvent` | Joined conference |
-| `conference:left` | `EventNames.CONFERENCE_LEFT` | - | Left conference |
+| `conference:left` | `EventNames.CONFERENCE_LEFT` | `ConferenceLeftEvent` | Left conference |
 | `conference:ended` | `EventNames.CONFERENCE_ENDED` | `ConferenceEndedEvent` | Conference ended |
 | `conference:participant:joined` | `EventNames.CONFERENCE_PARTICIPANT_JOINED` | `ConferenceParticipantJoinedEvent` | Participant joined |
 | `conference:participant:left` | `EventNames.CONFERENCE_PARTICIPANT_LEFT` | `ConferenceParticipantLeftEvent` | Participant left |
@@ -747,11 +747,45 @@ Events related to conference calls and participants.
 | `sip:conference:recording:started` | - | `ConferenceRecordingStartedEvent` | Conference recording started |
 | `sip:conference:recording:stopped` | - | `ConferenceRecordingStoppedEvent` | Conference recording stopped |
 
+> **Note on EventNames Constants:** Events with the `sip:` prefix are defined in the EventMap for type safety but don't currently have corresponding constants in `EventNames`. When using these events, use the string literal (e.g., `'sip:conference:participant:invited'`) or reference the EventMap type for type safety.
+
 **ConferenceCreatedEvent Payload:**
 
 ```typescript
 interface ConferenceCreatedEvent extends BaseEvent {
   type: 'sip:conference:created'
+  conferenceId: string
+  conference: ConferenceStateInterface
+  timestamp: Date
+}
+```
+
+**ConferenceJoinedEvent Payload:**
+
+```typescript
+interface ConferenceJoinedEvent extends BaseEvent {
+  type: 'sip:conference:joined'
+  conferenceId: string
+  conference: ConferenceStateInterface
+  timestamp: Date
+}
+```
+
+**ConferenceLeftEvent Payload:**
+
+```typescript
+interface ConferenceLeftEvent extends BaseEvent {
+  type: 'sip:conference:left'
+  conferenceId: string
+  timestamp: Date
+}
+```
+
+**ConferenceEndedEvent Payload:**
+
+```typescript
+interface ConferenceEndedEvent extends BaseEvent {
+  type: 'sip:conference:ended'
   conferenceId: string
   conference: ConferenceStateInterface
   timestamp: Date
@@ -772,10 +806,23 @@ interface Participant {
   id: string
   uri: string
   displayName?: string
+  state: ParticipantState
   isMuted: boolean
   isOnHold: boolean
+  isModerator: boolean
+  isSelf: boolean
+  audioLevel?: number
   stream?: MediaStream
   joinedAt: Date
+  metadata?: Record<string, any>
+}
+
+enum ParticipantState {
+  Connecting = 'connecting',
+  Connected = 'connected',
+  OnHold = 'on_hold',
+  Muted = 'muted',
+  Disconnected = 'disconnected'
 }
 ```
 
@@ -853,7 +900,8 @@ eventBus.on('conference:created', (event) => {
 
 eventBus.on('conference:participant:joined', (event) => {
   console.log('Participant joined:', event.participant.displayName)
-  console.log('Total participants:', event.conference.participants.length)
+  console.log('Conference ID:', event.conferenceId)
+  console.log('Participant URI:', event.participant.uri)
 })
 
 eventBus.on('conference:participant:left', (event) => {
@@ -928,8 +976,8 @@ Events related to SIP instant messaging.
 | Event | Constant | Payload Type | Description |
 |-------|----------|--------------|-------------|
 | `message:received` | `EventNames.MESSAGE_RECEIVED` | `SipNewMessageEvent` | Message received |
-| `message:sent` | `EventNames.MESSAGE_SENT` | - | Message sent successfully |
-| `message:failed` | `EventNames.MESSAGE_FAILED` | - | Message failed to send |
+| `message:sent` | `EventNames.MESSAGE_SENT` | `MessageSentEvent` | Message sent successfully |
+| `message:failed` | `EventNames.MESSAGE_FAILED` | `MessageFailedEvent` | Message failed to send |
 
 **SipNewMessageEvent Payload:**
 
@@ -946,6 +994,30 @@ interface SipNewMessageEvent extends BaseEvent {
 }
 ```
 
+**MessageSentEvent Payload:**
+
+```typescript
+interface MessageSentEvent extends BaseEvent {
+  type: 'message:sent'
+  to: string
+  content: string
+  contentType?: string
+  timestamp: Date
+}
+```
+
+**MessageFailedEvent Payload:**
+
+```typescript
+interface MessageFailedEvent extends BaseEvent {
+  type: 'message:failed'
+  to: string
+  content: string
+  error: string
+  timestamp: Date
+}
+```
+
 **Example:**
 
 ```typescript
@@ -953,6 +1025,15 @@ eventBus.on('message:received', (event) => {
   console.log('Message from:', event.from)
   console.log('Content:', event.content)
   console.log('Type:', event.contentType)
+})
+
+eventBus.on('message:sent', (event) => {
+  console.log('Message sent to:', event.to)
+})
+
+eventBus.on('message:failed', (event) => {
+  console.error('Failed to send message to:', event.to)
+  console.error('Error:', event.error)
 })
 ```
 
@@ -962,12 +1043,38 @@ Events related to DTMF (Dual-Tone Multi-Frequency) tones.
 
 | Event | Constant | Payload Type | Description |
 |-------|----------|--------------|-------------|
-| `dtmf:sent` | `EventNames.DTMF_SENT` | - | DTMF tone sent |
-| `dtmf:received` | `EventNames.DTMF_RECEIVED` | - | DTMF tone received |
+| `dtmf:sent` | `EventNames.DTMF_SENT` | `DTMFSentEvent` | DTMF tone sent |
+| `dtmf:received` | `EventNames.DTMF_RECEIVED` | `DTMFReceivedEvent` | DTMF tone received |
+
+**DTMFSentEvent Payload:**
+
+```typescript
+interface DTMFSentEvent extends BaseEvent {
+  type: 'dtmf:sent'
+  tone: string
+  duration?: number
+  timestamp: Date
+}
+```
+
+**DTMFReceivedEvent Payload:**
+
+```typescript
+interface DTMFReceivedEvent extends BaseEvent {
+  type: 'dtmf:received'
+  tone: string
+  timestamp: Date
+}
+```
 
 **Example:**
 
 ```typescript
+eventBus.on('dtmf:sent', (event) => {
+  console.log('DTMF tone sent:', event.tone)
+  console.log('Duration:', event.duration, 'ms')
+})
+
 eventBus.on('dtmf:received', (event) => {
   console.log('DTMF tone received:', event.tone)
 })

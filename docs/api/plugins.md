@@ -95,9 +95,9 @@ Called when the plugin is registered with the PluginManager. This is where you s
 ```typescript
 async install(context: PluginContext, config?: MyPluginConfig): Promise<void> {
   // Register hooks
-  context.hooks.register('afterCallStart', async (ctx, data) => {
+  context.hooks.register('afterCallStart', async (context, data) => {
     console.log('Call started:', data.callId)
-  }, { priority: HookPriority.Normal }, this.metadata.name)
+  }, { priority: HookPriority.Normal })
 
   // Listen to events
   context.eventBus.on('someEvent', this.handleEvent)
@@ -267,8 +267,7 @@ Hooks are registered through the plugin context:
 const hookId = context.hooks.register(
   hookName: HookName,
   handler: HookHandler,
-  options?: HookOptions,
-  pluginName: string
+  options?: HookOptions
 )
 ```
 
@@ -289,39 +288,36 @@ interface HookOptions {
 // Register a high-priority validation hook
 context.hooks.register(
   'beforeCall',
-  async (ctx, data) => {
+  async (context, data) => {
     if (!data.targetUri.match(/^sip:/)) {
       throw new Error('Invalid SIP URI')
     }
   },
-  { priority: HookPriority.Highest },
-  'validator-plugin'
+  { priority: HookPriority.Highest }
 )
 
 // Register a conditional hook (only for incoming calls)
 context.hooks.register(
   'afterCallStart',
-  async (ctx, data) => {
+  async (context, data) => {
     console.log('Incoming call:', data.callId)
   },
   {
     priority: HookPriority.Normal,
-    condition: (ctx, data) => data.direction === 'incoming'
-  },
-  'call-logger'
+    condition: (context, data) => data.direction === 'incoming'
+  }
 )
 
 // Register a one-time initialization hook
 context.hooks.register(
   'afterInit',
-  async (ctx, data) => {
+  async (context, data) => {
     await initializeResources()
   },
   {
     priority: HookPriority.High,
     once: true  // Auto-removes after first execution
-  },
-  'init-plugin'
+  }
 )
 ```
 
@@ -339,13 +335,13 @@ const results = await context.hooks.execute('hookName', data)
 A hook handler can stop propagation by returning `false` (strict equality):
 
 ```typescript
-context.hooks.register('beforeCall', async (ctx, data) => {
+context.hooks.register('beforeCall', async (context, data) => {
   if (isBlacklisted(data.targetUri)) {
     console.log('Call blocked')
     return false  // Stop propagation - no subsequent hooks run
   }
   return true
-}, { priority: HookPriority.Highest }, 'blacklist')
+}, { priority: HookPriority.Highest })
 ```
 
 ---
@@ -453,9 +449,9 @@ export class MyPlugin implements Plugin<MyPluginConfig> {
     this.config = { ...this.defaultConfig, ...config }
 
     // Register hooks
-    context.hooks.register('afterCallStart', async (ctx, data) => {
+    context.hooks.register('afterCallStart', async (context, data) => {
       // Handle call started
-    }, {}, this.metadata.name)
+    })
 
     // Setup event listeners
     context.eventBus.on('someEvent', this.handleEvent)
@@ -516,18 +512,18 @@ export class CallLoggerPlugin implements Plugin<CallLoggerConfig> {
     this.config = { ...this.defaultConfig, ...config }
 
     // Log call start
-    context.hooks.register('afterCallStart', async (ctx, data) => {
+    context.hooks.register('afterCallStart', async (context, data) => {
       this.callStartTimes.set(data.callId, Date.now())
       this.log(context, `Call started: ${data.callId}`)
-    }, { priority: HookPriority.Low }, this.metadata.name)
+    }, { priority: HookPriority.Low })
 
     // Log call end with duration
-    context.hooks.register('afterHangup', async (ctx, data) => {
+    context.hooks.register('afterHangup', async (context, data) => {
       const startTime = this.callStartTimes.get(data.callId)
       const duration = startTime ? Date.now() - startTime : 0
       this.log(context, `Call ended: ${data.callId}, Duration: ${duration}ms`)
       this.callStartTimes.delete(data.callId)
-    }, { priority: HookPriority.Low }, this.metadata.name)
+    }, { priority: HookPriority.Low })
   }
 
   private log(context: PluginContext, message: string): void {
@@ -581,7 +577,7 @@ export class CallPermissionPlugin implements Plugin<CallPermissionConfig> {
     this.config = { ...this.defaultConfig, ...config }
 
     // Validate before calls are made
-    context.hooks.register('beforeCall', async (ctx, data) => {
+    context.hooks.register('beforeCall', async (context, data) => {
       // Check allowed domains
       if (this.config.allowedDomains?.length) {
         const domain = this.extractDomain(data.targetUri)
@@ -601,7 +597,7 @@ export class CallPermissionPlugin implements Plugin<CallPermissionConfig> {
       }
 
       return true  // Allow the call
-    }, { priority: HookPriority.Highest }, this.metadata.name)
+    }, { priority: HookPriority.Highest })
   }
 
   private extractDomain(uri: string): string {
@@ -678,29 +674,29 @@ export class CallStatisticsPlugin implements Plugin<CallStatisticsConfig> {
     this.config = { ...this.defaultConfig, ...config }
 
     // Track call starts
-    context.hooks.register('afterCallStart', async (ctx, data) => {
+    context.hooks.register('afterCallStart', async (context, data) => {
       this.stats.totalCalls++
       if (data.direction === 'incoming') {
         this.stats.callsByDirection.incoming++
       } else {
         this.stats.callsByDirection.outgoing++
       }
-    }, { priority: HookPriority.Low }, this.metadata.name)
+    }, { priority: HookPriority.Low })
 
     // Track successful calls
-    context.hooks.register('afterHangup', async (ctx, data) => {
+    context.hooks.register('afterHangup', async (context, data) => {
       this.stats.successfulCalls++
       if (data.duration) {
         this.durations.push(data.duration)
         this.stats.averageDuration =
           this.durations.reduce((a, b) => a + b, 0) / this.durations.length
       }
-    }, { priority: HookPriority.Low }, this.metadata.name)
+    }, { priority: HookPriority.Low })
 
     // Track failed calls
-    context.hooks.register('onCallError', async (ctx, data) => {
+    context.hooks.register('onCallError', async (context, data) => {
       this.stats.failedCalls++
-    }, { priority: HookPriority.Low }, this.metadata.name)
+    }, { priority: HookPriority.Low })
 
     // Start reporting timer
     if (this.config.reportInterval) {
