@@ -142,6 +142,9 @@ import { ref, computed } from 'vue'
 import BasicCallDemo from './demos/BasicCallDemo.vue'
 import DtmfDemo from './demos/DtmfDemo.vue'
 import AudioDevicesDemo from './demos/AudioDevicesDemo.vue'
+import CallHistoryDemo from './demos/CallHistoryDemo.vue'
+import CallTransferDemo from './demos/CallTransferDemo.vue'
+import VideoCallDemo from './demos/VideoCallDemo.vue'
 
 // Example definitions
 const examples = [
@@ -250,6 +253,149 @@ selectAudioInput(deviceId)
 
 // Select a specific speaker
 selectAudioOutput(deviceId)`,
+      },
+    ],
+  },
+  {
+    id: 'call-history',
+    icon: '📋',
+    title: 'Call History',
+    description: 'View and manage call history',
+    tags: ['Advanced', 'History', 'Analytics'],
+    component: CallHistoryDemo,
+    setupGuide: '<p>Call history is automatically tracked and stored in IndexedDB. View statistics, search, filter, and export your call history.</p>',
+    codeSnippets: [
+      {
+        title: 'Using Call History',
+        description: 'Access and manage call history',
+        code: `import { useCallHistory } from 'vuesip'
+
+const {
+  history,
+  searchHistory,
+  getStatistics,
+  exportHistory,
+  clearHistory
+} = useCallHistory()
+
+// Get all call history
+console.log(history.value)
+
+// Search history
+const results = searchHistory('john')
+
+// Get statistics
+const stats = getStatistics()
+console.log(\`Total calls: \${stats.totalCalls}\`)
+
+// Export to CSV
+await exportHistory({
+  format: 'csv',
+  filename: 'my-calls'
+})`,
+      },
+    ],
+  },
+  {
+    id: 'call-transfer',
+    icon: '🔀',
+    title: 'Call Transfer',
+    description: 'Transfer calls to other numbers',
+    tags: ['Advanced', 'Transfer', 'Call Control'],
+    component: CallTransferDemo,
+    setupGuide: '<p>Transfer active calls using blind transfer (immediate) or attended transfer (with consultation). Requires an active call to use.</p>',
+    codeSnippets: [
+      {
+        title: 'Blind Transfer',
+        description: 'Immediately transfer a call',
+        code: `import { useCallControls } from 'vuesip'
+
+const {
+  blindTransfer,
+  isTransferring
+} = useCallControls(sipClient)
+
+// Transfer call to another number
+await blindTransfer(
+  'call-id-123',
+  'sip:transfer@example.com'
+)`,
+      },
+      {
+        title: 'Attended Transfer',
+        description: 'Consult before transferring',
+        code: `const {
+  initiateAttendedTransfer,
+  completeAttendedTransfer,
+  consultationCall
+} = useCallControls(sipClient)
+
+// Start consultation
+const consultId = await initiateAttendedTransfer(
+  'call-id-123',
+  'sip:consult@example.com'
+)
+
+// Talk to consultation target...
+
+// Complete the transfer
+await completeAttendedTransfer()`,
+      },
+    ],
+  },
+  {
+    id: 'video-call',
+    icon: '📹',
+    title: 'Video Calling',
+    description: 'Make video calls with camera',
+    tags: ['Video', 'WebRTC', 'Advanced'],
+    component: VideoCallDemo,
+    setupGuide: '<p>Enable video calling with camera support. Grant camera and microphone permissions to use video features. Select different cameras and toggle video during calls.</p>',
+    codeSnippets: [
+      {
+        title: 'Making Video Calls',
+        description: 'Start a call with video enabled',
+        code: `import { useCallSession } from 'vuesip'
+
+const {
+  makeCall,
+  answer,
+  localStream,
+  remoteStream
+} = useCallSession(sipClient)
+
+// Make video call
+await makeCall('sip:friend@example.com', {
+  audio: true,
+  video: true
+})
+
+// Answer with video
+await answer({
+  audio: true,
+  video: true
+})`,
+      },
+      {
+        title: 'Video Controls',
+        description: 'Toggle video during calls',
+        code: `const {
+  enableVideo,
+  disableVideo,
+  hasLocalVideo
+} = useCallSession(sipClient)
+
+// Toggle video
+if (hasLocalVideo.value) {
+  await disableVideo()
+} else {
+  await enableVideo()
+}
+
+// Display video streams
+watch(remoteStream, (stream) => {
+  videoElement.srcObject = stream
+})`,
       },
     ],
   },
