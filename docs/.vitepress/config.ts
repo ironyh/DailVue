@@ -96,7 +96,7 @@ export default defineConfig({
           text: 'Generated API Docs',
           collapsed: false,
           items: [
-            { text: 'TypeDoc Reference', link: '/api-reference/' },
+            { text: 'Full API Reference (TypeDoc)', link: '/api/generated/' },
           ],
         },
       ],

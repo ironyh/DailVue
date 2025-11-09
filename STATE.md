@@ -100,6 +100,21 @@ During Phase 11.10 review, the following oversight was identified and corrected:
 - Added npm scripts for TypeDoc generation (docs:api, docs:api:watch)
 - Integrated TypeDoc output with VitePress documentation
 
+### Phase 11.10 Post-Code-Review Corrections (2025-11-09)
+
+After code review, the following critical issues were fixed:
+
+- Upgraded TypeDoc from `^0.25.0` to `^0.28.0` for TypeScript 5.4 compatibility
+- Added `typedoc-plugin-markdown` for VitePress-compatible markdown output
+- Added `typedoc-plugin-missing-exports` to document all referenced types
+- Added `tsconfig` reference to resolve path aliases (@/core/*, etc.)
+- Changed output from HTML to Markdown (docs/api/generated/)
+- Disabled `categorizeByGroup` (no @group tags in codebase)
+- Fixed VitePress link from `/api-reference/` to `/api/generated/`
+- Added navigation links to GitHub and main docs
+- Excluded external library types for cleaner output
+- Configured table format for better markdown readability
+
 ---
 
 ## Phase 2: Type System Foundation

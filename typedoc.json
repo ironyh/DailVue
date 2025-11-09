@@ -1,53 +1,64 @@
 {
   "$schema": "https://typedoc.org/schema.json",
   "entryPoints": ["src/index.ts"],
-  "out": "docs/api-reference",
-  "plugin": [],
+  "tsconfig": "tsconfig.json",
+  "out": "docs/api/generated",
+  "plugin": ["typedoc-plugin-markdown", "typedoc-plugin-missing-exports"],
   "name": "VueSip API Reference",
   "includeVersion": true,
-  "readme": "README.md",
-  "categorizeByGroup": true,
-  "categoryOrder": [
-    "Composables",
-    "Providers",
-    "Plugins",
-    "Types",
-    "Utilities",
-    "Events",
-    "*"
+  "readme": "none",
+  "categorizeByGroup": false,
+  "sort": ["source-order", "required-first", "kind"],
+  "kindSortOrder": [
+    "Function",
+    "Class",
+    "Interface",
+    "TypeAlias",
+    "Variable",
+    "Enum"
   ],
-  "sort": ["source-order"],
   "exclude": [
     "**/node_modules/**",
     "**/dist/**",
     "**/tests/**",
     "**/*.spec.ts",
     "**/*.test.ts",
-    "**/playground/**"
+    "**/playground/**",
+    "**/*.d.ts"
   ],
   "excludePrivate": true,
   "excludeProtected": false,
   "excludeInternal": false,
+  "excludeExternals": true,
   "validation": {
     "notExported": true,
     "invalidLink": true,
     "notDocumented": false
   },
   "treatWarningsAsErrors": false,
-  "emit": "docs",
   "commentStyle": "jsdoc",
-  "navigation": {
-    "includeCategories": true,
-    "includeGroups": true
-  },
   "searchInComments": true,
   "cleanOutputDir": true,
-  "githubPages": false,
-  "hideGenerator": false,
+  "hideGenerator": true,
   "visibilityFilters": {
     "protected": true,
     "private": false,
     "inherited": true,
     "external": false
-  }
+  },
+  "githubPages": false,
+  "navigationLinks": {
+    "GitHub": "https://github.com/ironyh/VueSip",
+    "Documentation": "/"
+  },
+  "outputFileStrategy": "modules",
+  "fileExtension": ".md",
+  "entryFileName": "index.md",
+  "indexFormat": "table",
+  "parametersFormat": "table",
+  "interfacePropertiesFormat": "table",
+  "classPropertiesFormat": "table",
+  "enumMembersFormat": "table",
+  "typeDeclarationFormat": "table",
+  "propertyMembersFormat": "table"
 }
