@@ -731,6 +731,152 @@ const agentIds = agents.map((a) => a.getId())
 const conference = await manager.createConference('sip:bigconf@example.com', agentIds)
 ```
 
+## Code Quality and Best Practices
+
+### Type Safety
+
+The framework has been updated to eliminate type assertions and provide full type safety:
+
+```typescript
+// Subagents now provide typed metrics interfaces
+const callMetrics: CallMetrics = agent.call.getMetrics()
+const presenceMetrics: PresenceMetrics = agent.presence.getMetrics()
+const registrationMetrics: RegistrationMetrics = agent.registration.getMetrics()
+
+// No type assertions needed
+console.log(callMetrics.callsMade) // Fully typed
+```
+
+### Input Validation
+
+All SIP URIs and agent IDs are automatically validated:
+
+```typescript
+import { validateSipUri, validateAgentId, isValidSipUri } from '../agents'
+
+// Validation happens automatically
+const agent = await manager.createAgent({
+  identity: {
+    id: 'my-agent', // Validated: alphanumeric, hyphens, underscores, 1-64 chars
+    uri: 'sip:user@domain.com', // Validated: proper SIP URI format
+    // ...
+  },
+})
+
+// Manual validation available
+if (isValidSipUri(someUri)) {
+  // URI is valid
+}
+
+validateSipUri(uri, 'parameter name') // Throws if invalid
+```
+
+### Resource Management
+
+The framework includes comprehensive resource management:
+
+**Collection Size Limits:**
+
+```typescript
+// Constants define maximum collection sizes
+import { LIMITS } from '../agents'
+
+LIMITS.MAX_NETWORK_EVENTS // 1000 events max
+LIMITS.MAX_MESSAGES // 500 messages per agent
+LIMITS.MAX_ERRORS // 100 errors per agent
+
+// Old items automatically evicted when limits reached (FIFO)
+```
+
+**Cleanup Race Condition Protection:**
+
+```typescript
+// Cleanup operations are protected against race conditions
+await agent.cleanup() // Can be called multiple times safely
+await agent.destroy() // Waits for cleanup to complete
+
+// cleanupInProgress flag prevents concurrent cleanup
+```
+
+### Logging Abstraction
+
+Configurable logging system for debugging and production:
+
+```typescript
+import { createLogger, globalLogger, type LogLevel } from '../agents'
+
+// Create logger for specific component
+const logger = createLogger('my-component', {
+  level: 'debug', // 'debug' | 'info' | 'warn' | 'error' | 'none'
+  timestamps: true,
+  prefix: 'MyApp',
+})
+
+logger.debug('Debug message')
+logger.info('Info message')
+logger.warn('Warning message')
+logger.error('Error message')
+
+// Change log level dynamically
+logger.setLevel('none') // Disable logging for performance
+
+// Create child logger with nested prefix
+const childLogger = logger.child('SubComponent')
+// Logs will be prefixed with "MyApp:SubComponent"
+```
+
+### Configuration Constants
+
+All magic numbers extracted to named constants:
+
+```typescript
+import { TIMING, LIMITS, NETWORK, DEFAULTS } from '../agents'
+
+// Timing constants (milliseconds)
+TIMING.EVENT_PROCESSING_DELAY // 50ms
+TIMING.POLLING_INTERVAL // 100ms
+TIMING.DEFAULT_WAIT_TIMEOUT // 5000ms
+TIMING.CLEANUP_DELAY // 150ms
+TIMING.NETWORK_LATENCY_BUFFER // 200ms
+
+// Network constraints
+NETWORK.MIN_LATENCY // 0ms
+NETWORK.MAX_LATENCY // 10000ms
+NETWORK.MIN_PACKET_LOSS // 0%
+NETWORK.MAX_PACKET_LOSS // 100%
+
+// Default values
+DEFAULTS.WS_SERVER // 'wss://sip.example.com'
+DEFAULTS.SIP_DOMAIN // 'example.com'
+```
+
+### Error Tracking
+
+Comprehensive error tracking with automatic limits:
+
+```typescript
+// Errors are automatically tracked
+const state = agent.getState()
+console.log(state.errors) // Array of AgentError objects
+
+interface AgentError {
+  timestamp: number
+  code: string
+  message: string
+  source: 'registration' | 'call' | 'media' | 'presence' | 'network'
+}
+
+// Manually add errors if needed
+agent.addError('CUSTOM_ERROR', 'Something went wrong', 'network')
+
+// Clear all errors
+agent.clearErrors()
+
+// Get error count by source
+const metrics = agent.getMetrics()
+console.log(metrics.networkErrors) // Count of network-related errors
+```
+
 ## Future Enhancements
 
 Possible future additions to the framework:

@@ -19,6 +19,13 @@ export interface RegistrationState {
   lastError: string | null
 }
 
+export interface RegistrationMetrics {
+  registered: boolean
+  registering: boolean
+  registrationAttempts: number
+  registrationFailures: number
+}
+
 /**
  * Registration subagent
  */
@@ -132,6 +139,18 @@ export class RegistrationSubagent extends BaseSubagent {
    */
   getState(): RegistrationState {
     return { ...this.state }
+  }
+
+  /**
+   * Get registration metrics
+   */
+  getMetrics(): RegistrationMetrics {
+    return {
+      registered: this.state.registered,
+      registering: this.state.registering,
+      registrationAttempts: this.state.registrationAttempts,
+      registrationFailures: this.state.registrationFailures,
+    }
   }
 
   /**

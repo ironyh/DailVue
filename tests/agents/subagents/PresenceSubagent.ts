@@ -8,6 +8,7 @@ import { BaseSubagent } from './BaseSubagent'
 import type { SipTestAgent } from '../SipTestAgent'
 import type { PresenceStatus } from '../types'
 import { TIMING, LIMITS } from '../constants'
+import { validateSipUri } from '../utils'
 
 export interface Message {
   id: string
@@ -23,6 +24,15 @@ export interface PresenceState {
   statusMessage: string | null
   lastStatusChange: number | null
   messages: Message[]
+  messagesSent: number
+  messagesReceived: number
+}
+
+export interface PresenceMetrics {
+  status: PresenceStatus
+  statusMessage: string | null
+  lastStatusChange: number | null
+  messageCount: number
   messagesSent: number
   messagesReceived: number
 }
@@ -83,6 +93,8 @@ export class PresenceSubagent extends BaseSubagent {
    * Send a message to another agent
    */
   async sendMessage(targetUri: string, body: string): Promise<Message> {
+    validateSipUri(targetUri, 'targetUri')
+
     const ua = this.agent.getUA()
 
     // Send the message via UA
@@ -211,9 +223,9 @@ export class PresenceSubagent extends BaseSubagent {
   }
 
   /**
-   * Get presence state
+   * Get presence metrics
    */
-  getState(): Record<string, unknown> {
+  getMetrics(): PresenceMetrics {
     return {
       status: this.state.status,
       statusMessage: this.state.statusMessage,
@@ -222,5 +234,12 @@ export class PresenceSubagent extends BaseSubagent {
       messagesSent: this.state.messagesSent,
       messagesReceived: this.state.messagesReceived,
     }
+  }
+
+  /**
+   * Get presence state (legacy compatibility)
+   */
+  getState(): Record<string, unknown> {
+    return this.getMetrics()
   }
 }

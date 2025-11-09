@@ -14,6 +14,8 @@ import { CallSubagent } from './subagents/CallSubagent'
 import { MediaSubagent } from './subagents/MediaSubagent'
 import { PresenceSubagent } from './subagents/PresenceSubagent'
 import { TIMING, LIMITS } from './constants'
+import { validateSipUri, validateAgentId } from './utils'
+import { createLogger, type Logger } from './logger'
 import type {
   AgentIdentity,
   AgentState,
@@ -55,11 +57,17 @@ export class SipTestAgent extends EventEmitter {
 
   private subagents: ISubagent[]
   private errors: AgentError[] = []
+  private logger: Logger
   private initialized = false
   private destroyed = false
+  private cleanupInProgress = false
 
   constructor(config: SipTestAgentConfig) {
     super()
+
+    // Validate identity
+    validateAgentId(config.identity.id)
+    validateSipUri(config.identity.uri, 'identity.uri')
 
     this.identity = config.identity
     this.config = {
@@ -67,6 +75,11 @@ export class SipTestAgent extends EventEmitter {
       autoRegister: config.autoRegister ?? true,
       verbose: config.verbose ?? false,
     }
+
+    // Create logger
+    this.logger = createLogger(config.identity.id, {
+      level: this.config.verbose ? 'debug' : 'none',
+    })
 
     // Create mock server
     this.mockServer = createMockSipServer({
@@ -223,21 +236,21 @@ export class SipTestAgent extends EventEmitter {
    * Get agent metrics
    */
   getMetrics(): AgentMetrics {
-    const callState = this.call.getState()
-    const presenceState = this.presence.getState()
-    const registrationState = this.registration.getState()
+    const callMetrics = this.call.getMetrics()
+    const presenceMetrics = this.presence.getMetrics()
+    const registrationMetrics = this.registration.getMetrics()
 
     return {
-      callsMade: callState.callsMade as number,
-      callsReceived: callState.callsReceived as number,
-      callsAccepted: callState.callsAccepted as number,
-      callsRejected: callState.callsRejected as number,
-      callsEnded: callState.callsEnded as number,
-      messagesSent: presenceState.messagesSent as number,
-      messagesReceived: presenceState.messagesReceived as number,
-      avgCallDuration: callState.averageCallDuration as number,
-      registrationAttempts: registrationState.registrationAttempts,
-      registrationFailures: registrationState.registrationFailures,
+      callsMade: callMetrics.callsMade,
+      callsReceived: callMetrics.callsReceived,
+      callsAccepted: callMetrics.callsAccepted,
+      callsRejected: callMetrics.callsRejected,
+      callsEnded: callMetrics.callsEnded,
+      messagesSent: presenceMetrics.messagesSent,
+      messagesReceived: presenceMetrics.messagesReceived,
+      avgCallDuration: callMetrics.averageCallDuration,
+      registrationAttempts: registrationMetrics.registrationAttempts,
+      registrationFailures: registrationMetrics.registrationFailures,
       networkErrors: this.errors.filter((e) => e.source === 'network').length,
     }
   }
@@ -299,27 +312,33 @@ export class SipTestAgent extends EventEmitter {
    * Cleanup agent resources
    */
   async cleanup(): Promise<void> {
-    if (this.destroyed) {
+    if (this.destroyed || this.cleanupInProgress) {
       return
     }
 
-    this.log('Cleaning up agent...')
+    this.cleanupInProgress = true
 
-    // Disconnect if connected
-    if (this.mockUA.isConnected()) {
-      await this.disconnect()
+    try {
+      this.log('Cleaning up agent...')
+
+      // Disconnect if connected
+      if (this.mockUA.isConnected()) {
+        await this.disconnect()
+      }
+
+      // Cleanup all subagents in reverse order
+      for (const subagent of [...this.subagents].reverse()) {
+        await subagent.cleanup()
+        this.log(`Subagent cleaned up: ${subagent.name}`)
+      }
+
+      this.initialized = false
+      this.emit('agent:cleaned-up', { agentId: this.identity.id })
+
+      this.log('Agent cleaned up')
+    } finally {
+      this.cleanupInProgress = false
     }
-
-    // Cleanup all subagents in reverse order
-    for (const subagent of [...this.subagents].reverse()) {
-      await subagent.cleanup()
-      this.log(`Subagent cleaned up: ${subagent.name}`)
-    }
-
-    this.initialized = false
-    this.emit('agent:cleaned-up', { agentId: this.identity.id })
-
-    this.log('Agent cleaned up')
   }
 
   /**
@@ -330,15 +349,24 @@ export class SipTestAgent extends EventEmitter {
       return
     }
 
-    await this.cleanup()
+    try {
+      // Run cleanup first before marking as destroyed
+      await this.cleanup()
 
-    this.mockServer.destroy()
-    this.networkSimulator.destroy()
+      // Now mark as destroyed to prevent further operations
+      this.destroyed = true
 
-    this.destroyed = true
-    this.removeAllListeners()
+      this.mockServer.destroy()
+      this.networkSimulator.destroy()
+      this.removeAllListeners()
 
-    this.log('Agent destroyed')
+      this.log('Agent destroyed')
+    } catch (error) {
+      this.log(`Error during destroy: ${error}`)
+      // Still mark as destroyed even if cleanup failed
+      this.destroyed = true
+      throw error
+    }
   }
 
   /**
@@ -372,9 +400,7 @@ export class SipTestAgent extends EventEmitter {
    * Log a message
    */
   private log(message: string): void {
-    if (this.config.verbose) {
-      console.log(`[Agent ${this.identity.id}] ${message}`)
-    }
+    this.logger.debug(message)
   }
 
   /**

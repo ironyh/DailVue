@@ -9,6 +9,7 @@ import type { SipTestAgent } from '../SipTestAgent'
 import type { MockRTCSession } from '../../helpers/MockSipServer'
 import type { CallOptions } from '../types'
 import { TIMING } from '../constants'
+import { validateSipUri } from '../utils'
 
 export interface CallState {
   activeCalls: Map<string, MockRTCSession>
@@ -18,6 +19,16 @@ export interface CallState {
   callsRejected: number
   callsEnded: number
   totalCallDuration: number
+}
+
+export interface CallMetrics {
+  activeCallCount: number
+  callsMade: number
+  callsReceived: number
+  callsAccepted: number
+  callsRejected: number
+  callsEnded: number
+  averageCallDuration: number
 }
 
 /**
@@ -74,6 +85,8 @@ export class CallSubagent extends BaseSubagent {
    * Make a call to another agent or SIP URI
    */
   async makeCall(targetUri: string, options: CallOptions = {}): Promise<MockRTCSession> {
+    validateSipUri(targetUri, 'targetUri')
+
     const ua = this.agent.getUA()
 
     // Make the call
@@ -274,9 +287,9 @@ export class CallSubagent extends BaseSubagent {
   }
 
   /**
-   * Get call state
+   * Get call metrics
    */
-  getState(): Record<string, unknown> {
+  getMetrics(): CallMetrics {
     return {
       activeCallCount: this.state.activeCalls.size,
       callsMade: this.state.callsMade,
@@ -287,6 +300,13 @@ export class CallSubagent extends BaseSubagent {
       averageCallDuration:
         this.state.callsEnded > 0 ? this.state.totalCallDuration / this.state.callsEnded / 1000 : 0,
     }
+  }
+
+  /**
+   * Get call state (legacy compatibility)
+   */
+  getState(): Record<string, unknown> {
+    return this.getMetrics()
   }
 
   /**
