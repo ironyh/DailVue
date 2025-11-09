@@ -1253,14 +1253,18 @@ You've learned the fundamentals of VueSip! Here are recommended next steps based
 **For Building a Basic Softphone:**
 - **[Making Calls](./making-calls.md)** - Deep dive into outgoing call management, call options, and handling call failures
 - **[Receiving Calls](./receiving-calls.md)** - Handle incoming calls, auto-answer, call screening, and ringtones
+- **[Call Controls](./call-controls.md)** - Muting, holding, transferring, and managing active calls
 
 **For Advanced Features:**
-- **[Media Devices](./media-devices.md)** - Device selection, testing, volume control, and device change handling
-- **[Advanced Features](./advanced-features.md)** - Call conferencing, messaging, presence, and call recording
+- **[Device Management](./device-management.md)** - Device selection, testing, volume control, and device change handling
+- **[Video Calling](./video-calling.md)** - Adding video support to your calls
+- **[Presence & Messaging](./presence-messaging.md)** - Real-time presence and SIP messaging
+- **[Call History](./call-history.md)** - Tracking and persisting call history
 
 **For Production Deployment:**
-- **[Configuration Guide](./configuration.md)** - Complete configuration reference and production best practices
-- **[Troubleshooting Guide](./troubleshooting.md)** - Common issues and solutions
+- **[Error Handling](./error-handling.md)** - Robust error handling patterns and recovery strategies
+- **[Security](./security.md)** - Security best practices for production deployments
+- **[Performance](./performance.md)** - Optimization techniques and performance tuning
 
 ## Troubleshooting
 

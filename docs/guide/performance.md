@@ -11,7 +11,10 @@ Performance is critical in real-time communication applications. A slow or resou
 - **Memory Management** - Prevent memory leaks and manage resources efficiently
 - **Concurrent Call Handling** - Manage multiple simultaneous calls without degrading performance
 - **Network Optimization** - Ensure reliable connections and efficient data transfer
+- **State Persistence Optimization** - Efficiently save and load application state
 - **Performance Monitoring** - Track and improve your application's performance over time
+- **Performance Benchmarking** - Measure and verify your application's performance
+- **Best Practices** - Production-ready guidelines and optimization workflows
 
 ### Core Performance Features
 
@@ -743,6 +746,319 @@ watch(statistics, (stats) => {
 - **Packet Loss:** Acceptable <1%, noticeable >5%, unusable >10%
 - **Jitter:** Acceptable <30ms, noticeable >50ms
 - **Round Trip Time:** Good <100ms, acceptable <300ms, poor >500ms
+
+---
+
+## State Persistence Optimization
+
+**Why State Persistence Matters:** Persisting application state (call history, user preferences, registration data) improves user experience by maintaining state across sessions. However, inefficient persistence can cause performance issues like UI lag during saves or slow application startup.
+
+### Understanding Storage Adapters
+
+VueSip provides two storage adapters with different performance characteristics:
+
+#### LocalStorage Adapter
+
+```typescript
+import { LocalStorageAdapter } from 'vuesip'
+
+const adapter = new LocalStorageAdapter({
+  prefix: 'vuesip',      // Namespace your keys
+  version: '1.0.0',      // Support versioning for migrations
+})
+
+// LocalStorage characteristics:
+// ✅ Synchronous (no async/await needed)
+// ✅ Simple API
+// ✅ Good for small data (< 5 MB)
+// ❌ Blocks main thread during operations
+// ❌ Limited to ~5-10 MB depending on browser
+```
+
+✅ **Best For:** Configuration, user preferences, small datasets
+
+#### IndexedDB Adapter
+
+```typescript
+import { IndexedDBAdapter } from 'vuesip'
+
+const adapter = new IndexedDBAdapter({
+  dbName: 'vuesip-storage',
+  version: 1,
+})
+
+// IndexedDB characteristics:
+// ✅ Asynchronous (non-blocking)
+// ✅ Large storage capacity (50+ MB, often hundreds of MB)
+// ✅ Structured data with indexes
+// ✅ Transaction support
+// ❌ More complex API
+// ❌ Slightly slower for tiny operations
+```
+
+✅ **Best For:** Call history, recordings, large datasets
+
+💡 **Performance Tip:** Use IndexedDB for call history (can grow to thousands of entries) and LocalStorage for configuration (typically < 100 KB).
+
+### Debounced Auto-Save
+
+VueSip's persistence system uses debouncing to batch state updates and reduce write frequency:
+
+```typescript
+import { usePersistence } from 'vuesip'
+import { callStore } from 'vuesip'
+
+// Configure persistence with debouncing
+const persistence = usePersistence(callStore, adapter, {
+  // Wait 300ms after last change before saving
+  // If more changes occur within 300ms, the timer resets
+  debounce: 300,  // milliseconds
+
+  // Auto-load state on initialization
+  autoLoad: true,
+})
+```
+
+📝 **What is Debouncing?** If your app makes 10 state changes in 200ms, debouncing saves only once (300ms after the last change) instead of 10 times. This dramatically reduces write operations.
+
+**Example Without Debouncing:**
+```typescript
+// ❌ BAD: Each change triggers immediate save
+callStore.addCall(call1)     // Save #1
+callStore.addCall(call2)     // Save #2
+callStore.addCall(call3)     // Save #3
+// Result: 3 storage writes in quick succession (blocks UI)
+```
+
+**Example With Debouncing (300ms):**
+```typescript
+// ✅ GOOD: Changes are batched
+callStore.addCall(call1)     // Start timer
+callStore.addCall(call2)     // Reset timer
+callStore.addCall(call3)     // Reset timer
+// Wait 300ms with no changes...
+// Result: 1 storage write with all changes (smooth UI)
+```
+
+### Adjusting Debounce Timing
+
+Choose debounce timing based on your use case:
+
+```typescript
+// Short debounce (100ms) - Frequent saves, minimal batching
+// Good for: Critical data that must be saved quickly
+const fastPersistence = usePersistence(store, adapter, {
+  debounce: 100,
+})
+
+// Medium debounce (300ms) - Default, balanced
+// Good for: Most applications
+const balancedPersistence = usePersistence(store, adapter, {
+  debounce: 300,
+})
+
+// Long debounce (1000ms) - Maximum batching
+// Good for: High-frequency updates (e.g., live statistics)
+const batchedPersistence = usePersistence(store, adapter, {
+  debounce: 1000,
+})
+```
+
+⚠️ **Trade-off:** Longer debounce = better performance but higher risk of data loss if app crashes before save.
+
+### Selective Persistence with Transformers
+
+Optimize what you persist to reduce storage size and improve performance:
+
+```typescript
+import { usePersistence } from 'vuesip'
+import { callStore } from 'vuesip'
+
+const persistence = usePersistence(callStore, adapter, {
+  debounce: 300,
+
+  // Transform state before saving (reduce data size)
+  serialize: (state) => {
+    return {
+      // Only persist completed calls, not active ones
+      calls: state.calls.filter(call => call.status === 'ended'),
+
+      // Limit call history to last 100 calls
+      callHistory: state.callHistory.slice(-100),
+
+      // Exclude runtime data that shouldn't persist
+      // (activeCallCount, etc. will be recalculated)
+    }
+  },
+
+  // Transform data when loading (restore full state)
+  deserialize: (data) => {
+    return {
+      ...data,
+      // Restore default values for runtime properties
+      activeCalls: new Map(),
+      activeCallCount: 0,
+    }
+  },
+})
+```
+
+💡 **Why This Helps:**
+- **Smaller storage footprint** - Only essential data is saved
+- **Faster saves** - Less data to serialize and write
+- **Faster loads** - Less data to read and deserialize
+- **Better privacy** - Sensitive runtime data isn't persisted
+
+### Storage Cleanup
+
+Regularly clean up old data to maintain performance:
+
+```typescript
+import { LocalStorageAdapter, IndexedDBAdapter } from 'vuesip'
+
+// Method 1: Clear all VueSip data
+const adapter = new LocalStorageAdapter({ prefix: 'vuesip' })
+await adapter.clear('vuesip')  // Removes all keys with 'vuesip' prefix
+
+// Method 2: Selective cleanup (remove old call history)
+import { callStore } from 'vuesip'
+
+// Keep only last 30 days of call history
+const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000)
+const recentCalls = callStore.callHistory.filter(call =>
+  call.timestamp > thirtyDaysAgo
+)
+callStore.setCallHistory(recentCalls)
+
+// Method 3: Manual storage quota management
+if (navigator.storage && navigator.storage.estimate) {
+  const estimate = await navigator.storage.estimate()
+  const usedMB = estimate.usage / 1024 / 1024
+  const quotaMB = estimate.quota / 1024 / 1024
+
+  console.log(`Storage: ${usedMB.toFixed(2)} MB / ${quotaMB.toFixed(2)} MB`)
+
+  // Clean up if using more than 80% of quota
+  if (estimate.usage / estimate.quota > 0.8) {
+    console.warn('Storage quota nearly full, cleaning up...')
+    // Trigger cleanup logic
+  }
+}
+```
+
+### Performance Impact of Storage Operations
+
+Understanding the performance cost of different operations:
+
+```typescript
+// LocalStorage performance (synchronous, blocks main thread)
+const start = performance.now()
+
+// Small data (< 1 KB): ~0.5-1ms
+localStorage.setItem('config', JSON.stringify(smallConfig))
+
+// Medium data (~100 KB): ~5-15ms
+localStorage.setItem('history', JSON.stringify(mediumHistory))
+
+// Large data (~5 MB): ~100-300ms (AVOID - causes UI lag)
+localStorage.setItem('recordings', JSON.stringify(largeData))
+
+const duration = performance.now() - start
+console.log(`LocalStorage write took ${duration.toFixed(2)}ms`)
+```
+
+```typescript
+// IndexedDB performance (asynchronous, non-blocking)
+const start = performance.now()
+
+// Small data: ~2-5ms
+await indexedDB.set('config', smallConfig)
+
+// Large data (5 MB+): ~20-50ms (but doesn't block UI)
+await indexedDB.set('recordings', largeData)
+
+const duration = performance.now() - start
+console.log(`IndexedDB write took ${duration.toFixed(2)}ms`)
+```
+
+📊 **Key Insight:** IndexedDB is slower for tiny operations but doesn't block the UI. For large data, always use IndexedDB.
+
+### Best Practices for Storage Performance
+
+**General Guidelines:**
+
+1. **✅ Use IndexedDB for Large Data** - Call history, recordings, large datasets
+   ```typescript
+   // ✅ GOOD: IndexedDB for call history
+   const historyAdapter = new IndexedDBAdapter({ dbName: 'vuesip-history' })
+   usePersistence(callStore, historyAdapter)
+   ```
+
+2. **✅ Use LocalStorage for Small Config** - User preferences, settings
+   ```typescript
+   // ✅ GOOD: LocalStorage for small config
+   const configAdapter = new LocalStorageAdapter({ prefix: 'vuesip-config' })
+   ```
+
+3. **✅ Enable Debouncing** - Batch updates to reduce write frequency
+   ```typescript
+   // ✅ GOOD: Debounced persistence
+   usePersistence(store, adapter, { debounce: 300 })
+   ```
+
+4. **✅ Use Transformers** - Persist only necessary data
+   ```typescript
+   // ✅ GOOD: Filter before saving
+   serialize: (state) => ({
+     calls: state.calls.filter(c => c.status === 'ended').slice(-100)
+   })
+   ```
+
+5. **✅ Clean Up Regularly** - Prevent unbounded growth
+   ```typescript
+   // ✅ GOOD: Periodic cleanup
+   setInterval(() => {
+     callStore.cleanupOldHistory(30) // Keep 30 days
+   }, 24 * 60 * 60 * 1000) // Daily
+   ```
+
+6. **✅ Monitor Storage Usage** - Track quota consumption
+   ```typescript
+   // ✅ GOOD: Monitor storage
+   async function checkStorageHealth() {
+     const estimate = await navigator.storage.estimate()
+     return (estimate.usage / estimate.quota) < 0.8  // < 80% is healthy
+   }
+   ```
+
+### Storage Performance Checklist
+
+Before deploying to production:
+
+- [ ] **Use appropriate storage adapter** - IndexedDB for large data, LocalStorage for config
+- [ ] **Configure debouncing** - At least 300ms for most use cases
+- [ ] **Implement cleanup** - Remove old data regularly
+- [ ] **Test with large datasets** - Ensure performance with 1000+ call history entries
+- [ ] **Monitor storage quota** - Alert users before running out of space
+- [ ] **Use transformers** - Persist only essential data
+- [ ] **Encrypt sensitive data** - Use encryption for credentials and PII
+
+💡 **Production Tip:** Monitor your application's storage usage in production to catch issues early:
+
+```typescript
+// Example: Storage monitoring service
+class StorageMonitor {
+  async reportUsage() {
+    const estimate = await navigator.storage.estimate()
+
+    analytics.track('storage_usage', {
+      usedMB: estimate.usage / 1024 / 1024,
+      quotaMB: estimate.quota / 1024 / 1024,
+      percentUsed: (estimate.usage / estimate.quota * 100).toFixed(2),
+    })
+  }
+}
+```
 
 ---
 

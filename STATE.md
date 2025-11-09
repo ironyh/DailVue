@@ -2565,7 +2565,7 @@ Each task documents a single composable with JSDoc/TSDoc comments:
 
 Each guide is a separate markdown file in `docs/guide/`:
 
-- [ ] Write Getting Started guide
+- [x] Write Getting Started guide
   - **Files:** `docs/guide/getting-started.md`
   - Installation instructions
   - Basic setup example
@@ -2573,40 +2573,43 @@ Each guide is a separate markdown file in `docs/guide/`:
   - Configuration overview
   - Common use cases
 
-- [ ] Write Making Calls guide
+- [x] Write Making Calls guide
   - **Files:** `docs/guide/making-calls.md`
   - Outgoing call setup
   - Call options and media constraints
   - Handling call events
   - Error handling
 
-- [ ] Write Receiving Calls guide
+- [x] Write Receiving Calls guide
   - **Files:** `docs/guide/receiving-calls.md`
   - Incoming call detection
   - Auto-answer configuration
   - Answer/reject options
   - Call queuing
 
-- [ ] Write Call Controls guide
+- [x] Write Call Controls guide
   - **Files:** `docs/guide/call-controls.md`
   - Hold/unhold functionality
   - Mute/unmute controls
   - DTMF tone sending
   - Call transfer (blind and attended)
+  - **Status:** ✅ Complete (~1600 lines, comprehensive coverage, 9/10 quality rating)
 
-- [ ] Write Device Management guide
+- [x] Write Device Management guide
   - **Files:** `docs/guide/device-management.md`
   - Enumerating devices
   - Device selection
   - Permission handling
   - Device testing
+  - **Status:** ✅ Complete (1,911 lines, comprehensive guide with device enumeration, selection, permissions, testing, monitoring, best practices, complete examples, API reference, and troubleshooting)
 
-- [ ] Write Call History guide
+- [x] Write Call History guide
   - **Files:** `docs/guide/call-history.md`
   - Tracking call history
   - Filtering and searching
   - Export functionality
   - Persistence
+  - **Status:** ✅ Complete (2,135 lines, comprehensive coverage of all topics)
 
 - [ ] Write Presence and Messaging guide
   - **Files:** `docs/guide/presence-messaging.md`
@@ -2630,12 +2633,17 @@ Each guide is a separate markdown file in `docs/guide/`:
   - Input validation
   - **Status:** ✅ Complete (~1,320 lines, comprehensive coverage with quick start, table of contents, code examples, best practices, security checklist, and common pitfalls)
 
-- [ ] Write Performance Optimization guide
+- [x] Write Performance Optimization guide ✅ COMPLETED (2025-11-09)
   - **Files:** `docs/guide/performance.md`
-  - Bundle size optimization
-  - Memory management
-  - Concurrent call handling
-  - Network optimization
+  - Bundle size optimization ✅
+  - Memory management ✅
+  - Concurrent call handling ✅
+  - Network optimization ✅
+  - State persistence optimization ✅
+  - Performance monitoring ✅
+  - Performance benchmarking ✅
+  - Best practices and checklists ✅
+  - **Status:** Comprehensive 1,500+ line guide covering all performance aspects
 
 ### 11.6 Example Applications (Independent Tasks) ✅ COMPLETED (2025-11-07)
 
@@ -2777,53 +2785,54 @@ Each section is a separate markdown file in `docs/api/`:
   - Use conventional commits format
   - List breaking changes, features, and fixes
 
-### 11.9 Documentation Website Setup (Sequential Tasks)
+### 11.9 Documentation Website Setup (Sequential Tasks) ✅
 
 **Note:** These tasks should be done sequentially by one person to avoid conflicts:
 
-- [ ] Setup VitePress configuration
+- [x] Setup VitePress configuration
   - **Files:** `docs/.vitepress/config.ts`
   - Configure VitePress
   - Set up theme
   - Configure navigation structure
   - Add search functionality
 
-- [ ] Create documentation home page
+- [x] Create documentation home page
   - **Files:** `docs/index.md`
   - Project overview
   - Key features
   - Quick start
   - Links to guides
 
-- [ ] Create API reference index
+- [x] Create API reference index
   - **Files:** `docs/api/index.md`
   - Overview of API sections
   - Navigation to API docs
   - Quick reference table
 
-- [ ] Create guides index
+- [x] Create guides index
   - **Files:** `docs/guide/index.md`
   - Overview of guides
   - Learning path recommendation
   - Links to all guides
 
-- [ ] Create examples index
+- [x] Create examples index
   - **Files:** `docs/examples/index.md`
   - Overview of examples
   - Links to example repos
   - Setup instructions
 
-- [ ] Create FAQ page
+- [x] Create FAQ page
   - **Files:** `docs/faq.md`
   - Common questions and answers
   - Troubleshooting tips
   - Links to relevant guides
 
-- [ ] Setup interactive playground (optional)
+- [ ] Setup interactive playground (optional) - SKIPPED
   - **Files:** `docs/.vitepress/theme/components/Playground.vue`
   - Embed live code examples
   - Support code editing
   - Show real-time results
+  - **Note:** Skipped as optional - can be implemented in future if needed
 
 ### 11.10 TypeDoc Configuration (Single Task)
 

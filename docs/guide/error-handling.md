@@ -14,6 +14,7 @@ VoIP applications operate in an unpredictable environment with many potential fa
 ## Table of Contents
 
 - [Error Types](#error-types)
+- [VueSip Error Handling Utilities](#vuesip-error-handling-utilities)
 - [Error Handling Patterns](#error-handling-patterns)
 - [Recovery Strategies](#recovery-strategies)
 - [Logging and Debugging](#logging-and-debugging)
@@ -324,19 +325,21 @@ VueSip uses an event bus to emit error events. This allows centralized error han
 #### ErrorEvent Interface
 
 ```typescript
+import { ErrorSeverity } from 'vuesip'
+
 interface ErrorEvent extends BaseEvent {
   type: 'error'
-  error: Error                                    // The actual error object
-  context?: string                                // Where the error occurred
-  severity?: 'low' | 'medium' | 'high' | 'critical' // How serious is it
+  error: Error                   // The actual error object
+  context?: string               // Where the error occurred
+  severity?: ErrorSeverity       // How serious is it
 }
 ```
 
-**Severity Levels:**
-- **low** - Informational, doesn't affect functionality
-- **medium** - Degraded functionality, user might notice
-- **high** - Feature broken, requires attention
-- **critical** - Application unstable, immediate action needed
+**Severity Levels** (see [VueSip Error Handling Utilities](#vuesip-error-handling-utilities) for detailed information):
+- **ErrorSeverity.LOW** - Informational, doesn't affect functionality
+- **ErrorSeverity.MEDIUM** - Degraded functionality, user might notice
+- **ErrorSeverity.HIGH** - Feature broken, requires attention
+- **ErrorSeverity.CRITICAL** - Application unstable, immediate action needed
 
 **Example:**
 
@@ -363,46 +366,284 @@ eventBus.on('error', (event: ErrorEvent) => {
 
 ---
 
-## Error Handling Patterns
+## VueSip Error Handling Utilities
 
-Now that you understand the error types, let's explore proven patterns for handling them effectively. These patterns will help you write robust, maintainable code.
+VueSip provides powerful error handling utilities to help you implement robust error handling with structured logging, context tracking, and abort control.
 
-### Try-Catch Pattern
+### Error Context and Structured Logging
 
-The try-catch pattern is your first line of defense. Use it for any operation that might throw an error.
+VueSip's error context system provides structured, consistent error logging with severity levels and rich contextual information.
+
+#### ErrorSeverity Levels
 
 ```typescript
-import { useSipClient, useCallSession } from 'vuesip'
+import { ErrorSeverity } from 'vuesip'
 
-const { connect, disconnect } = useSipClient(config)
-const { makeCall } = useCallSession()
+enum ErrorSeverity {
+  LOW = 'low',           // Minor issues, informational
+  MEDIUM = 'medium',     // Noticeable degradation
+  HIGH = 'high',         // Significant failures
+  CRITICAL = 'critical'  // System-threatening errors
+}
+```
 
-async function initiateCall(targetUri: string) {
+**When to use each level:**
+- **LOW** - Informational warnings (e.g., using default settings)
+- **MEDIUM** - Degraded functionality (e.g., one device failed but fallback works)
+- **HIGH** - Feature failures (e.g., call failed, device not accessible)
+- **CRITICAL** - System instability (e.g., complete connection loss, unrecoverable state)
+
+#### Creating Error Context
+
+The `createErrorContext` utility creates structured error context with operation details, component information, and state snapshots.
+
+```typescript
+import { createErrorContext, ErrorSeverity } from 'vuesip'
+
+const context = createErrorContext(
+  'makeCall',           // Operation being performed
+  'useCallSession',     // Component/module name
+  ErrorSeverity.HIGH,   // Severity level
+  {
+    context: {          // Additional context data
+      target: 'sip:user@domain.com',
+      audio: true,
+      video: false
+    },
+    state: {            // Current state snapshot
+      isConnected: true,
+      hasActiveCall: false
+    },
+    duration: 1234,     // Operation duration in ms
+    userId: 'user123'   // Optional user identifier
+  }
+)
+```
+
+#### Logging Errors with Context
+
+The `logErrorWithContext` utility combines error logging with automatic context creation and sensitive data sanitization.
+
+```typescript
+import { logErrorWithContext, ErrorSeverity, createLogger } from 'vuesip'
+
+const logger = createLogger('CallManager')
+
+async function makeCall(target: string) {
+  const timer = performance.now()
+
   try {
-    // Step 1: Ensure we're connected to the SIP server
-    await connect()
-
-    // Step 2: Initiate the outgoing call
-    await makeCall(targetUri)
+    await sipClient.call(target)
   } catch (error) {
-    console.error('Failed to initiate call:', error)
+    // Log with full context, automatically sanitizing sensitive data
+    logErrorWithContext(
+      logger,
+      'Failed to initiate call',
+      error,
+      'makeCall',
+      'CallManager',
+      ErrorSeverity.HIGH,
+      {
+        context: {
+          target,
+          timestamp: new Date().toISOString()
+        },
+        state: {
+          connectionState: 'connected',
+          registrationState: 'registered'
+        },
+        duration: performance.now() - timer
+      }
+    )
+    throw error
+  }
+}
+```
 
-    // Handle specific error scenarios
-    if (error instanceof Error) {
-      if (error.message.includes('not started')) {
-        // Client hasn't been initialized
-        showNotification('Please connect first')
-      } else if (error.message.includes('Not connected')) {
-        // Connection was lost, try reconnecting
-        showNotification('Connection lost - reconnecting...')
-        await connect()
+💡 **Tip:** The utility automatically sanitizes passwords, tokens, and API keys from error context before logging.
+
+#### Extracting Error Information
+
+The `extractErrorInfo` utility normalizes error information from various error types.
+
+```typescript
+import { extractErrorInfo } from 'vuesip'
+
+try {
+  await riskyOperation()
+} catch (error) {
+  // Works with Error, DOMException, or unknown types
+  const info = extractErrorInfo(error)
+  console.log({
+    message: info.message,
+    name: info.name,
+    stack: info.stack
+  })
+}
+```
+
+### Abort Controller Support
+
+VueSip provides utilities for handling operation cancellation with AbortController, essential for user-initiated cancellations and timeout management.
+
+#### Checking for Abort Signals
+
+```typescript
+import { throwIfAborted, isAbortError } from 'vuesip'
+
+async function longRunningOperation(signal?: AbortSignal) {
+  // Throw early if already aborted
+  throwIfAborted(signal)
+
+  // Perform first step
+  await step1()
+
+  // Check again before continuing
+  throwIfAborted(signal)
+
+  await step2()
+}
+
+// Usage with error handling
+try {
+  const abortController = new AbortController()
+  await longRunningOperation(abortController.signal)
+} catch (error) {
+  if (isAbortError(error)) {
+    console.log('Operation was cancelled by user')
+  } else {
+    console.error('Operation failed:', error)
+  }
+}
+```
+
+#### Abortable Sleep
+
+```typescript
+import { abortableSleep } from 'vuesip'
+
+async function retryWithAbort(operation: () => Promise<void>, signal?: AbortSignal) {
+  for (let i = 0; i < 3; i++) {
+    try {
+      await operation()
+      return
+    } catch (error) {
+      if (i < 2) {
+        // Sleep with abort support
+        await abortableSleep(1000 * Math.pow(2, i), signal)
+      } else {
+        throw error
       }
     }
   }
 }
 ```
 
-💡 **Tip:** Always check if errors are instances of `Error` before accessing properties like `message`. Some libraries throw non-Error values.
+#### Creating Abort Errors
+
+```typescript
+import { createAbortError } from 'vuesip'
+
+function cancelOperation() {
+  // Create a standard DOMException abort error
+  throw createAbortError('User cancelled the operation')
+}
+```
+
+### Operation Timing
+
+Track operation duration for performance monitoring and error context.
+
+```typescript
+import { createOperationTimer } from 'vuesip'
+
+async function trackedOperation() {
+  const timer = createOperationTimer()
+
+  try {
+    await performOperation()
+    console.log(`Operation succeeded in ${timer.elapsed()}ms`)
+  } catch (error) {
+    logErrorWithContext(
+      logger,
+      'Operation failed',
+      error,
+      'trackedOperation',
+      'MyComponent',
+      ErrorSeverity.MEDIUM,
+      {
+        duration: timer.elapsed()
+      }
+    )
+    throw error
+  }
+}
+```
+
+---
+
+## Error Handling Patterns
+
+Now that you understand the error types and utilities, let's explore proven patterns for handling them effectively. These patterns will help you write robust, maintainable code.
+
+### Try-Catch Pattern with Structured Logging
+
+The try-catch pattern is your first line of defense. Use it with VueSip's structured logging for better error tracking.
+
+```typescript
+import { useSipClient, useCallSession } from 'vuesip'
+import { logErrorWithContext, ErrorSeverity, createLogger } from 'vuesip'
+
+const { connect, disconnect } = useSipClient(config)
+const { makeCall } = useCallSession()
+const logger = createLogger('CallManager')
+
+async function initiateCall(targetUri: string) {
+  const startTime = performance.now()
+
+  try {
+    // Step 1: Ensure we're connected to the SIP server
+    await connect()
+
+    // Step 2: Initiate the outgoing call
+    await makeCall(targetUri)
+
+    logger.info('Call initiated successfully', { target: targetUri })
+  } catch (error) {
+    // Log with structured context and automatic sanitization
+    logErrorWithContext(
+      logger,
+      'Failed to initiate call',
+      error,
+      'initiateCall',
+      'CallManager',
+      ErrorSeverity.HIGH,
+      {
+        context: { targetUri },
+        state: {
+          isConnected: connectionState.value === 'connected',
+          hasActiveSession: !!activeCall.value
+        },
+        duration: performance.now() - startTime
+      }
+    )
+
+    // Handle specific error scenarios
+    if (error instanceof Error) {
+      if (error.message.includes('not started')) {
+        showNotification('Please connect first')
+      } else if (error.message.includes('Not connected')) {
+        showNotification('Connection lost - reconnecting...')
+        await connect()
+      }
+    }
+
+    throw error // Re-throw for caller to handle
+  }
+}
+```
+
+💡 **Tip:** Use `logErrorWithContext` to automatically capture operation context, duration, and state snapshots. Sensitive data is automatically sanitized.
 
 ### Error State Management
 
@@ -579,6 +820,101 @@ async function operationWithCleanup() {
 
 ⚠️ **Warning:** Forgetting cleanup can cause memory leaks and resource exhaustion, especially with timers and intervals.
 
+### Abort Controller Pattern
+
+Handle user cancellations and operation timeouts gracefully using AbortController with VueSip's abort utilities.
+
+```typescript
+import { useCallSession } from 'vuesip'
+import { throwIfAborted, isAbortError, abortableSleep } from 'vuesip'
+
+const { makeCall } = useCallSession()
+
+async function makeCallWithTimeout(
+  target: string,
+  timeoutMs: number = 30000
+): Promise<void> {
+  const abortController = new AbortController()
+  const timeoutId = setTimeout(() => abortController.abort(), timeoutMs)
+
+  try {
+    // Check if already aborted before starting
+    throwIfAborted(abortController.signal)
+
+    // Make the call
+    await makeCall(target, { signal: abortController.signal })
+
+    console.log('Call connected successfully')
+  } catch (error) {
+    // Handle abort errors differently from other errors
+    if (isAbortError(error)) {
+      console.log('Call was cancelled or timed out')
+      showNotification('Call cancelled')
+    } else {
+      console.error('Call failed:', error)
+      showNotification('Call failed: ' + error.message)
+    }
+    throw error
+  } finally {
+    // Always clear the timeout
+    clearTimeout(timeoutId)
+  }
+}
+
+// User-initiated cancellation
+const abortController = new AbortController()
+
+// Show cancel button to user
+showCancelButton(() => {
+  abortController.abort()
+  console.log('User cancelled the operation')
+})
+
+try {
+  await makeCallWithTimeout('sip:user@domain.com')
+} catch (error) {
+  if (!isAbortError(error)) {
+    // Handle non-abort errors
+    handleError(error)
+  }
+}
+```
+
+**Retry with Abort Support:**
+
+```typescript
+import { abortableSleep, isAbortError } from 'vuesip'
+
+async function retryOperation(
+  operation: () => Promise<void>,
+  maxRetries: number = 3,
+  signal?: AbortSignal
+): Promise<void> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      await operation()
+      return // Success
+    } catch (error) {
+      // Don't retry if operation was aborted
+      if (isAbortError(error)) {
+        throw error
+      }
+
+      // Don't retry after last attempt
+      if (attempt === maxRetries - 1) {
+        throw error
+      }
+
+      // Wait with exponential backoff, respecting abort signal
+      const delay = 1000 * Math.pow(2, attempt)
+      await abortableSleep(delay, signal)
+    }
+  }
+}
+```
+
+✅ **Best Practice:** Always check for abort errors separately and handle them differently from failures. Users expect cancellations to be silent, not treated as errors.
+
 ---
 
 ## Recovery Strategies
@@ -587,7 +923,7 @@ Errors will happen. The key is how your application recovers. These strategies h
 
 ### Automatic Retry with Exponential Backoff
 
-When operations fail due to temporary issues (like network hiccups), retrying with increasing delays often succeeds.
+When operations fail due to temporary issues (like network hiccups), retrying with increasing delays often succeeds. Use VueSip's `abortableSleep` for cancellable retries.
 
 **Why Exponential Backoff?**
 - **Prevents hammering** - Doesn't overwhelm a struggling server
@@ -595,16 +931,22 @@ When operations fail due to temporary issues (like network hiccups), retrying wi
 - **Industry standard** - Used by AWS, Google Cloud, etc.
 
 ```typescript
+import { abortableSleep, isAbortError, logErrorWithContext, ErrorSeverity, createLogger } from 'vuesip'
+
+const logger = createLogger('RetryManager')
+
 /**
- * Retries an async operation with exponential backoff
+ * Retries an async operation with exponential backoff and abort support
  * @param operation - The async function to retry
  * @param maxRetries - Maximum number of attempts (default: 3)
  * @param baseDelay - Initial delay in milliseconds (default: 1000)
+ * @param signal - Optional AbortSignal to cancel retry loop
  */
 async function retryWithBackoff<T>(
   operation: () => Promise<T>,
   maxRetries = 3,
-  baseDelay = 1000
+  baseDelay = 1000,
+  signal?: AbortSignal
 ): Promise<T> {
   let lastError: Error
 
@@ -615,14 +957,32 @@ async function retryWithBackoff<T>(
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error))
 
+      // Don't retry if operation was aborted
+      if (isAbortError(error)) {
+        throw error
+      }
+
       // Don't wait after the last attempt
       if (attempt < maxRetries - 1) {
         // Calculate delay: 1s, 2s, 4s, etc.
         const delay = baseDelay * Math.pow(2, attempt)
-        console.log(`Retry attempt ${attempt + 1} after ${delay}ms`)
+        logger.info(`Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms`)
 
-        // Wait before next attempt
-        await new Promise(resolve => setTimeout(resolve, delay))
+        // Wait before next attempt (abortable)
+        await abortableSleep(delay, signal)
+      } else {
+        // Log final failure
+        logErrorWithContext(
+          logger,
+          'All retry attempts exhausted',
+          lastError,
+          'retryWithBackoff',
+          'RetryManager',
+          ErrorSeverity.HIGH,
+          {
+            context: { attempts: maxRetries, baseDelay }
+          }
+        )
       }
     }
   }
@@ -631,22 +991,37 @@ async function retryWithBackoff<T>(
   throw lastError!
 }
 
-// Usage example
+// Usage example with cancellation support
 const { connect } = useSipClient(config)
+const abortController = new AbortController()
 
 async function connectWithRetry() {
   try {
-    // Try connecting with 3 retries
-    await retryWithBackoff(() => connect(), 3, 1000)
-    console.log('Connected successfully')
+    // Try connecting with 3 retries and cancellation support
+    await retryWithBackoff(
+      () => connect(),
+      3,
+      1000,
+      abortController.signal
+    )
+    logger.info('Connected successfully')
   } catch (error) {
-    console.error('Failed to connect after retries:', error)
-    showNotification('Unable to connect - please try again later')
+    if (isAbortError(error)) {
+      logger.info('Connection attempt cancelled by user')
+    } else {
+      logger.error('Failed to connect after retries:', error)
+      showNotification('Unable to connect - please try again later')
+    }
   }
+}
+
+// User can cancel the retry loop
+function cancelConnection() {
+  abortController.abort()
 }
 ```
 
-📝 **Note:** Retry delays: 1st retry after 1s, 2nd after 2s, 3rd after 4s, creating space between attempts.
+📝 **Note:** Retry delays: 1st retry after 1s, 2nd after 2s, 3rd after 4s, creating space between attempts. Users can cancel at any time.
 
 ### Registration Auto-Retry
 

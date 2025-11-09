@@ -18,10 +18,12 @@ Learn how to initiate and manage outgoing calls in VueSip. This guide covers eve
 **Want to make a call in 5 lines of code?** Here's the simplest way to get started:
 
 ```typescript
+import { computed } from 'vue'
 import { useSipClient, useCallSession } from 'vuesip'
 
 // Initialize the SIP client and call session
-const { sipClient } = useSipClient()
+const { getClient } = useSipClient()
+const sipClient = computed(() => getClient())
 const { makeCall, state, hangup } = useCallSession(sipClient)
 
 // Make an audio call
@@ -46,17 +48,20 @@ Before making calls, you need two things: a connected SIP client and a call sess
 Here's a complete example showing how to set up and make your first call:
 
 ```typescript
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useSipClient, useCallSession } from 'vuesip'
 
 // Step 1: Initialize and connect to the SIP server
-const { sipClient, isConnected } = useSipClient({
+const { getClient, isConnected } = useSipClient({
   uri: 'wss://sip.example.com:7443',      // WebSocket server address
   sipUri: 'sip:alice@example.com',        // Your SIP identity
   password: 'your-password'                // Your SIP password
 })
 
-// Step 2: Initialize the call session manager
+// Step 2: Get the SIP client reference for useCallSession
+const sipClient = computed(() => getClient())
+
+// Step 3: Initialize the call session manager
 const {
   makeCall,       // Function to initiate calls
   hangup,         // Function to end calls
@@ -67,7 +72,7 @@ const {
   remoteStream    // Remote party's audio/video stream (for playback)
 } = useCallSession(sipClient)
 
-// Step 3: Make a call (with proper validation)
+// Step 4: Make a call (with proper validation)
 const handleCall = async () => {
   // ✅ Always check connection status first
   if (!isConnected.value) {
@@ -123,10 +128,10 @@ The `makeCall` method is highly customizable. You can control media types (audio
 ```typescript
 interface CallSessionOptions {
   /** Enable audio stream (default: true) */
-  audio?: boolean | MediaTrackConstraints
+  audio?: boolean
 
   /** Enable video stream (default: false) */
-  video?: boolean | MediaTrackConstraints
+  video?: boolean
 
   /** Custom call metadata - attach any data you need */
   data?: Record<string, unknown>
@@ -193,102 +198,50 @@ console.log(session.value?.data)
 
 ### Understanding Media Constraints
 
-Media constraints give you fine-grained control over audio and video quality, device selection, and processing features. Instead of just `true/false`, you can pass detailed configuration objects that specify exactly how you want the media to behave.
+The `makeCall` options accept simple boolean values for `audio` and `video`. By default, VueSip uses optimized media constraints that work well for most calling scenarios. The default audio constraints include echo cancellation, noise suppression, and auto-gain control for professional call quality.
 
-### Audio Constraints
+### Basic Media Configuration
 
-Optimize audio quality with processing features:
+Enable or disable audio and video with simple boolean flags:
 
 ```typescript
+// Audio-only call (default)
 await makeCall('sip:user@domain.com', {
-  audio: {
-    echoCancellation: true,    // Remove echo feedback (✅ recommended)
-    noiseSuppression: true,    // Filter background noise (✅ recommended)
-    autoGainControl: true,     // Normalize volume levels (✅ recommended)
-    sampleRate: 48000          // Higher quality audio (48kHz)
-  },
-  video: false
+  audio: true,   // Enable microphone with default optimized settings
+  video: false   // Disable camera
+})
+
+// Audio + video call
+await makeCall('sip:user@domain.com', {
+  audio: true,   // Enable microphone with default optimized settings
+  video: true    // Enable camera with default settings
 })
 ```
 
-✅ **Best Practice:** Enable echo cancellation, noise suppression, and auto-gain control for professional call quality, especially in noisy environments.
+✅ **Best Practice:** The default constraints include echo cancellation, noise suppression, and auto-gain control, which provide professional call quality in most environments.
 
-### Video Constraints
+### Device Selection
 
-Control video resolution and quality:
-
-```typescript
-await makeCall('sip:user@domain.com', {
-  audio: true,
-  video: {
-    width: { ideal: 1280 },     // Prefer 1280px width (HD)
-    height: { ideal: 720 },     // Prefer 720px height (HD)
-    frameRate: { ideal: 30 },   // Smooth 30 fps video
-    facingMode: 'user'          // Front camera ('environment' for rear)
-  }
-})
-```
-
-📝 **Note:** Using `ideal` constraints allows the browser to fall back to lower quality if the ideal isn't available. Use `exact` only when you must have specific settings.
-
-💡 **Mobile Tip:** Use `facingMode: 'environment'` to use the rear camera on mobile devices, useful for showing things to the remote party.
-
-### Specific Device Selection
-
-Let users choose which microphone or camera to use:
+Let users choose which microphone or camera to use before making calls:
 
 ```typescript
 import { useMediaDevices } from 'vuesip'
 
 // Get available devices
-const { audioInputDevices, videoDevices } = useMediaDevices()
+const { audioInputDevices, videoInputDevices, selectAudioInput, selectVideoInput } = useMediaDevices()
 
-// Use a specific microphone and camera
+// Let the user select devices
+selectAudioInput(audioInputDevices.value[0].deviceId)
+selectVideoInput(videoInputDevices.value[0].deviceId)
+
+// Now make the call - it will use the selected devices
 await makeCall('sip:user@domain.com', {
-  audio: {
-    // Use the first available microphone
-    deviceId: { exact: audioInputDevices.value[0].deviceId }
-  },
-  video: {
-    // Use the first available camera
-    deviceId: { exact: videoDevices.value[0].deviceId }
-  }
+  audio: true,
+  video: true
 })
 ```
 
-💡 **UX Tip:** Build a device selection UI that lets users test and choose their preferred devices before making calls.
-
-### Screen Sharing
-
-Share your screen during calls (perfect for demos, support, or collaboration):
-
-```typescript
-import { useMediaManager } from 'vuesip'
-
-const { mediaManager } = useMediaManager()
-
-try {
-  // Step 1: Request screen sharing permission from the user
-  const screenStream = await navigator.mediaDevices.getDisplayMedia({
-    video: true,   // Capture the screen
-    audio: false   // Don't capture system audio (optional)
-  })
-
-  // Step 2: Set the screen stream as your local stream
-  mediaManager.value?.setLocalStream(screenStream)
-
-  // Step 3: Make the call (it will use the screen stream)
-  await makeCall('sip:user@domain.com', {
-    video: true  // Send the screen as video
-  })
-} catch (error) {
-  console.error('Screen sharing failed:', error)
-}
-```
-
-⚠️ **User Control:** Screen sharing shows a browser dialog where users select which screen/window/tab to share. They can also stop sharing at any time using browser controls.
-
-💡 **Advanced Use Case:** You can switch between camera and screen sharing during a call by updating the local stream with `mediaManager.replaceLocalStream()`.
+💡 **UX Tip:** Build a device selection UI that lets users test and choose their preferred devices before making calls. The selected devices will be automatically used for all subsequent calls.
 
 ---
 
@@ -635,10 +588,9 @@ const makeCallWithValidation = async (target: string) => {
   // Validate the URI before attempting to call
   const validation = validateSipUri(target)
 
-  if (!validation.isValid) {
+  if (!validation.valid) {
     // Show validation errors immediately (no network call made)
     console.error('Validation failed:', validation.error)
-    console.error('Details:', validation.errors)
 
     // UI: Show specific error to user
     return
@@ -762,7 +714,8 @@ const error = ref('')
 const isProcessing = ref(false)
 
 // Initialize SIP client
-const { sipClient, isConnected } = useSipClient()
+const { getClient, isConnected } = useSipClient()
+const sipClient = computed(() => getClient())
 
 // Initialize call session
 const {
@@ -802,7 +755,7 @@ const handleMakeCall = async () => {
 
   // Validate URI format
   const validation = validateSipUri(targetUri.value)
-  if (!validation.isValid) {
+  if (!validation.valid) {
     error.value = validation.error || 'Invalid SIP URI'
     return
   }
@@ -1122,7 +1075,7 @@ import { validateSipUri } from 'vuesip'
 
 // ✅ Validate first
 const validation = validateSipUri(targetUri.value)
-if (!validation.isValid) {
+if (!validation.valid) {
   showError(validation.error)  // Instant feedback
   return
 }
@@ -1170,12 +1123,12 @@ onUnmounted(() => {
 ```typescript
 import { useMediaDevices } from 'vuesip'
 
-const { requestPermissions, permissions } = useMediaDevices()
+const { requestPermissions, audioPermission, videoPermission } = useMediaDevices()
 
 // ✅ Request permissions when component mounts or app starts
 onMounted(async () => {
   try {
-    await requestPermissions({ audio: true, video: false })
+    await requestPermissions(true, false)  // Request audio only
     // Permissions granted - calls will be instant
   } catch (error) {
     console.error('Permission denied:', error)
@@ -1185,7 +1138,7 @@ onMounted(async () => {
 
 // Check permissions before calling
 const handleCall = async () => {
-  if (permissions.value.audio !== 'granted') {
+  if (audioPermission.value !== 'granted') {
     console.error('Microphone access required')
     // UI: Show permission request dialog
     return

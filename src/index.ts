@@ -224,13 +224,15 @@ export { RecordingPlugin, createRecordingPlugin } from './plugins'
 /**
  * Utility functions and helpers.
  *
- * Includes validators, formatters, logging, encryption, constants, and
- * storage quota utilities.
+ * Includes validators, formatters, logging, encryption, error handling,
+ * abort controller utilities, and storage quota helpers.
  *
  * @see {@link validateSipUri} for SIP URI validation
  * @see {@link formatDuration} for duration formatting
  * @see {@link createLogger} for logging
  * @see {@link encrypt} for data encryption
+ * @see {@link logErrorWithContext} for structured error logging
+ * @see {@link throwIfAborted} for abort signal checking
  *
  * @example
  * ```typescript
@@ -241,12 +243,47 @@ export { RecordingPlugin, createRecordingPlugin } from './plugins'
  * const logger = createLogger('MyApp')
  * logger.info('Application started')
  * ```
+ *
+ * @example
+ * Error handling utilities:
+ * ```typescript
+ * import { logErrorWithContext, ErrorSeverity, createLogger } from 'vuesip'
+ *
+ * const logger = createLogger('MyComponent')
+ *
+ * try {
+ *   await riskyOperation()
+ * } catch (error) {
+ *   logErrorWithContext(
+ *     logger,
+ *     'Operation failed',
+ *     error,
+ *     'riskyOperation',
+ *     'MyComponent',
+ *     ErrorSeverity.HIGH,
+ *     { context: { userId: '123' } }
+ *   )
+ * }
+ * ```
+ *
+ * @example
+ * Abort controller utilities:
+ * ```typescript
+ * import { throwIfAborted, isAbortError, abortableSleep } from 'vuesip'
+ *
+ * async function cancellableOperation(signal?: AbortSignal) {
+ *   throwIfAborted(signal)
+ *   await abortableSleep(1000, signal)
+ * }
+ * ```
  */
 // Export utilities (excluding duplicates: getStorageQuota, getStorageUsageSummary from stores, STORAGE_KEYS from types)
 export * from './utils/validators'
 export * from './utils/formatters'
 export * from './utils/logger'
 export * from './utils/encryption'
+export * from './utils/errorContext'
+export * from './utils/abortController'
 // storageQuota functions exported from stores instead
 // constants partially exported (STORAGE_KEYS from types instead)
 
