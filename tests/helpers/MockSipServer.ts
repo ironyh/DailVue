@@ -61,6 +61,7 @@ export interface MockRTCSession {
   sendDTMF: Mock<(tone: string, options?: unknown) => void>
   on: Mock<(event: string, handler: EventHandler) => void>
   off: Mock<(event: string, handler: EventHandler) => void>
+  removeAllListeners: Mock<() => void>
   _handlers: Record<string, EventHandler[]>
 }
 
@@ -130,9 +131,7 @@ export class MockSipServer {
 
     const match = uri.match(/^sip:([^@]+)@(.+)$/)
     if (!match) {
-      throw new Error(
-        `Invalid SIP URI format: "${uri}". Expected format: "sip:user@domain.com"`
-      )
+      throw new Error(`Invalid SIP URI format: "${uri}". Expected format: "sip:user@domain.com"`)
     }
 
     return {
@@ -154,7 +153,7 @@ export class MockSipServer {
   createSession(sessionId?: string): MockRTCSession {
     const id = sessionId || `session-${++this.sessionIdCounter}`
 
-    const handlers: Record<string, Function[]> = {}
+    const handlers: Record<string, EventHandler[]> = {}
 
     const session: MockRTCSession = {
       id,
@@ -174,14 +173,19 @@ export class MockSipServer {
       renegotiate: vi.fn().mockResolvedValue(undefined),
       refer: vi.fn(),
       sendDTMF: vi.fn(),
-      on: vi.fn((event: string, handler: Function) => {
+      on: vi.fn((event: string, handler: EventHandler) => {
         if (!handlers[event]) handlers[event] = []
         handlers[event].push(handler)
       }),
-      off: vi.fn((event: string, handler: Function) => {
+      off: vi.fn((event: string, handler: EventHandler) => {
         if (handlers[event]) {
           handlers[event] = handlers[event].filter((h) => h !== handler)
         }
+      }),
+      removeAllListeners: vi.fn(() => {
+        Object.keys(handlers).forEach((key) => {
+          handlers[key] = []
+        })
       }),
       _handlers: handlers,
     }
@@ -262,7 +266,11 @@ export class MockSipServer {
    * @param originator - Who initiated the termination ('local' or 'remote')
    * @param cause - Reason for termination (default: 'Bye')
    */
-  simulateCallEnded(session: MockRTCSession, originator: 'local' | 'remote' = 'remote', cause = 'Bye'): void {
+  simulateCallEnded(
+    session: MockRTCSession,
+    originator: 'local' | 'remote' = 'remote',
+    cause = 'Bye'
+  ): void {
     session.isEnded.mockReturnValue(true)
     session.isEstablished.mockReturnValue(false)
 
@@ -339,19 +347,23 @@ export class MockSipServer {
     this.createTimeout(() => {
       const expiresValue = expires || this.config.registrationExpires
       const handlers = this.mockUA._onceHandlers['registered'] || []
-      handlers.forEach((handler) => handler({
-        response: {
-          getHeader: () => String(expiresValue)
-        }
-      }))
+      handlers.forEach((handler) =>
+        handler({
+          response: {
+            getHeader: () => String(expiresValue),
+          },
+        })
+      )
       this.mockUA._onceHandlers['registered'] = []
 
       const onHandlers = this.mockUA._handlers['registered'] || []
-      onHandlers.forEach((handler) => handler({
-        response: {
-          getHeader: () => String(expiresValue)
-        }
-      }))
+      onHandlers.forEach((handler) =>
+        handler({
+          response: {
+            getHeader: () => String(expiresValue),
+          },
+        })
+      )
     }, this.config.networkLatency)
   }
 
@@ -430,15 +442,15 @@ export class MockSipServer {
    * Create mock UA with handlers
    */
   private createMockUA(): MockUA {
-    const handlers: Record<string, Function[]> = {}
-    const onceHandlers: Record<string, Function[]> = {}
+    const handlers: Record<string, EventHandler[]> = {}
+    const onceHandlers: Record<string, EventHandler[]> = {}
 
     const mockUA: MockUA = {
       start: vi.fn(),
       stop: vi.fn(),
       register: vi.fn(),
       unregister: vi.fn(),
-      call: vi.fn((target: string, options?: unknown) => {
+      call: vi.fn((_target: string, _options?: unknown) => {
         const session = this.createSession()
 
         if (this.config.autoAcceptCalls) {
@@ -463,11 +475,19 @@ export class MockSipServer {
         onceHandlers[event].push(handler)
 
         // Auto-trigger based on config
-        if (event === 'connected' && this.config.autoRegister && !this.config.simulateConnectionFailure) {
+        if (
+          event === 'connected' &&
+          this.config.autoRegister &&
+          !this.config.simulateConnectionFailure
+        ) {
           this.simulateConnect()
         }
 
-        if (event === 'registered' && this.config.autoRegister && !this.config.simulateRegistrationFailure) {
+        if (
+          event === 'registered' &&
+          this.config.autoRegister &&
+          !this.config.simulateRegistrationFailure
+        ) {
           this.simulateRegistered()
         }
       }),
@@ -498,7 +518,7 @@ export function createMockSipServer(config?: MockSipServerConfig): MockSipServer
  * Create a mock RTC session for testing
  */
 export function createMockRTCSession(sessionId = 'test-session'): MockRTCSession {
-  const handlers: Record<string, Function[]> = {}
+  const handlers: Record<string, EventHandler[]> = {}
 
   return {
     id: sessionId,
@@ -518,14 +538,19 @@ export function createMockRTCSession(sessionId = 'test-session'): MockRTCSession
     renegotiate: vi.fn().mockResolvedValue(undefined),
     refer: vi.fn(),
     sendDTMF: vi.fn(),
-    on: vi.fn((event: string, handler: Function) => {
+    on: vi.fn((event: string, handler: EventHandler) => {
       if (!handlers[event]) handlers[event] = []
       handlers[event].push(handler)
     }),
-    off: vi.fn((event: string, handler: Function) => {
+    off: vi.fn((event: string, handler: EventHandler) => {
       if (handlers[event]) {
         handlers[event] = handlers[event].filter((h) => h !== handler)
       }
+    }),
+    removeAllListeners: vi.fn(() => {
+      Object.keys(handlers).forEach((key) => {
+        handlers[key] = []
+      })
     }),
     _handlers: handlers,
   }
