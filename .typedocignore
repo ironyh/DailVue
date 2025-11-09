@@ -1,0 +1,30 @@
+# TypeDoc Ignore File
+# Files and patterns to exclude from TypeDoc generation
+# This supplements the exclude patterns in typedoc.json
+
+# Test files
+**/*.spec.ts
+**/*.test.ts
+**/tests/**
+**/__tests__/**
+**/__mocks__/**
+
+# Build artifacts
+**/dist/**
+**/build/**
+**/*.d.ts
+
+# Node modules
+**/node_modules/**
+
+# Development files
+**/playground/**
+**/examples/**/*.config.ts
+**/vite.config.ts
+**/vitest.config.ts
+
+# Documentation source (don't document the docs)
+**/docs/**
+
+# Hidden files
+**/.*

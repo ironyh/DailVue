@@ -1,0 +1,27 @@
+{
+  "recommendations": [
+    // Vue
+    "Vue.volar",
+    "Vue.vscode-typescript-vue-plugin",
+
+    // TypeScript
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+
+    // Documentation
+    "yzhang.markdown-all-in-one",
+    "bierner.markdown-preview-github-styles",
+    "DavidAnson.vscode-markdownlint",
+
+    // JSDoc helpers
+    "stevencl.addDocComments",
+    "mintlify.document",
+
+    // Git
+    "eamodio.gitlens",
+
+    // Testing
+    "ZixuanChen.vitest-explorer"
+  ],
+  "unwantedRecommendations": []
+}

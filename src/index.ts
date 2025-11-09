@@ -54,6 +54,18 @@
  *   </SipClientProvider>
  * </template>
  * ```
+ *
+ * @remarks
+ * ## Documentation
+ *
+ * - **User Guide**: See the [Getting Started Guide](/guide/getting-started) for step-by-step instructions
+ * - **API Reference**: Detailed API documentation is available in the [API Reference](/api/) section
+ * - **TypeDoc Generated Docs**: Complete reference documentation is auto-generated at [API Generated Docs](/api/generated/)
+ * - **Architecture**: Developers should review the [Architecture Documentation](/developer/architecture.md)
+ * - **Examples**: Working examples are available in the [Examples](/examples/) section
+ *
+ * For developers maintaining this library, see the {@link /docs/developer/typedoc-setup.md | TypeDoc Setup Guide}
+ * for information about generating and maintaining API documentation.
  */
 
 // ============================================================================

@@ -51,6 +51,8 @@
     "docs:build": "vitepress build docs",
     "docs:api": "typedoc",
     "docs:api:watch": "typedoc --watch",
+    "docs:api:validate": "typedoc --emit none --validation.notDocumented true",
+    "docs:all": "npm run docs:api && npm run docs:build",
     "typecheck": "tsc --noEmit",
     "type-check": "vue-tsc --noEmit",
     "prepare": "husky install"

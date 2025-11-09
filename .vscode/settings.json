@@ -1,0 +1,47 @@
+{
+  // TypeDoc configuration
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+
+  // JSDoc formatting
+  "javascript.format.insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces": true,
+  "typescript.format.insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces": true,
+
+  // Documentation hints
+  "editor.quickSuggestions": {
+    "comments": true,
+    "strings": false,
+    "other": true
+  },
+
+  // Show inline documentation
+  "editor.parameterHints.enabled": true,
+  "editor.suggest.showWords": false,
+
+  // File associations
+  "files.associations": {
+    "*.md": "markdown",
+    "typedoc.json": "jsonc"
+  },
+
+  // Exclude TypeDoc output from search
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/docs/api/generated": true,
+    "**/.git": true
+  },
+
+  // File watcher exclude
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/dist/**": true,
+    "**/docs/api/generated/**": true
+  },
+
+  // Markdown validation
+  "markdown.validate.enabled": true,
+
+  // Auto-save for better TypeDoc watch mode
+  "files.autoSave": "onFocusChange"
+}
