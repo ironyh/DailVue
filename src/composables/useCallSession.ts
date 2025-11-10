@@ -392,6 +392,9 @@ export function useCallSession(
         ...options.data,
       })
 
+      // Check if aborted after call initiation
+      throwIfAborted(effectiveSignal)
+
       // Store session
       session.value = newSession
 

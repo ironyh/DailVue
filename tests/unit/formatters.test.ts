@@ -122,7 +122,7 @@ describe('formatters', () => {
         scheme: 'sip',
         user: 'alice',
         host: 'example.com',
-        port: null,
+        port: undefined,
       })
     })
 

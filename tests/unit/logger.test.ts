@@ -288,13 +288,13 @@ describe('logger', () => {
   })
 
   describe('defaultLogger', () => {
-    it('should have DailVue namespace', () => {
+    it('should have VueSip namespace', () => {
       expect(defaultLogger).toBeInstanceOf(Logger)
       defaultLogger.info('Test')
       expect(console.log).toHaveBeenCalled()
       const calls = vi.mocked(console.log).mock.calls
       const callArgs = calls[0].join(' ')
-      expect(callArgs).toContain('DailVue')
+      expect(callArgs).toContain('VueSip')
     })
   })
 
