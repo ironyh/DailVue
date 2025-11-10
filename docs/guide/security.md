@@ -20,6 +20,96 @@ Each layer protects a different aspect of your application, and together they cr
 
 ---
 
+## Quick Start: Secure Configuration
+
+**Want to get secure quickly?** Here's a minimal security setup that implements all essential protections. Copy this configuration and customize the values for your environment:
+
+```typescript
+import { useSipClient, LocalStorageAdapter, generateEncryptionKey } from 'vuesip'
+
+// ✅ Production-ready secure SIP client configuration
+async function initializeSecureClient() {
+  const { connect, register } = useSipClient({
+    // 1. Transport Security - Always use WSS (WebSocket Secure)
+    uri: 'wss://sip.example.com:7443',  // ✓ Encrypted WebSocket connection
+
+    // 2. Authentication - Use your SIP credentials
+    sipUri: 'sip:1000@example.com',      // Your SIP identity
+    password: 'your-secure-password',    // Or use HA1 hash (see Authentication section)
+
+    // 3. Media Security - DTLS-SRTP configuration with secure TURN
+    rtcConfiguration: {
+      // Option A: Use VueSip's convenient stunServers/turnServers helpers
+      stunServers: [
+        'stun:stun.l.google.com:19302',
+        'stun:stun1.l.google.com:19302'
+      ],
+      turnServers: [
+        {
+          urls: ['turns:turn.example.com:5349'],  // ✓ TURN over TLS
+          username: 'turnuser',
+          credential: 'turnpass',
+          credentialType: 'password'
+        }
+      ],
+      iceTransportPolicy: 'relay'  // ✓ Force traffic through TURN (highest security)
+    }
+  })
+
+  // Connect and register
+  await connect()
+  await register()
+
+  console.log('Secure SIP client initialized')
+}
+
+// Initialize the client
+initializeSecureClient().catch(console.error)
+```
+
+**What this configuration does:**
+
+✅ **Encrypts transport** - Uses WSS with TLS to protect SIP signaling
+✅ **Encrypts media** - DTLS-SRTP automatically protects voice/video streams
+✅ **Encrypts storage** - AES-GCM with PBKDF2 (100k iterations) protects stored credentials
+✅ **Uses secure TURN** - Forces media through TURN over TLS (TURNS)
+✅ **Maximum security** - `iceTransportPolicy: 'relay'` prevents IP address leaks
+
+**Alternative: Standard iceServers format**
+
+You can also use the standard WebRTC `iceServers` format instead of `stunServers`/`turnServers`:
+
+```typescript
+rtcConfiguration: {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    {
+      urls: 'turns:turn.example.com:5349',
+      username: 'turnuser',
+      credential: 'turnpass'
+    }
+  ],
+  iceTransportPolicy: 'relay'
+}
+```
+
+💡 **Tip:** For even stronger security, use HA1 hash authentication instead of passwords (see [Authentication](#authentication) section).
+
+---
+
+## Table of Contents
+
+- [Transport Security (WSS/TLS)](#transport-security-wsstls)
+- [Media Encryption (DTLS-SRTP)](#media-encryption-dtls-srtp)
+- [Credential Storage](#credential-storage)
+- [Authentication](#authentication)
+- [Input Validation](#input-validation)
+- [Security Checklist](#security-checklist)
+- [Common Security Pitfalls](#common-security-pitfalls)
+- [Additional Resources](#additional-resources)
+
+---
+
 ## Transport Security (WSS/TLS)
 
 **What This Section Covers**
@@ -321,35 +411,39 @@ VueSip uses industry-standard encryption with secure defaults:
 **Basic Encrypted Storage Setup:**
 
 ```typescript
-import { createEncryptedAdapter } from 'vuesip'
-import { LocalStorageAdapter } from 'vuesip/storage'
+import { LocalStorageAdapter, generateEncryptionKey } from 'vuesip'
 
-// Step 1: Create an encrypted storage adapter
-// This wraps localStorage with AES-GCM encryption
-const encryptedStorage = createEncryptedAdapter(
-  new LocalStorageAdapter(),           // Base storage (where encrypted data goes)
+// Create an encrypted storage adapter with password-based encryption
+// The encryption password should be derived from user credentials or stored securely
+const encryptionPassword = 'user-master-password'  // In production: derive from user password
+
+const encryptedStorage = new LocalStorageAdapter(
   {
-    enabled: true,                     // Enable encryption
-    algorithm: 'AES-GCM',              // Encryption algorithm (only option currently)
-    iterations: 100000                 // PBKDF2 iterations (minimum recommended: 100,000)
-  }
+    prefix: 'vuesip',                  // Namespace for storage keys
+    version: '1',                      // Version for migration support
+    encryption: {
+      enabled: true,                   // Enable AES-GCM encryption
+      iterations: 100000               // PBKDF2 iterations (minimum recommended: 100,000)
+    }
+  },
+  encryptionPassword                   // Password used for key derivation
 )
 
-// Step 2: Use the encrypted storage with useSipClient
-const { connect } = useSipClient({
-  uri: 'wss://sip.example.com:7443',
-  sipUri: 'sip:1000@example.com',
-  password: 'your-password',
-
-  storageAdapter: encryptedStorage,    // Use encrypted storage instead of default
-
-  // 🔑 CRITICAL: The encryption key protects your data
-  // Derive from user password or generate randomly
-  encryptionKey: 'user-specific-key'   // See next section for proper key generation
+// Use the encrypted storage to persist application data securely
+await encryptedStorage.set('userPreferences', {
+  theme: 'dark',
+  notifications: true,
+  displayName: 'John Doe'
 })
+
+// Retrieve encrypted data
+const result = await encryptedStorage.get('userPreferences')
+if (result.success) {
+  console.log('Retrieved:', result.data)  // Automatically decrypted
+}
 ```
 
-⚠️ **Security Warning:** The `encryptionKey` is critical! If lost, encrypted data cannot be recovered. If compromised, all encrypted data can be decrypted.
+⚠️ **Security Warning:** The encryption password is critical! If lost, encrypted data cannot be recovered. If compromised, all encrypted data can be decrypted.
 
 ### Generating Secure Encryption Keys
 
@@ -406,47 +500,51 @@ Different storage adapters offer different tradeoffs between security, persisten
 **Example 1: Session Storage (Security-First Approach)**
 
 ```typescript
-import { SessionStorageAdapter } from 'vuesip/storage'
+import { SessionStorageAdapter } from 'vuesip'
 
 // Data automatically deleted when browser tab closes
 // Best for: Public computers, shared devices, maximum security
-const storage = new SessionStorageAdapter()
+const sessionStorage = new SessionStorageAdapter({
+  prefix: 'vuesip',
+  version: '1',
+  encryption: {
+    enabled: true,
+    iterations: 100000
+  }
+}, 'session-password')
 
-const { connect } = useSipClient({
-  // ... config
-  storageAdapter: storage  // Credentials cleared when tab closes
-})
+// Use session storage for temporary data
+await sessionStorage.set('callHistory', recentCalls)
 ```
 
-✅ **Best for:** Medical offices, public kiosks, shared workstations
+✅ **Best for:** Medical offices, public kiosks, shared workstations - data is automatically cleared when tab closes
 
 **Example 2: Encrypted IndexedDB (Convenience with Security)**
 
 ```typescript
-import { IndexedDBAdapter } from 'vuesip/storage'
-import { createEncryptedAdapter, generateEncryptionKey } from 'vuesip'
-
-// Generate or derive encryption key
-const encryptionKey = generateEncryptionKey()
+import { IndexedDBAdapter, generateEncryptionKey } from 'vuesip'
 
 // Create encrypted IndexedDB storage
 // Best for: Long-term storage, offline capabilities, larger datasets
-const storage = createEncryptedAdapter(
-  new IndexedDBAdapter('vuesip-db'),   // Database name
+const indexedDBStorage = new IndexedDBAdapter(
   {
-    enabled: true,                     // Enable AES-GCM encryption
-    iterations: 100000                 // PBKDF2 iterations for key derivation
-  }
+    prefix: 'vuesip',
+    version: '1',
+    databaseName: 'vuesip-db',
+    encryption: {
+      enabled: true,
+      iterations: 100000
+    }
+  },
+  'user-encryption-password'
 )
 
-const { connect } = useSipClient({
-  // ... config
-  storageAdapter: storage,
-  encryptionKey                        // Key needed to decrypt data later
-})
+// Use for larger datasets with encryption
+await indexedDBStorage.set('contacts', contactsList)
+await indexedDBStorage.set('callRecords', callHistory)
 ```
 
-✅ **Best for:** Personal devices, users who want "remember me" functionality
+✅ **Best for:** Personal devices, users who want persistent storage with encryption
 
 ### Credential Storage Best Practices
 
@@ -925,7 +1023,7 @@ Use this comprehensive checklist to audit your VueSip application's security pos
 ### 🔑 Credential Security
 
 - [ ] **No plaintext passwords** - Never store passwords in source code or unencrypted storage
-- [ ] **Use encrypted storage** - Enable `createEncryptedAdapter()` for persistent storage
+- [ ] **Use encrypted storage** - Enable encryption in storage adapters for persistent data
 - [ ] **Prefer HA1 hashes** - Use pre-computed HA1 instead of passwords when possible
 - [ ] **Secure encryption keys** - Generate strong keys, never hardcode or commit to git
 - [ ] **Implement key management** - Document how encryption keys are generated and stored
@@ -1086,21 +1184,40 @@ const password = localStorage.getItem('sipPassword')  // Plaintext!
 
 ```typescript
 // ✅ GOOD - AES-GCM encrypted storage
-import { createEncryptedAdapter, LocalStorageAdapter } from 'vuesip'
+import { LocalStorageAdapter, hashPassword } from 'vuesip'
 
-const storage = createEncryptedAdapter(
-  new LocalStorageAdapter(),
+// Derive encryption password from user credentials (never store the password itself!)
+const userPassword = getUserPassword()  // From login form
+const encryptionPassword = await hashPassword(userPassword)
+
+// Create encrypted storage adapter
+const storage = new LocalStorageAdapter(
   {
-    enabled: true,           // Enable encryption
-    iterations: 100000       // Strong key derivation
-  }
+    prefix: 'vuesip',
+    version: '1',
+    encryption: {
+      enabled: true,           // Enable AES-GCM encryption
+      iterations: 100000       // Strong PBKDF2 key derivation
+    }
+  },
+  encryptionPassword
 )
 
-const { connect } = useSipClient({
-  // ... config
-  storageAdapter: storage,
-  encryptionKey: userDerivedKey  // Derived from user password, not stored
+// Store credentials securely
+await storage.set('sipCredentials', {
+  sipUri: 'sip:1000@example.com',
+  password: 'user-password'  // Encrypted before storage
 })
+
+// Later, retrieve credentials (automatically decrypted)
+const result = await storage.get('sipCredentials')
+if (result.success && result.data) {
+  const { connect } = useSipClient({
+    uri: 'wss://sip.example.com:7443',
+    sipUri: result.data.sipUri,
+    password: result.data.password
+  })
+}
 ```
 
 📝 **Result:** Credentials encrypted with AES-GCM before storage. Unreadable without encryption key.
