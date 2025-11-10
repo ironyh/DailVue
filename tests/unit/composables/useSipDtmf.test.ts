@@ -55,6 +55,7 @@ describe('useSipDtmf - AbortController Integration', () => {
   })
 
   afterEach(() => {
+    vi.clearAllTimers()
     vi.useRealTimers()
     vi.clearAllMocks()
   })

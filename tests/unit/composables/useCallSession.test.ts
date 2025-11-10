@@ -834,6 +834,7 @@ describe('useCallSession - Phase 6.11 Improvements', () => {
     })
 
     afterEach(() => {
+      vi.clearAllTimers()
       vi.useRealTimers()
     })
 
@@ -1056,6 +1057,7 @@ describe('useCallSession - Phase 6.11 Improvements', () => {
     })
 
     afterEach(() => {
+      vi.clearAllTimers()
       vi.useRealTimers()
     })
 

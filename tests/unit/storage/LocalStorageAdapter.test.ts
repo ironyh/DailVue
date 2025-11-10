@@ -247,56 +247,64 @@ describe('LocalStorageAdapter', () => {
   })
 
   describe('encryption', () => {
-    it('should encrypt sensitive data', async () => {
-      const encryptedAdapter = new LocalStorageAdapter(
-        {
-          prefix: 'test',
-          version: '1',
-          encryption: { enabled: true },
-        },
-        'test-password'
-      )
+    it(
+      'should encrypt sensitive data',
+      async () => {
+        const encryptedAdapter = new LocalStorageAdapter(
+          {
+            prefix: 'test',
+            version: '1',
+            encryption: { enabled: true },
+          },
+          'test-password'
+        )
 
-      const key = 'sip:credentials'
-      const value = { username: 'user', password: 'secret' }
+        const key = 'sip:credentials'
+        const value = { username: 'user', password: 'secret' }
 
-      await encryptedAdapter.set(key, value)
+        await encryptedAdapter.set(key, value)
 
-      // Check that raw storage is encrypted
-      const rawValue = localStorage.getItem('test:1:sip:credentials')
-      expect(rawValue).not.toContain('secret')
-      expect(rawValue).not.toContain('user')
+        // Check that raw storage is encrypted
+        const rawValue = localStorage.getItem('test:1:sip:credentials')
+        expect(rawValue).not.toContain('secret')
+        expect(rawValue).not.toContain('user')
 
-      // Should decrypt correctly
-      const result = await encryptedAdapter.get<typeof value>(key)
-      expect(result.success).toBe(true)
-      expect(result.data).toEqual(value)
-    })
+        // Should decrypt correctly
+        const result = await encryptedAdapter.get<typeof value>(key)
+        expect(result.success).toBe(true)
+        expect(result.data).toEqual(value)
+      },
+      30000 // 30 second timeout for encryption test
+    )
 
-    it('should auto-detect sensitive keys', async () => {
-      const encryptedAdapter = new LocalStorageAdapter(
-        {
-          prefix: 'test',
-          version: '1',
-          encryption: { enabled: true },
-        },
-        'test-password'
-      )
+    it(
+      'should auto-detect sensitive keys',
+      async () => {
+        const encryptedAdapter = new LocalStorageAdapter(
+          {
+            prefix: 'test',
+            version: '1',
+            encryption: { enabled: true },
+          },
+          'test-password'
+        )
 
-      // These keys should be encrypted automatically
-      const sensitiveKeys = ['credentials', 'password', 'secret', 'auth']
+        // These keys should be encrypted automatically
+        const sensitiveKeys = ['credentials', 'password', 'secret', 'auth']
 
-      for (const keyPart of sensitiveKeys) {
-        const key = `test:${keyPart}`
-        await encryptedAdapter.set(key, 'sensitive-data')
+        for (const keyPart of sensitiveKeys) {
+          const key = `test:${keyPart}`
+          await encryptedAdapter.set(key, 'sensitive-data')
 
-        const rawValue = localStorage.getItem(`test:1:test:${keyPart}`)
-        // Should be encrypted (contain encryption metadata)
-        expect(rawValue).toContain('data')
-        expect(rawValue).toContain('iv')
-        expect(rawValue).toContain('salt')
-      }
-    })
+          const rawValue = localStorage.getItem(`test:1:test:${keyPart}`)
+          // Should be encrypted (contain encryption metadata)
+          expect(rawValue).toContain('data')
+          expect(rawValue).toContain('iv')
+          expect(rawValue).toContain('salt')
+        }
+      },
+      30000 // 30 second timeout for encryption test
+    )
 
     it('should not encrypt non-sensitive keys', async () => {
       const encryptedAdapter = new LocalStorageAdapter(

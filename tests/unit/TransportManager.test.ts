@@ -105,6 +105,7 @@ describe('TransportManager', () => {
   afterEach(() => {
     transport?.destroy()
     vi.clearAllTimers()
+    vi.useRealTimers()
     vi.restoreAllMocks()
   })
 

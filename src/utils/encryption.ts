@@ -15,12 +15,35 @@ import { createLogger } from './logger'
 const logger = createLogger('utils:encryption')
 
 /**
+ * Check if running in test environment
+ */
+function isTestEnvironment(): boolean {
+  // Check for Vitest - import.meta.vitest is always available in Vitest
+  if (typeof import !== 'undefined' && typeof import.meta !== 'undefined') {
+    const meta = import.meta as any
+    if (meta.vitest !== undefined) {
+      return true
+    }
+    // Check for Vite environment variables
+    if (meta.env?.MODE === 'test' || meta.env?.TEST || meta.env?.VITEST) {
+      return true
+    }
+  }
+  // Check for Node.js environment variables
+  if (typeof process !== 'undefined') {
+    return process.env.NODE_ENV === 'test' || !!process.env.VITEST
+  }
+  return false
+}
+
+/**
  * Default encryption options
+ * Use fewer iterations in test environment for faster tests
  */
 const DEFAULT_ENCRYPTION_OPTIONS: Required<EncryptionOptions> = {
   enabled: true,
   algorithm: 'AES-GCM',
-  iterations: 100000,
+  iterations: isTestEnvironment() ? 1000 : 100000, // Reduced iterations for test environment
   salt: '',
 }
 

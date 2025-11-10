@@ -474,6 +474,7 @@ describe('useMediaDevices - Comprehensive Tests', () => {
       })
       expect(result).toBeDefined()
 
+      vi.clearAllTimers()
       vi.useRealTimers()
     })
 
@@ -504,6 +505,7 @@ describe('useMediaDevices - Comprehensive Tests', () => {
 
       expect(result).toBe(true)
 
+      vi.clearAllTimers()
       vi.useRealTimers()
     })
 
@@ -553,6 +555,7 @@ describe('useMediaDevices - Comprehensive Tests', () => {
 
       expect(stopFn).toHaveBeenCalled()
 
+      vi.clearAllTimers()
       vi.useRealTimers()
     })
   })

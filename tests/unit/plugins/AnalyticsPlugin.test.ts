@@ -234,11 +234,13 @@ describe('AnalyticsPlugin', () => {
       // Track some events
       eventBus.emit('connected')
 
-      // Fast-forward time
-      vi.advanceTimersByTime(1000)
+      // Fast-forward time to trigger batch send
+      await vi.advanceTimersByTimeAsync(1000)
 
-      await new Promise((resolve) => setTimeout(resolve, 50))
+      // Allow any pending async operations to complete
+      await vi.advanceTimersByTimeAsync(50)
 
+      vi.clearAllTimers()
       vi.useRealTimers()
     })
   })

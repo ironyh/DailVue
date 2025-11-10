@@ -555,6 +555,7 @@ describe('useSipClient', () => {
 
       await reconnectPromise
 
+      vi.clearAllTimers()
       vi.useRealTimers()
 
       unmount()
@@ -845,6 +846,7 @@ describe('useSipClient', () => {
       await vi.advanceTimersByTimeAsync(2000)
       await reconnectPromise
 
+      vi.clearAllTimers()
       vi.useRealTimers()
 
       unmount()

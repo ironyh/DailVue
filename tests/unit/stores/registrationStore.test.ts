@@ -13,6 +13,7 @@ describe('registrationStore', () => {
   })
 
   afterEach(() => {
+    vi.clearAllTimers()
     vi.restoreAllMocks()
     vi.useRealTimers()
   })
