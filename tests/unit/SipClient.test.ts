@@ -31,7 +31,9 @@ const { mockUA, mockWebSocketInterface } = vi.hoisted(() => {
 vi.mock('jssip', () => {
   return {
     default: {
-      UA: vi.fn(() => mockUA),
+      UA: vi.fn(function () {
+        return mockUA
+      }),
       WebSocketInterface: mockWebSocketInterface,
       debug: {
         enable: vi.fn(),
@@ -49,6 +51,13 @@ describe('SipClient', () => {
   beforeEach(() => {
     // Reset mocks
     vi.clearAllMocks()
+
+    // Reset mock implementations to default (no-op)
+    mockUA.on.mockImplementation(() => {})
+    mockUA.once.mockImplementation(() => {})
+    mockUA.off.mockImplementation(() => {})
+    mockUA.isConnected.mockReturnValue(false)
+    mockUA.isRegistered.mockReturnValue(false)
 
     // Create event bus
     eventBus = createEventBus()
@@ -380,9 +389,23 @@ describe('SipClient', () => {
     })
 
     it('should handle registration timeout', async () => {
-      // Don't emit any events to trigger timeout
-      mockUA.once.mockImplementation(() => {})
+      // Start the client first
+      mockUA.on.mockImplementation((event: string, handler: (...args: any[]) => void) => {
+        if (event === 'connected') {
+          setTimeout(() => handler({}), 10)
+        }
+      })
+      mockUA.once.mockImplementation((event: string, handler: (...args: any[]) => void) => {
+        if (event === 'connected') {
+          setTimeout(() => handler({}), 10)
+        }
+        // Don't emit 'registered' event to trigger timeout
+      })
+      mockUA.isConnected.mockReturnValue(true)
 
+      await sipClient.start()
+
+      // Now attempt to register - should timeout
       await expect(sipClient.register()).rejects.toThrow('Registration timeout')
     }, 35000) // Increase test timeout
   })
@@ -428,17 +451,36 @@ describe('SipClient', () => {
       const unregisteredHandler = vi.fn()
       eventBus.on('sip:unregistered', unregisteredHandler)
 
+      // First start and register the client
       mockUA.on.mockImplementation((event: string, handler: (...args: any[]) => void) => {
+        if (event === 'connected') {
+          setTimeout(() => handler({}), 10)
+        }
+        if (event === 'registered') {
+          setTimeout(() => handler({}), 10)
+        }
         if (event === 'unregistered') {
           setTimeout(() => handler({ cause: 'user' }), 10)
         }
       })
       mockUA.once.mockImplementation((event: string, handler: (...args: any[]) => void) => {
+        if (event === 'connected') {
+          setTimeout(() => handler({}), 10)
+        }
+        if (event === 'registered') {
+          setTimeout(() => handler({}), 10)
+        }
         if (event === 'unregistered') {
           setTimeout(() => handler({ cause: 'user' }), 10)
         }
       })
+      mockUA.isConnected.mockReturnValue(true)
+      mockUA.isRegistered.mockReturnValue(true)
 
+      await sipClient.start()
+      await sipClient.register()
+
+      // Now unregister
       await sipClient.unregister()
 
       // Wait for async events
@@ -626,10 +668,26 @@ describe('SipClient', () => {
 
       await sipClient.start()
 
-      // Simulate new session event
+      // Simulate new session event with complete mock session
       if (sessionEventHandler) {
+        const mockSession = {
+          id: 'session-1',
+          on: vi.fn(),
+          once: vi.fn(),
+          off: vi.fn(),
+          terminate: vi.fn(),
+          answer: vi.fn(),
+          hold: vi.fn(),
+          unhold: vi.fn(),
+          sendDTMF: vi.fn(),
+          mute: vi.fn(),
+          unmute: vi.fn(),
+          isMuted: vi.fn().mockReturnValue(false),
+          isOnHold: vi.fn().mockReturnValue(false),
+          connection: {},
+        }
         sessionEventHandler({
-          session: { id: 'session-1' },
+          session: mockSession,
           originator: 'remote',
           request: {},
         })
@@ -664,12 +722,21 @@ describe('SipClient', () => {
 
       await sipClient.start()
 
-      // Simulate new message event
+      // Simulate new message event with complete mock request
       if (messageEventHandler) {
+        const mockRequest = {
+          getHeader: vi.fn((header: string) => {
+            if (header === 'Content-Type') return 'text/plain'
+            return null
+          }),
+          from: { uri: { toString: () => 'sip:sender@example.com' } },
+          to: { uri: { toString: () => 'sip:testuser@example.com' } },
+          body: 'Hello',
+        }
         messageEventHandler({
           message: { body: 'Hello' },
           originator: 'remote',
-          request: {},
+          request: mockRequest,
         })
       }
 

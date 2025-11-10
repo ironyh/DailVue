@@ -22,26 +22,30 @@ vi.mock('@/utils/logger', () => ({
 
 // Mock SipClient
 vi.mock('@/core/SipClient', () => ({
-  SipClient: vi.fn().mockImplementation((config, eventBus) => ({
-    config,
-    eventBus,
-    start: vi.fn().mockResolvedValue(undefined),
-    stop: vi.fn().mockResolvedValue(undefined),
-    register: vi.fn().mockResolvedValue(undefined),
-    unregister: vi.fn().mockResolvedValue(undefined),
-    connectionState: 'disconnected',
-    registrationState: 'unregistered',
-  })),
+  SipClient: vi.fn(function (config, eventBus) {
+    return {
+      config,
+      eventBus,
+      start: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn().mockResolvedValue(undefined),
+      register: vi.fn().mockResolvedValue(undefined),
+      unregister: vi.fn().mockResolvedValue(undefined),
+      connectionState: 'disconnected',
+      registrationState: 'unregistered',
+    }
+  }),
 }))
 
 // Mock EventBus
 vi.mock('@/core/EventBus', () => ({
-  EventBus: vi.fn().mockImplementation(() => ({
-    on: vi.fn(),
-    once: vi.fn(),
-    off: vi.fn(),
-    emit: vi.fn(),
-  })),
+  EventBus: vi.fn(function () {
+    return {
+      on: vi.fn(),
+      once: vi.fn(),
+      off: vi.fn(),
+      emit: vi.fn(),
+    }
+  }),
 }))
 
 // Mock validators

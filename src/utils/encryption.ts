@@ -19,7 +19,7 @@ const logger = createLogger('utils:encryption')
  */
 function isTestEnvironment(): boolean {
   // Check for Vitest - import.meta.vitest is always available in Vitest
-  if (typeof import !== 'undefined' && typeof import.meta !== 'undefined') {
+  try {
     const meta = import.meta as any
     if (meta.vitest !== undefined) {
       return true
@@ -28,6 +28,8 @@ function isTestEnvironment(): boolean {
     if (meta.env?.MODE === 'test' || meta.env?.TEST || meta.env?.VITEST) {
       return true
     }
+  } catch {
+    // import.meta not available, continue to other checks
   }
   // Check for Node.js environment variables
   if (typeof process !== 'undefined') {

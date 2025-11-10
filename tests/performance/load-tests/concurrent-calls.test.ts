@@ -53,7 +53,9 @@ const mockUA = {
 
 vi.mock('jssip', () => ({
   default: {
-    UA: vi.fn(() => mockUA),
+    UA: vi.fn(function () {
+        return mockUA
+      }),
     WebSocketInterface: vi.fn(),
     debug: {
       enable: vi.fn(),

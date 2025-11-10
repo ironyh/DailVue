@@ -1,5 +1,5 @@
 <template>
-  <div class="playground">
+  <div class="playground" data-testid="sip-client">
     <!-- Header -->
     <header class="playground-header">
       <div class="container">

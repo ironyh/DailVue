@@ -32,7 +32,17 @@ vi.mock('@/core/EventBus')
 // Mock JsSIP to prevent errors
 vi.mock('jssip', () => ({
   default: {
-    UA: vi.fn(),
+    UA: vi.fn(function () {
+      return {
+        start: vi.fn(),
+        stop: vi.fn(),
+        register: vi.fn(),
+        unregister: vi.fn(),
+        call: vi.fn(),
+        on: vi.fn(),
+        removeAllListeners: vi.fn(),
+      }
+    }),
     WebSocketInterface: vi.fn(),
     debug: {
       enable: vi.fn(),
@@ -114,8 +124,12 @@ describe('useSipClient', () => {
     }
 
     // Setup mocks to return instances
-    vi.mocked(SipClient).mockImplementation(() => mockSipClient)
-    vi.mocked(EventBus).mockImplementation(() => mockEventBus)
+    vi.mocked(SipClient).mockImplementation(function () {
+      return mockSipClient
+    })
+    vi.mocked(EventBus).mockImplementation(function () {
+      return mockEventBus
+    })
 
     // Create test configuration
     testConfig = {
