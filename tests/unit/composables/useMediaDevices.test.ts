@@ -960,7 +960,7 @@ describe('useMediaDevices - Comprehensive Tests', () => {
       const controller = new AbortController()
       controller.abort() // Abort immediately
 
-      await expect(enumerateDevices(controller.signal)).rejects.toThrow('AbortError')
+      await expect(enumerateDevices(controller.signal)).rejects.toThrow('Operation aborted')
       expect(mockEnumerateDevices).not.toHaveBeenCalled()
     })
 
@@ -981,7 +981,7 @@ describe('useMediaDevices - Comprehensive Tests', () => {
       // Abort after a short delay
       setTimeout(() => controller.abort(), 10)
 
-      await expect(promise).rejects.toThrow('AbortError')
+      await expect(promise).rejects.toThrow('Operation aborted')
     })
 
     it('should abort when using MediaManager', async () => {
@@ -1002,7 +1002,7 @@ describe('useMediaDevices - Comprehensive Tests', () => {
       // Abort after a short delay
       setTimeout(() => controller.abort(), 10)
 
-      await expect(promise).rejects.toThrow('AbortError')
+      await expect(promise).rejects.toThrow('Operation aborted')
     })
 
     it('should work without AbortSignal (backward compatibility)', async () => {
