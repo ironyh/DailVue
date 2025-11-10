@@ -52,6 +52,13 @@ describe('SipClient', () => {
     // Reset mocks
     vi.clearAllMocks()
 
+    // Reset mock implementations to default (no-op)
+    mockUA.on.mockImplementation(() => {})
+    mockUA.once.mockImplementation(() => {})
+    mockUA.off.mockImplementation(() => {})
+    mockUA.isConnected.mockReturnValue(false)
+    mockUA.isRegistered.mockReturnValue(false)
+
     // Create event bus
     eventBus = createEventBus()
 
