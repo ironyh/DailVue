@@ -256,16 +256,18 @@ describe('SipClientProvider - Phase 7.1 Implementation', () => {
 
       // Make start() reject
       const mockStart = vi.fn().mockRejectedValue(new Error('Connection failed'))
-      vi.mocked(SipClient).mockImplementationOnce((config, eventBus) => ({
-        config,
-        eventBus,
-        start: mockStart,
-        stop: vi.fn().mockResolvedValue(undefined),
-        register: vi.fn().mockResolvedValue(undefined),
-        unregister: vi.fn().mockResolvedValue(undefined),
-        connectionState: 'disconnected',
-        registrationState: 'unregistered',
-      }))
+      vi.mocked(SipClient).mockImplementationOnce(function (config: any, eventBus: any) {
+        return {
+          config,
+          eventBus,
+          start: mockStart,
+          stop: vi.fn().mockResolvedValue(undefined),
+          register: vi.fn().mockResolvedValue(undefined),
+          unregister: vi.fn().mockResolvedValue(undefined),
+          connectionState: 'disconnected',
+          registrationState: 'unregistered',
+        }
+      })
 
       const wrapper = mount(SipClientProvider, {
         props: {
@@ -333,16 +335,18 @@ describe('SipClientProvider - Phase 7.1 Implementation', () => {
 
       // Make stop() reject
       const mockStop = vi.fn().mockRejectedValue(new Error('Cleanup failed'))
-      vi.mocked(SipClient).mockImplementationOnce((config, eventBus) => ({
-        config,
-        eventBus,
-        start: vi.fn().mockResolvedValue(undefined),
-        stop: mockStop,
-        register: vi.fn().mockResolvedValue(undefined),
-        unregister: vi.fn().mockResolvedValue(undefined),
-        connectionState: 'disconnected',
-        registrationState: 'unregistered',
-      }))
+      vi.mocked(SipClient).mockImplementationOnce(function (config: any, eventBus: any) {
+        return {
+          config,
+          eventBus,
+          start: vi.fn().mockResolvedValue(undefined),
+          stop: mockStop,
+          register: vi.fn().mockResolvedValue(undefined),
+          unregister: vi.fn().mockResolvedValue(undefined),
+          connectionState: 'disconnected',
+          registrationState: 'unregistered',
+        }
+      })
 
       const wrapper = mount(SipClientProvider, {
         props: {
@@ -389,8 +393,12 @@ describe('SipClientProvider - Phase 7.1 Implementation', () => {
       const { SipClient } = await import('@/core/SipClient')
       const { EventBus } = await import('@/core/EventBus')
 
-      vi.mocked(EventBus).mockImplementationOnce(() => mockEventBus as any)
-      vi.mocked(SipClient).mockImplementationOnce(() => mockClient as any)
+      vi.mocked(EventBus).mockImplementationOnce(function () {
+        return mockEventBus as any
+      })
+      vi.mocked(SipClient).mockImplementationOnce(function () {
+        return mockClient as any
+      })
 
       mount(SipClientProvider, {
         props: {
@@ -434,8 +442,12 @@ describe('SipClientProvider - Phase 7.1 Implementation', () => {
       const { SipClient } = await import('@/core/SipClient')
       const { EventBus } = await import('@/core/EventBus')
 
-      vi.mocked(EventBus).mockImplementationOnce(() => mockEventBus as any)
-      vi.mocked(SipClient).mockImplementationOnce(() => mockClient as any)
+      vi.mocked(EventBus).mockImplementationOnce(function () {
+        return mockEventBus as any
+      })
+      vi.mocked(SipClient).mockImplementationOnce(function () {
+        return mockClient as any
+      })
 
       const wrapper = mount(SipClientProvider, {
         props: {
@@ -470,7 +482,9 @@ describe('SipClientProvider - Phase 7.1 Implementation', () => {
       }
 
       const { EventBus } = await import('@/core/EventBus')
-      vi.mocked(EventBus).mockImplementationOnce(() => mockEventBus as any)
+      vi.mocked(EventBus).mockImplementationOnce(function () {
+        return mockEventBus as any
+      })
 
       const wrapper = mount(SipClientProvider, {
         props: {
@@ -498,7 +512,9 @@ describe('SipClientProvider - Phase 7.1 Implementation', () => {
       }
 
       const { EventBus } = await import('@/core/EventBus')
-      vi.mocked(EventBus).mockImplementationOnce(() => mockEventBus as any)
+      vi.mocked(EventBus).mockImplementationOnce(function () {
+        return mockEventBus as any
+      })
 
       const wrapper = mount(SipClientProvider, {
         props: {
@@ -527,7 +543,9 @@ describe('SipClientProvider - Phase 7.1 Implementation', () => {
       }
 
       const { EventBus } = await import('@/core/EventBus')
-      vi.mocked(EventBus).mockImplementationOnce(() => mockEventBus as any)
+      vi.mocked(EventBus).mockImplementationOnce(function () {
+        return mockEventBus as any
+      })
 
       const wrapper = mount(SipClientProvider, {
         props: {
@@ -555,7 +573,9 @@ describe('SipClientProvider - Phase 7.1 Implementation', () => {
       }
 
       const { EventBus } = await import('@/core/EventBus')
-      vi.mocked(EventBus).mockImplementationOnce(() => mockEventBus as any)
+      vi.mocked(EventBus).mockImplementationOnce(function () {
+        return mockEventBus as any
+      })
 
       const wrapper = mount(SipClientProvider, {
         props: {
