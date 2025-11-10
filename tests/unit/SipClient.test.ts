@@ -326,6 +326,16 @@ describe('SipClient', () => {
 
   describe('register()', () => {
     beforeEach(async () => {
+      // Ensure default mock behavior for event handlers
+      mockUA.on.mockImplementation((event: string, handler: (...args: any[]) => void) => {
+        if (!eventHandlers[event]) eventHandlers[event] = []
+        eventHandlers[event].push(handler)
+      })
+      mockUA.once.mockImplementation((event: string, handler: (...args: any[]) => void) => {
+        if (!onceHandlers[event]) onceHandlers[event] = []
+        onceHandlers[event].push(handler)
+      })
+
       // Start client before registering
       setTimeout(() => {
         mockUA.isConnected.mockReturnValue(true)
@@ -404,34 +414,37 @@ describe('SipClient', () => {
 
   describe('unregister()', () => {
     beforeEach(async () => {
-      // Start and register
+      // Ensure default mock behavior for event handlers
       mockUA.on.mockImplementation((event: string, handler: (...args: any[]) => void) => {
-        if (event === 'connected') {
-          setTimeout(() => handler({}), 10)
-        }
+        if (!eventHandlers[event]) eventHandlers[event] = []
+        eventHandlers[event].push(handler)
       })
       mockUA.once.mockImplementation((event: string, handler: (...args: any[]) => void) => {
-        if (event === 'connected') {
-          setTimeout(() => handler({}), 10)
-        }
-        if (event === 'registered') {
-          setTimeout(() => handler({}), 10)
-        }
+        if (!onceHandlers[event]) onceHandlers[event] = []
+        onceHandlers[event].push(handler)
       })
+
+      // Start and register
       mockUA.isConnected.mockReturnValue(true)
       mockUA.isRegistered.mockReturnValue(false)
+
+      setTimeout(() => {
+        triggerEvent('connected', {})
+      }, 10)
       await sipClient.start()
 
-      mockUA.isRegistered.mockReturnValue(true)
+      setTimeout(() => {
+        mockUA.isRegistered.mockReturnValue(true)
+        triggerEvent('registered', {})
+      }, 10)
       await sipClient.register()
     })
 
     it('should unregister from SIP server', async () => {
-      mockUA.once.mockImplementation((event: string, handler: (...args: any[]) => void) => {
-        if (event === 'unregistered') {
-          setTimeout(() => handler({}), 10)
-        }
-      })
+      // Simulate successful unregistration
+      setTimeout(() => {
+        triggerEvent('unregistered', {})
+      }, 10)
 
       await sipClient.unregister()
 
