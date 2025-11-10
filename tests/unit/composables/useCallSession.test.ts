@@ -249,9 +249,9 @@ describe('useCallSession - Phase 6.11 Improvements', () => {
       session.value = mockSession
 
       // Simulate state changes
-      mockSession.state = 'connecting'
+      mockSession.state = 'calling'
       mockSession.state = 'active'
-      mockSession.state = 'ended'
+      mockSession.state = 'terminated'
 
       // Should not throw
       expect(() => {
@@ -710,12 +710,12 @@ describe('useCallSession - Phase 6.11 Improvements', () => {
 
       expect(isActive.value).toBe(true)
 
-      mockSession.state = 'connecting'
+      mockSession.state = 'calling'
       session.value = { ...mockSession }
 
       expect(isActive.value).toBe(true)
 
-      mockSession.state = 'ended'
+      mockSession.state = 'terminated'
       session.value = { ...mockSession }
 
       expect(isActive.value).toBe(false)
@@ -871,7 +871,7 @@ describe('useCallSession - Phase 6.11 Improvements', () => {
       const durationWhenActive = duration.value
 
       // End the call
-      mockSession.state = 'ended'
+      mockSession.state = 'terminated'
       session.value = { ...mockSession }
 
       await vi.advanceTimersByTimeAsync(0)
@@ -1115,7 +1115,7 @@ describe('useCallSession - Phase 6.11 Improvements', () => {
       controller.abort() // Abort immediately
 
       await expect(makeCall('sip:bob@example.com', {}, controller.signal)).rejects.toThrow(
-        'AbortError'
+        'Operation aborted'
       )
       expect(mockSipClient.call).not.toHaveBeenCalled()
     })
@@ -1133,7 +1133,7 @@ describe('useCallSession - Phase 6.11 Improvements', () => {
       })
 
       await expect(makeCall('sip:bob@example.com', {}, controller.signal)).rejects.toThrow(
-        'AbortError'
+        'Operation aborted'
       )
     })
 
@@ -1160,7 +1160,7 @@ describe('useCallSession - Phase 6.11 Improvements', () => {
       })
 
       await expect(makeCall('sip:bob@example.com', {}, controller.signal)).rejects.toThrow(
-        'AbortError'
+        'Operation aborted'
       )
 
       // Verify media was acquired
