@@ -85,6 +85,16 @@ describe('SipClient', () => {
     Object.keys(eventHandlers).forEach((key) => delete eventHandlers[key])
     Object.keys(onceHandlers).forEach((key) => delete onceHandlers[key])
 
+    // Restore default mock implementations (vi.clearAllMocks() doesn't restore implementations)
+    mockUA.on.mockImplementation((event: string, handler: (...args: any[]) => void) => {
+      if (!eventHandlers[event]) eventHandlers[event] = []
+      eventHandlers[event].push(handler)
+    })
+    mockUA.once.mockImplementation((event: string, handler: (...args: any[]) => void) => {
+      if (!onceHandlers[event]) onceHandlers[event] = []
+      onceHandlers[event].push(handler)
+    })
+
     // Reset mock return values
     mockUA.isConnected.mockReturnValue(false)
     mockUA.isRegistered.mockReturnValue(false)
@@ -326,16 +336,6 @@ describe('SipClient', () => {
 
   describe('register()', () => {
     beforeEach(async () => {
-      // Ensure default mock behavior for event handlers
-      mockUA.on.mockImplementation((event: string, handler: (...args: any[]) => void) => {
-        if (!eventHandlers[event]) eventHandlers[event] = []
-        eventHandlers[event].push(handler)
-      })
-      mockUA.once.mockImplementation((event: string, handler: (...args: any[]) => void) => {
-        if (!onceHandlers[event]) onceHandlers[event] = []
-        onceHandlers[event].push(handler)
-      })
-
       // Start client before registering
       setTimeout(() => {
         mockUA.isConnected.mockReturnValue(true)
@@ -414,16 +414,6 @@ describe('SipClient', () => {
 
   describe('unregister()', () => {
     beforeEach(async () => {
-      // Ensure default mock behavior for event handlers
-      mockUA.on.mockImplementation((event: string, handler: (...args: any[]) => void) => {
-        if (!eventHandlers[event]) eventHandlers[event] = []
-        eventHandlers[event].push(handler)
-      })
-      mockUA.once.mockImplementation((event: string, handler: (...args: any[]) => void) => {
-        if (!onceHandlers[event]) onceHandlers[event] = []
-        onceHandlers[event].push(handler)
-      })
-
       // Start and register
       mockUA.isConnected.mockReturnValue(true)
       mockUA.isRegistered.mockReturnValue(false)
