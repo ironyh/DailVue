@@ -211,6 +211,11 @@ export function useCallControls(sipClient: Ref<SipClient | null>): UseCallContro
       throw new Error('Another transfer is already in progress')
     }
 
+    // Check if getActiveCall is implemented
+    if (!sipClient.value.getActiveCall) {
+      throw new Error('SipClient.getActiveCall() is not implemented')
+    }
+
     try {
       log.info(`Starting blind transfer of call ${callId} to ${targetUri}`)
 
@@ -235,7 +240,7 @@ export function useCallControls(sipClient: Ref<SipClient | null>): UseCallContro
       }
 
       if (!call.transfer) {
-        throw new Error('Transfer method not supported on this call session')
+        throw new Error('CallSession.transfer() is not implemented')
       }
 
       // Perform blind transfer
@@ -281,6 +286,11 @@ export function useCallControls(sipClient: Ref<SipClient | null>): UseCallContro
       throw new Error('Another transfer is already in progress')
     }
 
+    // Check if makeCall is implemented
+    if (!sipClient.value.makeCall) {
+      throw new Error('SipClient.makeCall() is not implemented')
+    }
+
     try {
       log.info(`Starting attended transfer of call ${callId} to ${targetUri}`)
 
@@ -294,7 +304,7 @@ export function useCallControls(sipClient: Ref<SipClient | null>): UseCallContro
       }
 
       if (!call.hold) {
-        throw new Error('Hold method not supported on this call session')
+        throw new Error('CallSession.hold() is not implemented')
       }
 
       // Hold the original call
@@ -370,7 +380,7 @@ export function useCallControls(sipClient: Ref<SipClient | null>): UseCallContro
       }
 
       if (!call.attendedTransfer) {
-        throw new Error('Attended transfer method not supported on this call session')
+        throw new Error('CallSession.attendedTransfer() is not implemented')
       }
 
       // Perform attended transfer (REFER with Replaces header)
