@@ -67,7 +67,9 @@ describe('useSipDtmf - AbortController Integration', () => {
       const controller = new AbortController()
       controller.abort() // Abort immediately
 
-      await expect(sendDtmfSequence('123', 160, controller.signal)).rejects.toThrow('AbortError')
+      await expect(sendDtmfSequence('123', 160, controller.signal)).rejects.toThrow(
+        'Operation aborted'
+      )
       expect(mockDtmfSender.insertDTMF).not.toHaveBeenCalled()
     })
 
@@ -84,7 +86,7 @@ describe('useSipDtmf - AbortController Integration', () => {
       await vi.advanceTimersByTimeAsync(0)
       controller.abort()
 
-      await expect(promise).rejects.toThrow('AbortError')
+      await expect(promise).rejects.toThrow('Operation aborted')
 
       // Should have sent at least the first tone
       expect(mockDtmfSender.insertDTMF).toHaveBeenCalledTimes(1)
@@ -127,7 +129,7 @@ describe('useSipDtmf - AbortController Integration', () => {
       await vi.advanceTimersByTimeAsync(100)
       controller.abort()
 
-      await expect(promise).rejects.toThrow('AbortError')
+      await expect(promise).rejects.toThrow('Operation aborted')
 
       // Should have only sent first tone
       expect(mockDtmfSender.insertDTMF).toHaveBeenCalledTimes(1)

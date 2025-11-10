@@ -21,11 +21,15 @@ vi.mock('@/utils/logger', () => ({
 }))
 
 // Mock call store
+const mockHistoryData = { value: [] as CallHistoryEntry[] }
+
 vi.mock('@/stores/callStore', () => ({
   callStore: {
-    getCallHistory: vi.fn(),
-    clearCallHistory: vi.fn(),
-    removeHistoryEntry: vi.fn(),
+    get callHistory() {
+      return mockHistoryData.value
+    },
+    clearHistory: vi.fn(),
+    deleteHistoryEntry: vi.fn(),
   },
 }))
 
@@ -58,9 +62,9 @@ const createMockEntry = (overrides?: Partial<CallHistoryEntry>): CallHistoryEntr
 
 describe('useCallHistory', () => {
   beforeEach(() => {
-    mockCallStore.getCallHistory.mockReturnValue([])
-    mockCallStore.clearCallHistory.mockImplementation(() => {})
-    mockCallStore.removeHistoryEntry.mockImplementation(() => {})
+    mockHistoryData.value = []
+    mockCallStore.clearHistory.mockImplementation(() => {})
+    mockCallStore.deleteHistoryEntry.mockImplementation(() => {})
   })
 
   // ==========================================================================
@@ -75,7 +79,7 @@ describe('useCallHistory', () => {
 
     it('should return history from store', () => {
       const mockEntries = [createMockEntry(), createMockEntry()]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { history } = useCallHistory()
       expect(history.value).toEqual(mockEntries)
@@ -83,7 +87,7 @@ describe('useCallHistory', () => {
 
     it('should compute totalCalls correctly', () => {
       const mockEntries = [createMockEntry(), createMockEntry(), createMockEntry()]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { totalCalls } = useCallHistory()
       expect(totalCalls.value).toBe(3)
@@ -96,7 +100,7 @@ describe('useCallHistory', () => {
         createMockEntry({ wasMissed: false, wasAnswered: true }),
         createMockEntry({ wasMissed: true, wasAnswered: true }), // Missed but then answered
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { missedCallsCount } = useCallHistory()
       expect(missedCallsCount.value).toBe(2) // Only truly missed calls
@@ -104,7 +108,7 @@ describe('useCallHistory', () => {
 
     it('should return filteredHistory without filter', () => {
       const mockEntries = [createMockEntry(), createMockEntry()]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { filteredHistory } = useCallHistory()
       expect(filteredHistory.value).toEqual(mockEntries)
@@ -115,7 +119,7 @@ describe('useCallHistory', () => {
         createMockEntry({ direction: CallDirection.Incoming }),
         createMockEntry({ direction: CallDirection.Outgoing }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { filteredHistory, setFilter } = useCallHistory()
 
@@ -133,7 +137,7 @@ describe('useCallHistory', () => {
   describe('getHistory() method', () => {
     it('should return all history when no filter provided', () => {
       const mockEntries = [createMockEntry(), createMockEntry()]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getHistory } = useCallHistory()
       const result = getHistory()
@@ -149,7 +153,7 @@ describe('useCallHistory', () => {
         createMockEntry({ direction: CallDirection.Outgoing }),
         createMockEntry({ direction: CallDirection.Incoming }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getHistory } = useCallHistory()
       const result = getHistory({ direction: CallDirection.Incoming })
@@ -164,7 +168,7 @@ describe('useCallHistory', () => {
         createMockEntry({ remoteUri: 'sip:bob@example.com' }),
         createMockEntry({ remoteUri: 'sip:alice@other.com' }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getHistory } = useCallHistory()
       const result = getHistory({ remoteUri: 'alice' })
@@ -179,7 +183,7 @@ describe('useCallHistory', () => {
         createMockEntry({ wasAnswered: false }),
         createMockEntry({ wasAnswered: true }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getHistory } = useCallHistory()
       const result = getHistory({ wasAnswered: true })
@@ -193,7 +197,7 @@ describe('useCallHistory', () => {
         createMockEntry({ wasMissed: true }),
         createMockEntry({ wasMissed: false }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getHistory } = useCallHistory()
       const result = getHistory({ wasMissed: true })
@@ -208,7 +212,7 @@ describe('useCallHistory', () => {
         createMockEntry({ hasVideo: false }),
         createMockEntry({ hasVideo: true }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getHistory } = useCallHistory()
       const result = getHistory({ hasVideo: true })
@@ -227,7 +231,7 @@ describe('useCallHistory', () => {
         createMockEntry({ startTime: date2 }),
         createMockEntry({ startTime: date3 }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getHistory } = useCallHistory()
       const result = getHistory({
@@ -245,7 +249,7 @@ describe('useCallHistory', () => {
         createMockEntry({ tags: ['personal'] }),
         createMockEntry({ tags: ['important', 'urgent'] }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getHistory } = useCallHistory()
       const result = getHistory({ tags: ['important'] })
@@ -256,7 +260,7 @@ describe('useCallHistory', () => {
 
     it('should handle pagination with limit', () => {
       const mockEntries = Array.from({ length: 20 }, () => createMockEntry())
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getHistory } = useCallHistory()
       const result = getHistory({ limit: 10 })
@@ -268,7 +272,7 @@ describe('useCallHistory', () => {
 
     it('should handle pagination with offset and limit', () => {
       const mockEntries = Array.from({ length: 20 }, (_, i) => createMockEntry({ id: `call-${i}` }))
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getHistory } = useCallHistory()
       const result = getHistory({ offset: 5, limit: 5 })
@@ -289,7 +293,7 @@ describe('useCallHistory', () => {
         createMockEntry({ startTime: date1, id: 'a' }),
         createMockEntry({ startTime: date2, id: 'b' }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getHistory } = useCallHistory()
       const result = getHistory({ sortBy: 'startTime', sortOrder: 'asc' })
@@ -309,7 +313,7 @@ describe('useCallHistory', () => {
         createMockEntry({ startTime: date3, id: 'c' }),
         createMockEntry({ startTime: date2, id: 'b' }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getHistory } = useCallHistory()
       const result = getHistory({ sortBy: 'startTime', sortOrder: 'desc' })
@@ -325,7 +329,7 @@ describe('useCallHistory', () => {
         createMockEntry({ duration: 30, id: 'a' }),
         createMockEntry({ duration: 90, id: 'c' }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getHistory } = useCallHistory()
       const result = getHistory({ sortBy: 'duration', sortOrder: 'asc' })
@@ -341,7 +345,7 @@ describe('useCallHistory', () => {
         createMockEntry({ remoteUri: 'sip:alice@example.com', id: 'a' }),
         createMockEntry({ remoteUri: 'sip:bob@example.com', id: 'b' }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getHistory } = useCallHistory()
       const result = getHistory({ sortBy: 'remoteUri', sortOrder: 'asc' })
@@ -359,7 +363,7 @@ describe('useCallHistory', () => {
         createMockEntry({ startTime: date1, id: 'a' }),
         createMockEntry({ startTime: date2, id: 'b' }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getHistory } = useCallHistory()
       const result = getHistory({})
@@ -387,7 +391,7 @@ describe('useCallHistory', () => {
           hasVideo: false,
         }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getHistory } = useCallHistory()
       const result = getHistory({
@@ -412,7 +416,7 @@ describe('useCallHistory', () => {
         createMockEntry({ remoteUri: 'sip:bob@example.com' }),
         createMockEntry({ remoteUri: 'sip:alice@other.com' }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { searchHistory } = useCallHistory()
       const result = searchHistory('alice')
@@ -426,7 +430,7 @@ describe('useCallHistory', () => {
         createMockEntry({ remoteDisplayName: 'Bob Jones' }),
         createMockEntry({ remoteDisplayName: 'Alice Brown' }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { searchHistory } = useCallHistory()
       const result = searchHistory('alice')
@@ -439,7 +443,7 @@ describe('useCallHistory', () => {
         createMockEntry({ remoteDisplayName: 'Alice Smith' }),
         createMockEntry({ remoteDisplayName: 'ALICE JONES' }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { searchHistory } = useCallHistory()
       const result = searchHistory('ALICE')
@@ -462,7 +466,7 @@ describe('useCallHistory', () => {
           direction: CallDirection.Incoming,
         }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { searchHistory } = useCallHistory()
       const result = searchHistory('alice', { direction: CallDirection.Incoming })
@@ -508,11 +512,11 @@ describe('useCallHistory', () => {
 
       await clearHistory()
 
-      expect(mockCallStore.clearCallHistory).toHaveBeenCalled()
+      expect(mockCallStore.clearHistory).toHaveBeenCalled()
     })
 
     it('should handle errors when clearing', async () => {
-      mockCallStore.clearCallHistory.mockImplementation(() => {
+      mockCallStore.clearHistory.mockImplementation(() => {
         throw new Error('Clear failed')
       })
 
@@ -532,11 +536,11 @@ describe('useCallHistory', () => {
 
       await deleteEntry('call-123')
 
-      expect(mockCallStore.removeHistoryEntry).toHaveBeenCalledWith('call-123')
+      expect(mockCallStore.deleteHistoryEntry).toHaveBeenCalledWith('call-123')
     })
 
     it('should handle errors when deleting', async () => {
-      mockCallStore.removeHistoryEntry.mockImplementation(() => {
+      mockCallStore.deleteHistoryEntry.mockImplementation(() => {
         throw new Error('Delete failed')
       })
 
@@ -558,7 +562,7 @@ describe('useCallHistory', () => {
         createMockEntry({ wasMissed: false, wasAnswered: true, id: 'c' }),
         createMockEntry({ wasMissed: true, wasAnswered: true, id: 'd' }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getMissedCalls } = useCallHistory()
       const missed = getMissedCalls()
@@ -569,7 +573,7 @@ describe('useCallHistory', () => {
 
     it('should return empty array when no missed calls', () => {
       const mockEntries = [createMockEntry({ wasMissed: false, wasAnswered: true })]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getMissedCalls } = useCallHistory()
       const missed = getMissedCalls()
@@ -585,7 +589,7 @@ describe('useCallHistory', () => {
   describe('getRecentCalls() method', () => {
     it('should return recent calls with default limit', () => {
       const mockEntries = Array.from({ length: 20 }, () => createMockEntry())
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getRecentCalls } = useCallHistory()
       const recent = getRecentCalls()
@@ -595,7 +599,7 @@ describe('useCallHistory', () => {
 
     it('should return recent calls with custom limit', () => {
       const mockEntries = Array.from({ length: 20 }, () => createMockEntry())
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getRecentCalls } = useCallHistory()
       const recent = getRecentCalls(5)
@@ -605,7 +609,7 @@ describe('useCallHistory', () => {
 
     it('should return all calls if fewer than limit', () => {
       const mockEntries = [createMockEntry(), createMockEntry()]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getRecentCalls } = useCallHistory()
       const recent = getRecentCalls(10)
@@ -643,7 +647,7 @@ describe('useCallHistory', () => {
           duration: 0,
         }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getStatistics } = useCallHistory()
       const stats = getStatistics()
@@ -667,7 +671,7 @@ describe('useCallHistory', () => {
         createMockEntry({ remoteUri: 'sip:bob@example.com', remoteDisplayName: 'Bob' }),
         createMockEntry({ remoteUri: 'sip:charlie@example.com', remoteDisplayName: 'Charlie' }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getStatistics } = useCallHistory()
       const stats = getStatistics()
@@ -694,7 +698,7 @@ describe('useCallHistory', () => {
       const mockEntries = Array.from({ length: 20 }, (_, i) =>
         createMockEntry({ remoteUri: `sip:user${i}@example.com` })
       )
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getStatistics } = useCallHistory()
       const stats = getStatistics()
@@ -707,7 +711,7 @@ describe('useCallHistory', () => {
         createMockEntry({ direction: CallDirection.Incoming, duration: 60 }),
         createMockEntry({ direction: CallDirection.Outgoing, duration: 120 }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getStatistics } = useCallHistory()
       const stats = getStatistics({ direction: CallDirection.Incoming })
@@ -717,7 +721,7 @@ describe('useCallHistory', () => {
     })
 
     it('should handle zero calls', () => {
-      mockCallStore.getCallHistory.mockReturnValue([])
+      mockHistoryData.value = []
 
       const { getStatistics } = useCallHistory()
       const stats = getStatistics()
@@ -758,7 +762,7 @@ describe('useCallHistory', () => {
 
     it('should export to JSON format', async () => {
       const mockEntries = [createMockEntry({ id: 'call-1' })]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { exportHistory } = useCallHistory()
 
@@ -777,7 +781,7 @@ describe('useCallHistory', () => {
           duration: 60,
         }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { exportHistory } = useCallHistory()
 
@@ -789,7 +793,7 @@ describe('useCallHistory', () => {
 
     it('should handle xlsx format by falling back to CSV', async () => {
       const mockEntries = [createMockEntry()]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { exportHistory } = useCallHistory()
 
@@ -800,7 +804,7 @@ describe('useCallHistory', () => {
 
     it('should throw error for unsupported format', async () => {
       const mockEntries = [createMockEntry()]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { exportHistory } = useCallHistory()
 
@@ -810,7 +814,7 @@ describe('useCallHistory', () => {
     })
 
     it('should throw error when no entries to export', async () => {
-      mockCallStore.getCallHistory.mockReturnValue([])
+      mockHistoryData.value = []
 
       const { exportHistory } = useCallHistory()
 
@@ -824,7 +828,7 @@ describe('useCallHistory', () => {
         createMockEntry({ direction: CallDirection.Incoming }),
         createMockEntry({ direction: CallDirection.Outgoing }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { exportHistory } = useCallHistory()
 
@@ -844,7 +848,7 @@ describe('useCallHistory', () => {
           metadata: { customField: 'value' },
         }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { exportHistory } = useCallHistory()
 
@@ -863,7 +867,7 @@ describe('useCallHistory', () => {
           remoteDisplayName: 'Smith, John',
         }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { exportHistory } = useCallHistory()
 
@@ -878,7 +882,7 @@ describe('useCallHistory', () => {
           remoteDisplayName: 'John "Johnny" Smith',
         }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { exportHistory } = useCallHistory()
 
@@ -903,7 +907,7 @@ describe('useCallHistory', () => {
           metadata: undefined,
         }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getHistory, getStatistics } = useCallHistory()
 
@@ -913,7 +917,7 @@ describe('useCallHistory', () => {
 
     it('should handle search with empty query', () => {
       const mockEntries = [createMockEntry()]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { searchHistory } = useCallHistory()
       const result = searchHistory('')
@@ -923,7 +927,7 @@ describe('useCallHistory', () => {
 
     it('should handle filter with empty tags array', () => {
       const mockEntries = [createMockEntry()]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getHistory } = useCallHistory()
       const result = getHistory({ tags: [] })
@@ -938,7 +942,7 @@ describe('useCallHistory', () => {
           wasAnswered: true,
         }),
       ]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getHistory } = useCallHistory()
       const result = getHistory({
@@ -951,7 +955,7 @@ describe('useCallHistory', () => {
 
     it('should handle pagination beyond available entries', () => {
       const mockEntries = [createMockEntry(), createMockEntry()]
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getHistory } = useCallHistory()
       const result = getHistory({ offset: 10, limit: 5 })
@@ -962,7 +966,7 @@ describe('useCallHistory', () => {
 
     it('should handle large datasets efficiently', () => {
       const mockEntries = Array.from({ length: 1000 }, () => createMockEntry())
-      mockCallStore.getCallHistory.mockReturnValue(mockEntries)
+      mockHistoryData.value = mockEntries
 
       const { getHistory, getStatistics } = useCallHistory()
 
