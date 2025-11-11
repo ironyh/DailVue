@@ -5,7 +5,7 @@
  * and various edge cases.
  */
 
-import { test, expect } from './fixtures'
+import { test, expect, APP_URL } from './fixtures'
 import { SELECTORS, TEST_DATA } from './selectors'
 
 test.describe('Incoming Call Scenarios', () => {
@@ -15,7 +15,7 @@ test.describe('Incoming Call Scenarios', () => {
     await mockMediaDevices()
 
     // Navigate to app
-    await page.goto('/')
+    await page.goto(APP_URL)
     await expect(page.locator(SELECTORS.APP.ROOT)).toBeVisible()
   })
 

@@ -5,14 +5,14 @@
  * Monitors key performance metrics like load time, bundle size, and responsiveness.
  */
 
-import { test, expect } from './fixtures'
+import { test, expect, APP_URL } from './fixtures'
 import { SELECTORS, TEST_DATA } from './selectors'
 
 test.describe('Performance - Page Load Metrics', () => {
   test('should load initial page within 3 seconds', async ({ page }) => {
     const startTime = Date.now()
 
-    await page.goto('/')
+    await page.goto(APP_URL)
     await page.waitForLoadState('networkidle')
 
     const loadTime = Date.now() - startTime
@@ -21,7 +21,7 @@ test.describe('Performance - Page Load Metrics', () => {
   })
 
   test('should have First Contentful Paint (FCP) under 1.5 seconds', async ({ page }) => {
-    await page.goto('/')
+    await page.goto(APP_URL)
 
     const fcp = await page.evaluate(() => {
       return new Promise<number>((resolve) => {
@@ -47,7 +47,7 @@ test.describe('Performance - Page Load Metrics', () => {
   test('should have Time to Interactive (TTI) under 3.5 seconds', async ({ page }) => {
     const startTime = Date.now()
 
-    await page.goto('/')
+    await page.goto(APP_URL)
 
     // Wait for page to be fully interactive
     await page.waitForLoadState('networkidle')
@@ -62,7 +62,7 @@ test.describe('Performance - Page Load Metrics', () => {
   })
 
   test('should have Largest Contentful Paint (LCP) under 2.5 seconds', async ({ page }) => {
-    await page.goto('/')
+    await page.goto(APP_URL)
 
     const lcp = await page.evaluate(() => {
       return new Promise<number>((resolve) => {
@@ -90,7 +90,7 @@ test.describe('Performance - Page Load Metrics', () => {
   })
 
   test('should have Cumulative Layout Shift (CLS) under 0.1', async ({ page }) => {
-    await page.goto('/')
+    await page.goto(APP_URL)
     await page.waitForLoadState('networkidle')
 
     const cls = await page.evaluate(() => {
@@ -116,7 +116,7 @@ test.describe('Performance - Page Load Metrics', () => {
 
 test.describe('Performance - Resource Loading', () => {
   test('should load all resources within reasonable time', async ({ page }) => {
-    await page.goto('/')
+    await page.goto(APP_URL)
 
     const resources = await page.evaluate(() => {
       return performance.getEntriesByType('resource').map((entry: any) => ({
@@ -132,7 +132,7 @@ test.describe('Performance - Resource Loading', () => {
   })
 
   test('should have reasonable bundle size', async ({ page }) => {
-    await page.goto('/')
+    await page.goto(APP_URL)
 
     const bundleSize = await page.evaluate(() => {
       const resources = performance.getEntriesByType('resource')
@@ -153,7 +153,7 @@ test.describe('Performance - Resource Loading', () => {
 
   test('should use caching for static resources', async ({ page }) => {
     // First load
-    await page.goto('/')
+    await page.goto(APP_URL)
     await page.waitForLoadState('networkidle')
 
     // Second load (should use cache)
@@ -173,7 +173,7 @@ test.describe('Performance - Resource Loading', () => {
   test('should lazy load non-critical resources', async ({ page }) => {
     const startTime = Date.now()
 
-    await page.goto('/')
+    await page.goto(APP_URL)
 
     // Wait for critical resources only
     await expect(page.locator(SELECTORS.APP.ROOT)).toBeVisible()
@@ -189,7 +189,7 @@ test.describe('Performance - Runtime Performance', () => {
   test.beforeEach(async ({ page, mockSipServer, mockMediaDevices }) => {
     await mockSipServer()
     await mockMediaDevices()
-    await page.goto('/')
+    await page.goto(APP_URL)
     await expect(page.locator(SELECTORS.APP.ROOT)).toBeVisible()
   })
 
@@ -360,7 +360,7 @@ test.describe('Performance - Rendering Performance', () => {
   test.beforeEach(async ({ page, mockSipServer, mockMediaDevices }) => {
     await mockSipServer()
     await mockMediaDevices()
-    await page.goto('/')
+    await page.goto(APP_URL)
     await expect(page.locator(SELECTORS.APP.ROOT)).toBeVisible()
   })
 
@@ -506,7 +506,7 @@ test.describe('Performance - Network Performance', () => {
       requests.push(request.url())
     })
 
-    await page.goto('/')
+    await page.goto(APP_URL)
     await page.waitForLoadState('networkidle')
 
     // Should not make excessive requests
@@ -515,7 +515,7 @@ test.describe('Performance - Network Performance', () => {
   })
 
   test('should use HTTP/2 multiplexing if available', async ({ page }) => {
-    await page.goto('/')
+    await page.goto(APP_URL)
 
     const protocol = await page.evaluate(() => {
       const resources = performance.getEntriesByType('resource')
@@ -530,7 +530,7 @@ test.describe('Performance - Network Performance', () => {
   })
 
   test('should compress responses', async ({ page }) => {
-    await page.goto('/')
+    await page.goto(APP_URL)
 
     const compressedResources = await page.evaluate(() => {
       const resources = performance.getEntriesByType('resource')
@@ -547,7 +547,7 @@ test.describe('Performance - Network Performance', () => {
 
 test.describe('Performance - Benchmarks', () => {
   test('should track and log all performance metrics', async ({ page }) => {
-    await page.goto('/')
+    await page.goto(APP_URL)
     await page.waitForLoadState('networkidle')
 
     const metrics = await page.evaluate(() => {

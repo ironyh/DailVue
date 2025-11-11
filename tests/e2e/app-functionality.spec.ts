@@ -4,7 +4,7 @@
  * Tests the VueSip test application with mocked browser APIs
  */
 
-import { test, expect } from './fixtures'
+import { test, expect, APP_URL } from './fixtures'
 
 test.describe('Application Initialization', () => {
   test.beforeEach(async ({ page, mockSipServer, mockMediaDevices }) => {
@@ -13,7 +13,7 @@ test.describe('Application Initialization', () => {
     await mockMediaDevices()
 
     // Navigate to the app
-    await page.goto('/')
+    await page.goto(APP_URL)
   })
 
   test('should display the SIP client interface', async ({ page }) => {
@@ -39,7 +39,7 @@ test.describe('SIP Configuration', () => {
   test.beforeEach(async ({ page, mockSipServer, mockMediaDevices }) => {
     await mockSipServer()
     await mockMediaDevices()
-    await page.goto('/')
+    await page.goto(APP_URL)
   })
 
   test('should open and close settings panel', async ({ page }) => {
@@ -97,7 +97,7 @@ test.describe('Connection Management', () => {
   test.beforeEach(async ({ page, mockSipServer, mockMediaDevices }) => {
     await mockSipServer()
     await mockMediaDevices()
-    await page.goto('/')
+    await page.goto(APP_URL)
   })
 
   test('should show connect button when disconnected', async ({ page }) => {
@@ -158,7 +158,7 @@ test.describe('Dialpad and Call Interface', () => {
   test.beforeEach(async ({ page, mockSipServer, mockMediaDevices }) => {
     await mockSipServer()
     await mockMediaDevices()
-    await page.goto('/')
+    await page.goto(APP_URL)
   })
 
   test('should display dialpad input', async ({ page }) => {
@@ -190,7 +190,7 @@ test.describe('Device Management', () => {
   test.beforeEach(async ({ page, mockSipServer, mockMediaDevices }) => {
     await mockSipServer()
     await mockMediaDevices()
-    await page.goto('/')
+    await page.goto(APP_URL)
   })
 
   test('should toggle device settings panel', async ({ page }) => {
@@ -242,7 +242,7 @@ test.describe('Call History', () => {
   test.beforeEach(async ({ page, mockSipServer, mockMediaDevices }) => {
     await mockSipServer()
     await mockMediaDevices()
-    await page.goto('/')
+    await page.goto(APP_URL)
   })
 
   test('should toggle call history panel', async ({ page }) => {
@@ -271,7 +271,7 @@ test.describe('User Interface', () => {
   test.beforeEach(async ({ page, mockSipServer, mockMediaDevices }) => {
     await mockSipServer()
     await mockMediaDevices()
-    await page.goto('/')
+    await page.goto(APP_URL)
   })
 
   test('should have proper page title', async ({ page }) => {
@@ -307,7 +307,7 @@ test.describe('Error Handling', () => {
   test.beforeEach(async ({ page, mockSipServer, mockMediaDevices }) => {
     await mockSipServer()
     await mockMediaDevices()
-    await page.goto('/')
+    await page.goto(APP_URL)
   })
 
   test('should not show error message initially', async ({ page }) => {
@@ -323,7 +323,7 @@ test.describe('DTMF Interface', () => {
   test.beforeEach(async ({ page, mockSipServer, mockMediaDevices }) => {
     await mockSipServer()
     await mockMediaDevices()
-    await page.goto('/')
+    await page.goto(APP_URL)
   })
 
   test('should not show DTMF pad when no active call', async ({ page }) => {
@@ -335,7 +335,7 @@ test.describe('Accessibility', () => {
   test.beforeEach(async ({ page, mockSipServer, mockMediaDevices }) => {
     await mockSipServer()
     await mockMediaDevices()
-    await page.goto('/')
+    await page.goto(APP_URL)
   })
 
   test('should have proper data-testid attributes for all interactive elements', async ({

@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { RecordingPlugin } from '../../../src/plugins/RecordingPlugin'
 import { EventBus } from '../../../src/core/EventBus'
 import type { PluginContext } from '../../../src/types/plugin.types'
+import * as loggerModule from '../../../src/utils/logger'
 
 // Mock MediaRecorder
 class MockMediaRecorder {
@@ -30,7 +31,14 @@ class MockMediaRecorder {
 
   stop() {
     this.state = 'inactive'
-    if (this.onstop) {
+    // Fire ondataavailable with mock data before onstop
+    if (this.ondataavailable) {
+      setTimeout(() => {
+        this.ondataavailable?.({ data: new Blob(['mock-audio-data'], { type: 'audio/webm' }) } as any)
+        // Then fire onstop
+        setTimeout(() => this.onstop?.(), 10)
+      }, 5)
+    } else if (this.onstop) {
       setTimeout(() => this.onstop?.(), 10)
     }
   }
@@ -299,6 +307,8 @@ describe('RecordingPlugin', () => {
     })
 
     it('should handle recording stop event', async () => {
+      loggerModule.configureLogger({ enabled: true, handler: undefined })
+
       const onRecordingStop = vi.fn()
 
       await plugin.uninstall(context)
@@ -315,6 +325,8 @@ describe('RecordingPlugin', () => {
       await new Promise((resolve) => setTimeout(resolve, 50))
 
       expect(onRecordingStop).toHaveBeenCalled()
+
+      loggerModule.configureLogger({ enabled: false, handler: undefined })
     })
   })
 

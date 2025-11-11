@@ -6,6 +6,8 @@
 
 import { test as base, Page } from '@playwright/test'
 
+export const APP_URL = '/?test=true' as const
+
 /**
  * Mock SIP server configuration
  */

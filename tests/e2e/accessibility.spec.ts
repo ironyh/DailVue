@@ -6,7 +6,7 @@
  * Uses axe-core for automated WCAG compliance testing.
  */
 
-import { test, expect } from './fixtures'
+import { test, expect, APP_URL } from './fixtures'
 import { SELECTORS, TEST_DATA } from './selectors'
 import AxeBuilder from '@axe-core/playwright'
 
@@ -17,7 +17,7 @@ test.describe('Accessibility Tests', () => {
     await mockMediaDevices()
 
     // Navigate to app
-    await page.goto('/')
+    await page.goto(APP_URL)
     await expect(page.locator(SELECTORS.APP.ROOT)).toBeVisible()
   })
 
@@ -348,7 +348,7 @@ test.describe('Accessibility - Keyboard Navigation', () => {
   test.beforeEach(async ({ page, mockSipServer, mockMediaDevices }) => {
     await mockSipServer()
     await mockMediaDevices()
-    await page.goto('/')
+    await page.goto(APP_URL)
     await expect(page.locator(SELECTORS.APP.ROOT)).toBeVisible()
   })
 

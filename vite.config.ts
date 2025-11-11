@@ -68,6 +68,8 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./tests/setup.ts'],
+    // Exclude E2E tests (run separately with Playwright)
+    exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**', '**/*.spec.ts'],
     // Retry failed tests to detect flakiness
     retry: 2,
     // Test timeout (10 seconds)

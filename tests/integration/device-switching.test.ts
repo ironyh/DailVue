@@ -14,6 +14,7 @@ import { MediaManager } from '../../src/core/MediaManager'
 import { CallSession } from '../../src/core/CallSession'
 import { EventBus } from '../../src/core/EventBus'
 import { createMockSipServer, type MockRTCSession } from '../helpers/MockSipServer'
+import { MediaDeviceKind, type ExtendedMediaStreamConstraints } from '../../src/types/media.types'
 
 /**
  * Helper function to create mock media devices
@@ -37,31 +38,98 @@ function createMockDevice(
  * Helper function to setup mock navigator.mediaDevices
  */
 function setupMockMediaDevices(devices: MediaDeviceInfo[]): void {
-  global.navigator.mediaDevices = {
-    getUserMedia: vi.fn().mockResolvedValue({
-      id: 'mock-stream',
+  const deviceList = [...devices]
+  let streamCounter = 1
+  let trackCounter = 1
+
+  const createTrack = (kind: 'audio' | 'video', deviceId?: string) => ({
+    kind,
+    id: `${kind}-track-${trackCounter++}`,
+    enabled: true,
+    stop: vi.fn(),
+    getSettings: vi.fn().mockReturnValue(deviceId ? { deviceId } : {}),
+  })
+
+  const getDefaultDeviceId = (kind: MediaDeviceKind) => {
+    const device = deviceList.find((d) => d.kind === kind)
+    return device?.deviceId
+  }
+
+  const extractDeviceId = (
+    constraint: boolean | MediaTrackConstraints | undefined,
+    fallback?: string
+  ): string | undefined => {
+    if (!constraint) return fallback
+    if (constraint === true) return fallback
+
+    const deviceConstraint = constraint.deviceId
+    if (!deviceConstraint) return fallback
+
+    if (typeof deviceConstraint === 'string') {
+      return deviceConstraint
+    }
+
+    if (Array.isArray(deviceConstraint)) {
+      return deviceConstraint[0]
+    }
+
+    if (typeof deviceConstraint === 'object') {
+      if (Array.isArray(deviceConstraint.exact)) {
+        return deviceConstraint.exact[0]
+      }
+      if (deviceConstraint.exact) {
+        return deviceConstraint.exact as string
+      }
+      if (Array.isArray(deviceConstraint.ideal)) {
+        return deviceConstraint.ideal[0]
+      }
+      if (deviceConstraint.ideal) {
+        return deviceConstraint.ideal as string
+      }
+    }
+
+    return fallback
+  }
+
+  const createStream = (constraints?: ExtendedMediaStreamConstraints) => {
+    const streamId = `mock-stream-${streamCounter++}`
+
+    const audioDeviceId = extractDeviceId(
+      constraints?.audio,
+      getDefaultDeviceId(MediaDeviceKind.AudioInput)
+    )
+    const videoDeviceId = extractDeviceId(
+      constraints?.video,
+      getDefaultDeviceId(MediaDeviceKind.VideoInput)
+    )
+
+    const tracks = [
+      ...(constraints?.audio ? [createTrack('audio', audioDeviceId)] : []),
+      ...(constraints?.video ? [createTrack('video', videoDeviceId)] : []),
+    ]
+
+    // If neither audio nor video explicitly requested, default to audio track
+    if (!constraints?.audio && !constraints?.video) {
+      tracks.push(createTrack('audio', audioDeviceId))
+    }
+
+    return {
+      id: streamId,
       active: true,
-      getTracks: vi.fn().mockReturnValue([
-        {
-          kind: 'audio',
-          id: 'audio-track-1',
-          enabled: true,
-          stop: vi.fn(),
-          getSettings: vi.fn().mockReturnValue({ deviceId: 'audioinput1' }),
-        },
-      ]),
-      getAudioTracks: vi.fn().mockReturnValue([
-        {
-          kind: 'audio',
-          id: 'audio-track-1',
-          enabled: true,
-          stop: vi.fn(),
-          getSettings: vi.fn().mockReturnValue({ deviceId: 'audioinput1' }),
-        },
-      ]),
-      getVideoTracks: vi.fn().mockReturnValue([]),
-    }),
-    enumerateDevices: vi.fn().mockResolvedValue(devices),
+      getTracks: () => tracks,
+      getAudioTracks: () => tracks.filter((track) => track.kind === 'audio'),
+      getVideoTracks: () => tracks.filter((track) => track.kind === 'video'),
+    }
+  }
+
+  global.navigator.mediaDevices = {
+    getUserMedia: vi.fn().mockImplementation(async (constraints) => createStream(constraints)),
+    enumerateDevices: vi.fn().mockImplementation(async () =>
+      deviceList.map((device) => ({
+        ...device,
+        toJSON: device.toJSON ?? (() => ({})),
+      }))
+    ),
     getSupportedConstraints: vi.fn().mockReturnValue({
       deviceId: true,
       echoCancellation: true,
@@ -71,6 +139,8 @@ function setupMockMediaDevices(devices: MediaDeviceInfo[]): void {
     removeEventListener: vi.fn(),
     dispatchEvent: vi.fn(),
   } as never
+
+  ;(global.navigator.mediaDevices as any).__deviceList = deviceList
 }
 
 describe('Device Switching Integration Tests', () => {
@@ -90,7 +160,7 @@ describe('Device Switching Integration Tests', () => {
     vi.clearAllMocks()
 
     eventBus = new EventBus()
-    mediaManager = new MediaManager(eventBus)
+    mediaManager = new MediaManager({ eventBus })
     mockSipServer = createMockSipServer({ autoAcceptCalls: true })
 
     // Setup navigator.mediaDevices with multiple devices
@@ -119,7 +189,7 @@ describe('Device Switching Integration Tests', () => {
       })
 
       expect(stream1).toBeDefined()
-      expect(mediaManager.hasActiveStream).toBe(true)
+      expect(mediaManager.getLocalStream()).toBeDefined()
 
       // Create mock session for call
       const mockSession = mockSipServer.createSession('test-call')
@@ -184,7 +254,7 @@ describe('Device Switching Integration Tests', () => {
       ).rejects.toThrow('Device not available')
 
       // Original stream should still be active
-      expect(mediaManager.hasActiveStream).toBe(true)
+      expect(mediaManager.getLocalStream()).toBeDefined()
     })
 
     it('should emit device change events during switch', async () => {
@@ -200,7 +270,7 @@ describe('Device Switching Integration Tests', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 50))
 
-      mediaManager.releaseUserMedia()
+      mediaManager.stopLocalStream()
 
       const stream2 = await mediaManager.getUserMedia({
         audio: { deviceId: { exact: 'audioinput2' } },
@@ -336,15 +406,8 @@ describe('Device Switching Integration Tests', () => {
         toJSON: () => ({}),
       }
 
-      ;(global.navigator.mediaDevices.enumerateDevices as any).mockResolvedValueOnce([
-        mockAudioInputDevice1,
-        mockAudioInputDevice2,
-        mockAudioOutputDevice1,
-        mockAudioOutputDevice2,
-        mockVideoDevice1,
-        mockVideoDevice2,
-        newDevice,
-      ])
+      const deviceList = (global.navigator.mediaDevices as any).__deviceList as MediaDeviceInfo[]
+      deviceList.push(newDevice as MediaDeviceInfo)
 
       // Trigger devicechange event
       const deviceChangeHandlers: Function[] = []
@@ -373,14 +436,11 @@ describe('Device Switching Integration Tests', () => {
       const initialCount = devices.length
 
       // Simulate device removal
-      ;(global.navigator.mediaDevices.enumerateDevices as any).mockResolvedValueOnce([
-        mockAudioInputDevice1,
-        // Removed: mockAudioInputDevice2
-        mockAudioOutputDevice1,
-        mockAudioOutputDevice2,
-        mockVideoDevice1,
-        mockVideoDevice2,
-      ])
+      const deviceList = (global.navigator.mediaDevices as any).__deviceList as MediaDeviceInfo[]
+      const index = deviceList.findIndex((device) => device.deviceId === mockAudioInputDevice2.deviceId)
+      if (index !== -1) {
+        deviceList.splice(index, 1)
+      }
 
       const newDevices = await mediaManager.enumerateDevices()
 

@@ -8,6 +8,7 @@
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { RecordingPlugin } from '../../../src/plugins/RecordingPlugin'
+import * as loggerModule from '../../../src/utils/logger'
 
 describe('RecordingPlugin - Security', () => {
   afterEach(() => {
@@ -56,6 +57,7 @@ describe('RecordingPlugin - Security', () => {
     it('should fallback to Math.random when crypto not available', () => {
       vi.stubGlobal('crypto', undefined)
 
+      loggerModule.configureLogger({ enabled: true, handler: undefined })
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
       const plugin = new RecordingPlugin()
@@ -66,6 +68,7 @@ describe('RecordingPlugin - Security', () => {
       expect(consoleSpy).toHaveBeenCalled()
 
       consoleSpy.mockRestore()
+      loggerModule.configureLogger({ enabled: false, handler: undefined })
     })
 
     it('should generate unique recording IDs', () => {

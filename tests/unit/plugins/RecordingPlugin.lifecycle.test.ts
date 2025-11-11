@@ -9,6 +9,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { RecordingPlugin } from '../../../src/plugins/RecordingPlugin'
+import * as loggerModule from '../../../src/utils/logger'
 
 describe('RecordingPlugin - Lifecycle', () => {
   describe('Pause/Resume Edge Cases', () => {
@@ -75,6 +76,7 @@ describe('RecordingPlugin - Lifecycle', () => {
     })
 
     it('should warn when pausing in invalid state', () => {
+      loggerModule.configureLogger({ enabled: true, handler: undefined })
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
       const mockRecorder = {
@@ -91,6 +93,7 @@ describe('RecordingPlugin - Lifecycle', () => {
       expect(mockRecorder.pause).not.toHaveBeenCalled()
 
       consoleSpy.mockRestore()
+      loggerModule.configureLogger({ enabled: false, handler: undefined })
     })
   })
 })

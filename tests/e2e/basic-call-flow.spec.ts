@@ -5,11 +5,12 @@
  */
 
 import { test, expect } from '@playwright/test'
+import { APP_URL } from './fixtures'
 
 test.describe('Basic Call Flow', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to the demo/test page
-    await page.goto('/')
+    await page.goto(APP_URL)
   })
 
   test('should display the SIP client interface', async ({ page }) => {
@@ -233,7 +234,7 @@ test.describe('Basic Call Flow', () => {
 
 test.describe('Media Device Management', () => {
   test('should list available audio devices', async ({ page }) => {
-    await page.goto('/')
+    await page.goto(APP_URL)
 
     // Open device settings
     await page.click('[data-testid="device-settings-button"]')
@@ -259,7 +260,7 @@ test.describe('Media Device Management', () => {
 
 test.describe('Registration and Authentication', () => {
   test('should handle registration failure', async ({ page }) => {
-    await page.goto('/')
+    await page.goto(APP_URL)
 
     // Configure with invalid credentials
     await page.click('[data-testid="settings-button"]')

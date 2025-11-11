@@ -93,7 +93,7 @@ describe('Conference Integration Tests', () => {
     vi.clearAllMocks()
 
     eventBus = new EventBus()
-    mediaManager = new MediaManager(eventBus)
+    mediaManager = new MediaManager({ eventBus })
     mockSipServer = createMockSipServer({ autoAcceptCalls: true })
 
     // Setup media devices
@@ -905,7 +905,6 @@ describe('Conference Integration Tests', () => {
 
     it('should handle hold/unhold for conference participants', async () => {
       const session1 = mockSipServer.createSession('conf-call-1')
-      mockSipServer.simulateCallAccepted(session1)
 
       const callSession1 = new CallSession({
         id: session1.id,
@@ -917,17 +916,34 @@ describe('Conference Integration Tests', () => {
         eventBus,
       })
 
+      // Simulate call being accepted and confirmed (must be after CallSession creation so event handlers are registered)
+      mockSipServer.simulateCallAccepted(session1)
+      mockSipServer.simulateCallConfirmed(session1)
+
+      // Wait for async events to propagate
+      await new Promise((resolve) => setTimeout(resolve, 100))
+
       const p1 = createParticipant('p1', 'sip:participant1@example.com', 'Participant 1')
       p1.callSession = callSession1
 
       // Hold participant
-      await callSession1.hold()
+      const holdPromise = callSession1.hold()
+      mockSipServer.simulateHold(session1, 'local')
+      await holdPromise
+
+      // Wait for hold event to propagate
+      await new Promise((resolve) => setTimeout(resolve, 100))
 
       // In real implementation, held state would be tracked
       expect(session1.hold).toHaveBeenCalled()
 
       // Unhold participant
-      await callSession1.unhold()
+      const unholdPromise = callSession1.unhold()
+      mockSipServer.simulateUnhold(session1, 'local')
+      await unholdPromise
+
+      // Wait for unhold event to propagate
+      await new Promise((resolve) => setTimeout(resolve, 100))
 
       expect(session1.unhold).toHaveBeenCalled()
     })
