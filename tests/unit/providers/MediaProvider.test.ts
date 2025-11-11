@@ -166,7 +166,7 @@ describe('MediaProvider', () => {
       await nextTick()
       await nextTick()
 
-      expect(mockGetUserMedia).toHaveBeenCalledWith({ audio: true, video: false })
+      expect(mockGetUserMedia).toHaveBeenCalledWith({ audio: true })
     })
 
     it('should emit ready event after enumeration', async () => {
@@ -354,7 +354,7 @@ describe('MediaProvider', () => {
       const granted = await consumer.vm.media.requestAudioPermission()
 
       expect(granted).toBe(true)
-      expect(mockGetUserMedia).toHaveBeenCalledWith({ audio: true, video: false })
+      expect(mockGetUserMedia).toHaveBeenCalledWith({ audio: true })
     })
 
     it('should allow requesting video permission via context', async () => {
@@ -392,7 +392,7 @@ describe('MediaProvider', () => {
       const granted = await consumer.vm.media.requestVideoPermission()
 
       expect(granted).toBe(true)
-      expect(mockGetUserMedia).toHaveBeenCalledWith({ audio: false, video: true })
+      expect(mockGetUserMedia).toHaveBeenCalledWith({ video: true })
     })
 
     it('should allow getting device by ID via context', async () => {
@@ -432,7 +432,7 @@ describe('MediaProvider', () => {
         'devicechange',
         expect.any(Function)
       )
-      expect(deviceStore.hasDeviceChangeListener).toBe(true)
+      expect(deviceStore.hasDeviceChangeListener()).toBe(true)
     })
 
     it('should not attach device change listener when watchDeviceChanges is false', async () => {
@@ -553,7 +553,7 @@ describe('MediaProvider', () => {
       })
 
       await nextTick()
-      await nextTick()
+      await flushPromises()
 
       expect(wrapper.emitted('error')).toBeTruthy()
     })

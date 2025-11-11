@@ -34,6 +34,8 @@ interface RegistrationStoreState {
   lastError: string | null
   /** Auto-refresh timer ID */
   autoRefreshTimerId: number | null
+  /** Time trigger for computed property updates (internal, for testing) */
+  _timeTrigger: number
 }
 
 /**
@@ -48,6 +50,7 @@ const state = reactive<RegistrationStoreState>({
   retryCount: 0,
   lastError: null,
   autoRefreshTimerId: null,
+  _timeTrigger: 0,
 })
 
 /**
@@ -68,6 +71,8 @@ const computed_values: Record<string, any> = {
 
   /** Seconds remaining until registration expires */
   secondsUntilExpiry: computed(() => {
+    // Access _timeTrigger to make this computed reactive to time changes
+    state._timeTrigger // eslint-disable-line @typescript-eslint/no-unused-expressions
     if (!state.expiryTime) return 0
     const now = new Date().getTime()
     const expiry = state.expiryTime.getTime()
@@ -395,7 +400,16 @@ export const registrationStore = {
     state.expiryTime = null
     state.retryCount = 0
     state.lastError = null
+    state._timeTrigger = 0
     log.info('Registration store reset to initial state')
+  },
+
+  /**
+   * Trigger time-based computed properties to re-evaluate
+   * (Internal method for testing with fake timers)
+   */
+  _triggerTimeUpdate(): void {
+    state._timeTrigger++
   },
 
   /**

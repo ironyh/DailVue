@@ -724,10 +724,11 @@ describe('SipClientProvider - Phase 7.1 Implementation', () => {
       const { EventBus } = await import('@/core/EventBus')
       let mockEventBus: any
 
-      vi.mocked(EventBus).mockImplementationOnce(() => {
+      vi.mocked(EventBus).mockImplementationOnce(function () {
         mockEventBus = {
           on: vi.fn().mockReturnValue('listener-id-1'),
           off: vi.fn(),
+          removeById: vi.fn(),
         }
         return mockEventBus
       })
@@ -750,7 +751,7 @@ describe('SipClientProvider - Phase 7.1 Implementation', () => {
       await flushPromises()
 
       // Should have removed all event listeners
-      expect(mockEventBus.off).toHaveBeenCalled()
+      expect(mockEventBus.removeById).toHaveBeenCalled()
     })
   })
 })

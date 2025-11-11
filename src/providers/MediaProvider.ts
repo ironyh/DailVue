@@ -142,7 +142,9 @@ export const MediaProvider = defineComponent({
     // Media Devices Composable
     // ============================================================================
 
-    const mediaDevices = useMediaDevices()
+    // Disable auto-enumeration and auto-monitoring in composable
+    // MediaProvider controls these explicitly via initialize() and watchDeviceChanges prop
+    const mediaDevices = useMediaDevices(undefined, { autoEnumerate: false, autoMonitor: false })
 
     // ============================================================================
     // Initialization
