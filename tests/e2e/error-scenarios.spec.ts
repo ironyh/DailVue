@@ -4,14 +4,14 @@
  * Tests error handling, validation, and edge cases
  */
 
-import { test, expect } from './fixtures'
+import { test, expect, APP_URL } from './fixtures'
 import { SELECTORS, TEST_DATA } from './selectors'
 
 test.describe('Validation Errors', () => {
   test.beforeEach(async ({ page, mockSipServer, mockMediaDevices }) => {
     await mockSipServer()
     await mockMediaDevices()
-    await page.goto('/')
+    await page.goto(APP_URL)
   })
 
   test('should show error when SIP URI is empty', async ({ page }) => {
@@ -108,7 +108,7 @@ test.describe('Connection Errors', () => {
   test.beforeEach(async ({ page, mockSipServer, mockMediaDevices }) => {
     await mockSipServer()
     await mockMediaDevices()
-    await page.goto('/')
+    await page.goto(APP_URL)
   })
 
   test('should disable call button when not connected', async ({ page }) => {
@@ -134,7 +134,7 @@ test.describe('Call Control Errors', () => {
   test.beforeEach(async ({ page, mockSipServer, mockMediaDevices }) => {
     await mockSipServer()
     await mockMediaDevices()
-    await page.goto('/')
+    await page.goto(APP_URL)
   })
 
   test('should not show DTMF pad when no active call', async ({ page }) => {
@@ -168,7 +168,7 @@ test.describe('Button State Management', () => {
   test.beforeEach(async ({ page, mockSipServer, mockMediaDevices }) => {
     await mockSipServer()
     await mockMediaDevices()
-    await page.goto('/')
+    await page.goto(APP_URL)
   })
 
   test('should disable connect button while connecting', async ({
@@ -215,7 +215,7 @@ test.describe('UI Edge Cases', () => {
   test.beforeEach(async ({ page, mockSipServer, mockMediaDevices }) => {
     await mockSipServer()
     await mockMediaDevices()
-    await page.goto('/')
+    await page.goto(APP_URL)
   })
 
   test('should handle rapid settings panel toggling', async ({ page }) => {
@@ -295,7 +295,7 @@ test.describe('Device Management Errors', () => {
   test.beforeEach(async ({ page, mockSipServer, mockMediaDevices }) => {
     await mockSipServer()
     await mockMediaDevices()
-    await page.goto('/')
+    await page.goto(APP_URL)
   })
 
   test('should display available audio devices', async ({ page }) => {
@@ -340,7 +340,7 @@ test.describe('Responsive Design', () => {
 
   test('should work on mobile portrait (375x667)', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 })
-    await page.goto('/')
+    await page.goto(APP_URL)
 
     await expect(page.locator(SELECTORS.SIP_CLIENT)).toBeVisible()
     await expect(page.locator(SELECTORS.CONNECTION_STATUS)).toBeVisible()
@@ -348,7 +348,7 @@ test.describe('Responsive Design', () => {
 
   test('should work on tablet (768x1024)', async ({ page }) => {
     await page.setViewportSize({ width: 768, height: 1024 })
-    await page.goto('/')
+    await page.goto(APP_URL)
 
     await expect(page.locator(SELECTORS.SIP_CLIENT)).toBeVisible()
     await expect(page.locator(SELECTORS.SETTINGS_BUTTON)).toBeVisible()
@@ -356,7 +356,7 @@ test.describe('Responsive Design', () => {
 
   test('should work on desktop (1920x1080)', async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 })
-    await page.goto('/')
+    await page.goto(APP_URL)
 
     await expect(page.locator(SELECTORS.SIP_CLIENT)).toBeVisible()
     await expect(page.locator('.status-bar')).toBeVisible()
@@ -367,7 +367,7 @@ test.describe('Accessibility', () => {
   test.beforeEach(async ({ page, mockSipServer, mockMediaDevices }) => {
     await mockSipServer()
     await mockMediaDevices()
-    await page.goto('/')
+    await page.goto(APP_URL)
   })
 
   test('should have unique data-testid for all interactive elements', async ({ page }) => {

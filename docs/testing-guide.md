@@ -230,8 +230,10 @@ E2E tests verify complete user workflows:
 ```typescript
 import { test, expect } from '@playwright/test'
 
+const APP_URL = '/?test=true'
+
 test('should make a call', async ({ page }) => {
-  await page.goto('/')
+  await page.goto(APP_URL)
 
   // Enter phone number
   await page.fill('[data-testid="dialpad-input"]', 'sip:destination@example.com')

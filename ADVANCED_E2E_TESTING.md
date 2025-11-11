@@ -133,9 +133,11 @@ npm run test:e2e:performance
 
 **Example:**
 ```typescript
+import { APP_URL } from './fixtures'
+
 test('should load within 3 seconds', async ({ page }) => {
   const startTime = Date.now()
-  await page.goto('/')
+  await page.goto(APP_URL)
   await page.waitForLoadState('networkidle')
   const loadTime = Date.now() - startTime
 

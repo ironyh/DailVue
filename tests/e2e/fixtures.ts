@@ -6,6 +6,18 @@
 
 import { test as base, Page } from '@playwright/test'
 
+export const APP_URL = '/?test=true' as const
+
+/**
+ * Application URL with test harness enabled
+ */
+export const APP_URL = '/?test=true'
+
+/**
+ * Application URL with test harness enabled
+ */
+export const APP_URL = '/?test=true'
+
 /**
  * Mock SIP server configuration
  */

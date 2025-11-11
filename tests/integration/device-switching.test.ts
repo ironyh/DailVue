@@ -14,6 +14,7 @@ import { MediaManager } from '../../src/core/MediaManager'
 import { CallSession } from '../../src/core/CallSession'
 import { EventBus } from '../../src/core/EventBus'
 import { createMockSipServer, type MockRTCSession } from '../helpers/MockSipServer'
+import { MediaDeviceKind, type ExtendedMediaStreamConstraints } from '../../src/types/media.types'
 
 /**
  * Helper function to create mock media devices
@@ -85,7 +86,8 @@ function setupMockMediaDevices(devices: MediaDeviceInfo[], shouldFailOnCall?: nu
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
     dispatchEvent: vi.fn(),
-  } as never
+    } as never,
+  })
 }
 
 describe('Device Switching Integration Tests', () => {
@@ -408,14 +410,11 @@ describe('Device Switching Integration Tests', () => {
       const initialCount = devices.length
 
       // Simulate device removal
-      ;(global.navigator.mediaDevices.enumerateDevices as any).mockResolvedValueOnce([
-        mockAudioInputDevice1,
-        // Removed: mockAudioInputDevice2
-        mockAudioOutputDevice1,
-        mockAudioOutputDevice2,
-        mockVideoDevice1,
-        mockVideoDevice2,
-      ])
+      const deviceList = (global.navigator.mediaDevices as any).__deviceList as MediaDeviceInfo[]
+      const index = deviceList.findIndex((device) => device.deviceId === mockAudioInputDevice2.deviceId)
+      if (index !== -1) {
+        deviceList.splice(index, 1)
+      }
 
       const newDevices = await mediaManager.enumerateDevices()
 

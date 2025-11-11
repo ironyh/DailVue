@@ -15,6 +15,7 @@ import { MediaManager } from '../../src/core/MediaManager'
 import { EventBus } from '../../src/core/EventBus'
 import { createMockSipServer, type MockRTCSession } from '../helpers/MockSipServer'
 import type { SipClientConfig } from '../../src/types/config.types'
+import { RegistrationState } from '../../src/types/sip.types'
 
 // Mock JsSIP to use our MockSipServer
 vi.mock('jssip', () => {
@@ -42,6 +43,30 @@ vi.mock('jssip', () => {
     },
   }
 })
+
+// Helper function to trigger UA events (calls both .on() and .once() handlers)
+function triggerUAEvent(event: string, data?: any) {
+  // Trigger .on() handlers
+  const onHandlers = eventHandlers.get(event)
+  if (onHandlers) {
+    onHandlers.forEach((handler) => handler(data))
+  }
+
+  // Trigger .once() handlers and remove them
+  const onceHandlerList = onceHandlers.get(event)
+  if (onceHandlerList) {
+    onceHandlerList.forEach((handler) => handler(data))
+    onceHandlers.delete(event)
+  }
+}
+
+// Helper function to trigger RTC session events
+function triggerSessionEvent(event: string, data?: any) {
+  const handlers = sessionEventHandlers.get(event)
+  if (handlers) {
+    handlers.forEach((handler) => handler(data))
+  }
+}
 
 // Helper function to create CallSession with proper options
 function createMockCallSession(
@@ -110,6 +135,30 @@ describe('SIP Workflow Integration Tests', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    eventHandlers.clear()
+    onceHandlers.clear()
+    sessionEventHandlers.clear()
+
+    mockUA.on.mockImplementation((event: string, handler: Function) => {
+      if (!eventHandlers.has(event)) {
+        eventHandlers.set(event, [])
+      }
+      eventHandlers.get(event)!.push(handler)
+    })
+    mockUA.once.mockImplementation((event: string, handler: Function) => {
+      if (!onceHandlers.has(event)) {
+        onceHandlers.set(event, [])
+      }
+      onceHandlers.get(event)!.push(handler)
+    })
+    mockUA.isConnected.mockReturnValue(false)
+    mockUA.isRegistered.mockReturnValue(false)
+    mockRTCSession.on.mockImplementation((event: string, handler: Function) => {
+      if (!sessionEventHandlers.has(event)) {
+        sessionEventHandlers.set(event, [])
+      }
+      sessionEventHandlers.get(event)!.push(handler)
+    })
 
     eventBus = new EventBus()
     mockSipServer = createMockSipServer({ autoRegister: false })
@@ -400,10 +449,14 @@ describe('SIP Workflow Integration Tests', () => {
       mockSipServer.simulateRegistered()
       await sipClient.register()
 
-      await new Promise((resolve) => setTimeout(resolve, 100))
+      const registerPromise = sipClient.register()
+      const successHandlers = onceHandlers.get('registered') ?? []
+      expect(successHandlers.length).toBeGreaterThan(0)
+      successHandlers[0]({ response: { getHeader: () => '600' } })
+      await registerPromise
 
-      expect(events.length).toBeGreaterThan(0)
-      expect(events.some((e) => e.type === 'connected')).toBe(true)
+      expect(sipClient.isConnected).toBe(true)
+      expect(sipClient.registrationState).toBe(RegistrationState.Registered)
     })
   })
 

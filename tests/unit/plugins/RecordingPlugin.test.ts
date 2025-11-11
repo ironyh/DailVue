@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { RecordingPlugin } from '../../../src/plugins/RecordingPlugin'
 import { EventBus } from '../../../src/core/EventBus'
 import type { PluginContext } from '../../../src/types/plugin.types'
+import * as loggerModule from '../../../src/utils/logger'
 
 // Mock MediaRecorder
 class MockMediaRecorder {
@@ -316,6 +317,8 @@ describe('RecordingPlugin', () => {
     })
 
     it('should handle recording stop event', async () => {
+      loggerModule.configureLogger({ enabled: true, handler: undefined })
+
       const onRecordingStop = vi.fn()
 
       await plugin.uninstall(context)
@@ -332,6 +335,8 @@ describe('RecordingPlugin', () => {
       await new Promise((resolve) => setTimeout(resolve, 50))
 
       expect(onRecordingStop).toHaveBeenCalled()
+
+      loggerModule.configureLogger({ enabled: false, handler: undefined })
     })
   })
 

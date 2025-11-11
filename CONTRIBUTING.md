@@ -620,9 +620,11 @@ Test complete user flows in a browser environment using Playwright.
 ```typescript
 import { test, expect } from '@playwright/test'
 
+const APP_URL = '/?test=true'
+
 test.describe('Basic Call Flow', () => {
   test('should make an outgoing call', async ({ page }) => {
-    await page.goto('/')
+    await page.goto(APP_URL)
 
     // Configure SIP settings
     await page.click('[data-testid="settings-button"]')

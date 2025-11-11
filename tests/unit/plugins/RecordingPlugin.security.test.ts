@@ -61,6 +61,7 @@ describe('RecordingPlugin - Security', () => {
       // Enable logging for this test
       loggerModule.configureLogger({ enabled: true, level: 'warn' })
 
+      loggerModule.configureLogger({ enabled: true, handler: undefined })
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
       const plugin = new RecordingPlugin()
@@ -71,6 +72,7 @@ describe('RecordingPlugin - Security', () => {
       expect(consoleSpy).toHaveBeenCalled()
 
       consoleSpy.mockRestore()
+      loggerModule.configureLogger({ enabled: false, handler: undefined })
     })
 
     it('should generate unique recording IDs', () => {

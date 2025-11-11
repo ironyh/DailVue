@@ -83,6 +83,7 @@ describe('RecordingPlugin - Lifecycle', () => {
     })
 
     it('should warn when pausing in invalid state', () => {
+      loggerModule.configureLogger({ enabled: true, handler: undefined })
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
       const mockRecorder = {
@@ -99,6 +100,7 @@ describe('RecordingPlugin - Lifecycle', () => {
       expect(mockRecorder.pause).not.toHaveBeenCalled()
 
       consoleSpy.mockRestore()
+      loggerModule.configureLogger({ enabled: false, handler: undefined })
     })
   })
 })

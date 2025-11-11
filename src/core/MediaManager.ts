@@ -514,28 +514,6 @@ export class MediaManager {
       // Build constraints
       const finalConstraints = this.buildMediaConstraints(constraints)
 
-      // Clean up old stream BEFORE acquiring new one to prevent device conflicts
-      if (this.localStream) {
-        const oldStreamId = this.localStream.id
-        logger.debug('Cleaning up old local stream before acquiring new one', {
-          oldStreamId,
-        })
-
-        this.localStream.getTracks().forEach((track) => {
-          logger.debug('Stopping old track', { kind: track.kind, id: track.id })
-          track.stop()
-        })
-
-        // Emit removal event for consistency
-        ;(this.eventBus as any).emitSync(EventNames.MEDIA_STREAM_REMOVED, {
-          // eslint-disable-line @typescript-eslint/no-explicit-any
-          stream: this.localStream,
-          direction: 'local',
-        })
-
-        this.localStream = undefined
-      }
-
       // Get media stream
       const stream = await navigator.mediaDevices.getUserMedia(finalConstraints)
 
@@ -554,7 +532,25 @@ export class MediaManager {
       }
 
       // Store local stream
+      const previousStream = this.localStream
       this.localStream = stream
+
+      if (previousStream) {
+        logger.debug('Cleaning up previous local stream after acquiring new one', {
+          oldStreamId: previousStream.id,
+        })
+
+        previousStream.getTracks().forEach((track) => {
+          logger.debug('Stopping old track', { kind: track.kind, id: track.id })
+          track.stop()
+        })
+
+        ;(this.eventBus as any).emitSync(EventNames.MEDIA_STREAM_REMOVED, {
+          // eslint-disable-line @typescript-eslint/no-explicit-any
+          stream: previousStream,
+          direction: 'local',
+        })
+      }
 
       // Emit event
       ;(this.eventBus as any).emitSync(EventNames.MEDIA_STREAM_ADDED, {

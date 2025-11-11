@@ -1,0 +1,11 @@
+# Suggested Commands
+- Install dependencies: `pnpm install`
+- Dev playground: `pnpm dev`
+- Build library: `pnpm build`
+- Unit tests: `pnpm test:unit` or all: `pnpm test`
+- E2E tests: `pnpm test:e2e` (Playwright); specific project `pnpm exec playwright test --project="Mobile Chrome"`
+- Lint: `pnpm lint` (or `pnpm lint:fix`)
+- Format: `pnpm format`
+- Type-check: `pnpm typecheck` or `pnpm type-check`
+- Coverage: `pnpm coverage`
+- Docs dev/build: `pnpm docs:dev`, `pnpm docs:build`

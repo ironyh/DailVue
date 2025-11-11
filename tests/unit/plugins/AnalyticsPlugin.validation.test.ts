@@ -40,6 +40,7 @@ describe('AnalyticsPlugin - Validation', () => {
     })
 
     it('should reject null event data when validation enabled', () => {
+      loggerModule.configureLogger({ enabled: true, handler: undefined })
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
       ;(plugin as any).trackEvent('test:event', null as any)
@@ -54,6 +55,7 @@ describe('AnalyticsPlugin - Validation', () => {
       ).toBe(true)
 
       consoleSpy.mockRestore()
+      loggerModule.configureLogger({ enabled: false, handler: undefined })
     })
 
     it('should accept undefined event data', () => {
@@ -89,6 +91,7 @@ describe('AnalyticsPlugin - Validation', () => {
     })
 
     it('should reject array event data', () => {
+      loggerModule.configureLogger({ enabled: true, handler: undefined })
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
       ;(plugin as any).trackEvent('test:event', [] as any)
@@ -102,9 +105,11 @@ describe('AnalyticsPlugin - Validation', () => {
       ).toBe(true)
 
       consoleSpy.mockRestore()
+      loggerModule.configureLogger({ enabled: false, handler: undefined })
     })
 
     it('should reject non-object event data', () => {
+      loggerModule.configureLogger({ enabled: true, handler: undefined })
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
       ;(plugin as any).trackEvent('test:event', 'string' as any)
@@ -114,6 +119,7 @@ describe('AnalyticsPlugin - Validation', () => {
       expect(consoleSpy).toHaveBeenCalledTimes(3)
 
       consoleSpy.mockRestore()
+      loggerModule.configureLogger({ enabled: false, handler: undefined })
     })
 
     it('should allow disabling validation', async () => {
@@ -172,6 +178,7 @@ describe('AnalyticsPlugin - Validation', () => {
     })
 
     it('should reject events exceeding payload size limit', () => {
+      loggerModule.configureLogger({ enabled: true, handler: undefined })
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
       // Create large event data
@@ -190,6 +197,7 @@ describe('AnalyticsPlugin - Validation', () => {
       ).toBe(true)
 
       consoleSpy.mockRestore()
+      loggerModule.configureLogger({ enabled: false, handler: undefined })
     })
 
     it('should accept events within payload size limit', () => {
@@ -246,6 +254,7 @@ describe('AnalyticsPlugin - Validation', () => {
     })
 
     it('should handle serialization failures', () => {
+      loggerModule.configureLogger({ enabled: true, handler: undefined })
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
       // Create circular reference that will fail JSON.stringify
@@ -263,6 +272,7 @@ describe('AnalyticsPlugin - Validation', () => {
       ).toBe(true)
 
       consoleSpy.mockRestore()
+      loggerModule.configureLogger({ enabled: false, handler: undefined })
     })
   })
 })

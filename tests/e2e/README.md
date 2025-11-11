@@ -144,8 +144,10 @@ npx playwright test && npx playwright show-report
 
 ### Basic Test Structure
 
+All suites should navigate to the dedicated E2E harness by using the `APP_URL` constant exported from `./fixtures` instead of manually typing `/?test=true`.
+
 ```typescript
-import { test, expect } from './fixtures'
+import { test, expect, APP_URL } from './fixtures'
 import { SELECTORS, TEST_DATA } from './selectors'
 
 test.describe('My Feature', () => {
@@ -155,7 +157,7 @@ test.describe('My Feature', () => {
     await mockMediaDevices()
 
     // Navigate to app
-    await page.goto('/')
+    await page.goto(APP_URL)
     await expect(page.locator(SELECTORS.APP.ROOT)).toBeVisible()
   })
 
@@ -342,7 +344,7 @@ await expect(page.locator(SELECTORS.STATUS.CALL_STATUS)).toHaveText('Active', { 
 // Ensure mocks are setup before navigation
 test.beforeEach(async ({ page, mockSipServer }) => {
   await mockSipServer() // Call BEFORE goto
-  await page.goto('/')
+  await page.goto(APP_URL)
 })
 
 // Check mock is active
@@ -451,7 +453,7 @@ If tests affect each other:
 ```typescript
 // Ensure clean state
 test.beforeEach(async ({ page }) => {
-  await page.goto('/') // Fresh page
+  await page.goto(APP_URL) // Fresh page
   await page.evaluate(() => localStorage.clear())
   await page.evaluate(() => sessionStorage.clear())
 })
@@ -576,12 +578,12 @@ Each test should work in isolation:
 ```typescript
 // ✅ Good - Self-contained
 test('test A', async ({ page }) => {
-  await page.goto('/')
+  await page.goto(APP_URL)
   // Complete test
 })
 
 test('test B', async ({ page }) => {
-  await page.goto('/')
+  await page.goto(APP_URL)
   // Complete test - doesn't depend on A
 })
 
@@ -675,7 +677,7 @@ See [VISUAL_TESTING.md](./VISUAL_TESTING.md) for detailed guide.
 ```typescript
 test('should load within 3 seconds', async ({ page }) => {
   const start = Date.now()
-  await page.goto('/')
+  await page.goto(APP_URL)
   await page.waitForLoadState('networkidle')
   const loadTime = Date.now() - start
 
@@ -689,7 +691,7 @@ test('should load within 3 seconds', async ({ page }) => {
 import { injectAxe, checkA11y } from 'axe-playwright'
 
 test('should have no accessibility violations', async ({ page }) => {
-  await page.goto('/')
+  await page.goto(APP_URL)
   await injectAxe(page)
   await checkA11y(page)
 })
