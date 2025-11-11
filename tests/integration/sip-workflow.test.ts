@@ -13,50 +13,26 @@ import { SipClient } from '../../src/core/SipClient'
 import { CallSession } from '../../src/core/CallSession'
 import { MediaManager } from '../../src/core/MediaManager'
 import { EventBus } from '../../src/core/EventBus'
+import { createMockSipServer, type MockRTCSession } from '../helpers/MockSipServer'
 import type { SipClientConfig } from '../../src/types/config.types'
 
-// Mock JsSIP
-const mockUA = {
-  start: vi.fn(),
-  stop: vi.fn(),
-  register: vi.fn(),
-  unregister: vi.fn(),
-  call: vi.fn(),
-  sendMessage: vi.fn(),
-  isConnected: vi.fn().mockReturnValue(false),
-  isRegistered: vi.fn().mockReturnValue(false),
-  on: vi.fn(),
-  once: vi.fn(),
-  off: vi.fn(),
-}
-
-const mockRTCSession = {
-  id: 'session-123',
-  connection: {
-    getSenders: vi.fn().mockReturnValue([]),
-    getReceivers: vi.fn().mockReturnValue([]),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-  },
-  isInProgress: vi.fn().mockReturnValue(false),
-  isEstablished: vi.fn().mockReturnValue(false),
-  isEnded: vi.fn().mockReturnValue(false),
-  answer: vi.fn(),
-  terminate: vi.fn(),
-  hold: vi.fn(),
-  unhold: vi.fn(),
-  renegotiate: vi.fn(),
-  refer: vi.fn(),
-  sendDTMF: vi.fn(),
-  on: vi.fn(),
-  off: vi.fn(),
-}
-
+// Mock JsSIP to use our MockSipServer
 vi.mock('jssip', () => {
+  let mockSipServer: ReturnType<typeof createMockSipServer> | null = null
+
   return {
     default: {
       UA: vi.fn(function () {
-        return mockUA
+        // Get the mock server from global if available
+        const server = (global as any).__mockSipServer
+        if (server) {
+          return server.getUA()
+        }
+        // Fallback: create a temporary one
+        if (!mockSipServer) {
+          mockSipServer = createMockSipServer({ autoRegister: false })
+        }
+        return mockSipServer.getUA()
       }),
       WebSocketInterface: vi.fn(),
       debug: {
@@ -85,16 +61,61 @@ function createMockCallSession(
   })
 }
 
+/**
+ * Helper function to setup mock navigator.mediaDevices
+ */
+function setupMockMediaDevices(): void {
+  Object.defineProperty(global.navigator, 'mediaDevices', {
+    value: {
+      getUserMedia: vi.fn().mockResolvedValue({
+        id: 'mock-stream',
+        active: true,
+        getTracks: vi.fn().mockReturnValue([
+          {
+            kind: 'audio',
+            id: 'audio-track-1',
+            enabled: true,
+            stop: vi.fn(),
+            getSettings: vi.fn().mockReturnValue({ deviceId: 'default' }),
+          },
+        ]),
+        getAudioTracks: vi.fn().mockReturnValue([
+          {
+            kind: 'audio',
+            id: 'audio-track-1',
+            enabled: true,
+            stop: vi.fn(),
+            getSettings: vi.fn().mockReturnValue({ deviceId: 'default' }),
+          },
+        ]),
+        getVideoTracks: vi.fn().mockReturnValue([]),
+      }),
+      enumerateDevices: vi.fn().mockResolvedValue([]),
+      getSupportedConstraints: vi.fn().mockReturnValue({}),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    },
+    writable: true,
+    configurable: true,
+  })
+}
+
 describe('SIP Workflow Integration Tests', () => {
   let eventBus: EventBus
   let sipClient: SipClient
   let mediaManager: MediaManager
   let config: SipClientConfig
+  let mockSipServer: ReturnType<typeof createMockSipServer>
 
   beforeEach(() => {
     vi.clearAllMocks()
 
     eventBus = new EventBus()
+    mockSipServer = createMockSipServer({ autoRegister: false })
+    
+    // Store mock server globally so JsSIP mock can access it
+    ;(global as any).__mockSipServer = mockSipServer
 
     config = {
       uri: 'wss://sip.example.com:7443',
@@ -112,44 +133,36 @@ describe('SIP Workflow Integration Tests', () => {
     }
 
     sipClient = new SipClient(config, eventBus)
-    mediaManager = new MediaManager(eventBus)
+    mediaManager = new MediaManager({ eventBus })
+    setupMockMediaDevices()
   })
 
   afterEach(() => {
     sipClient.destroy()
     mediaManager.destroy()
     eventBus.destroy()
+    mockSipServer.destroy()
+    delete (global as any).__mockSipServer
   })
 
   describe('Complete SIP Connection Flow', () => {
     it('should connect and register successfully', async () => {
-      // Mock successful connection
-      mockUA.once.mockImplementation((event: string, handler: Function) => {
-        if (event === 'connected') {
-          setTimeout(() => handler({ socket: { url: 'wss://test.com' } }), 10)
-        }
-        if (event === 'registered') {
-          setTimeout(() => handler({ response: { getHeader: () => '600' } }), 10)
-        }
-      })
-      mockUA.isConnected.mockReturnValue(true)
-      mockUA.isRegistered.mockReturnValue(false)
-
       // Track events
       const events: string[] = []
       eventBus.on('sip:connected', () => events.push('connected'))
       eventBus.on('sip:registered', () => events.push('registered'))
 
-      // Connect
+      // Start connection - mock server will auto-connect
+      mockSipServer.simulateConnect()
       await sipClient.start()
       expect(sipClient.isConnected).toBe(true)
 
-      // Register
-      mockUA.isRegistered.mockReturnValue(true)
+      // Register - mock server will auto-register
+      mockSipServer.simulateRegistered()
       await sipClient.register()
       expect(sipClient.isRegistered).toBe(true)
 
-      // Wait for events
+      // Wait for events to propagate
       await new Promise((resolve) => setTimeout(resolve, 100))
 
       expect(events).toContain('connected')
@@ -157,11 +170,7 @@ describe('SIP Workflow Integration Tests', () => {
     })
 
     it('should handle connection failure gracefully', async () => {
-      mockUA.once.mockImplementation((event: string, handler: Function) => {
-        if (event === 'disconnected') {
-          setTimeout(() => handler({ code: 1006, reason: 'Connection failed' }), 10)
-        }
-      })
+      mockSipServer.simulateDisconnect(1006, 'Connection failed')
 
       await expect(sipClient.start()).rejects.toThrow('Connection failed')
       expect(sipClient.connectionState).toBe('connection_failed')
@@ -169,17 +178,11 @@ describe('SIP Workflow Integration Tests', () => {
 
     it('should handle registration failure gracefully', async () => {
       // Connect first
-      mockUA.once.mockImplementation((event: string, handler: Function) => {
-        if (event === 'connected') {
-          setTimeout(() => handler({}), 10)
-        }
-        if (event === 'registrationFailed') {
-          setTimeout(() => handler({ cause: 'Authentication failed' }), 10)
-        }
-      })
-      mockUA.isConnected.mockReturnValue(true)
-
+      mockSipServer.simulateConnect()
       await sipClient.start()
+
+      // Setup registration failure
+      mockSipServer.simulateRegistrationFailed('Authentication failed')
 
       await expect(sipClient.register()).rejects.toThrow('Registration failed')
       expect(sipClient.registrationState).toBe('registration_failed')
@@ -189,91 +192,43 @@ describe('SIP Workflow Integration Tests', () => {
   describe('Complete Call Flow', () => {
     beforeEach(async () => {
       // Setup connected and registered state
-      mockUA.once.mockImplementation((event: string, handler: Function) => {
-        if (event === 'connected') {
-          setTimeout(() => handler({}), 10)
-        }
-        if (event === 'registered') {
-          setTimeout(() => handler({}), 10)
-        }
-      })
-      mockUA.isConnected.mockReturnValue(true)
-      mockUA.isRegistered.mockReturnValue(false)
-
+      mockSipServer.simulateConnect()
       await sipClient.start()
-      mockUA.isRegistered.mockReturnValue(true)
+      mockSipServer.simulateRegistered()
       await sipClient.register()
     })
 
     it('should make outgoing call successfully', async () => {
-      const mockStream = {
-        getTracks: vi.fn().mockReturnValue([
-          { kind: 'audio', stop: vi.fn() },
-        ]),
-        getAudioTracks: vi.fn().mockReturnValue([]),
-        getVideoTracks: vi.fn().mockReturnValue([]),
-      } as any
+      const session = mockSipServer.createSession('session-123')
+      const mockUA = mockSipServer.getUA()
+      mockUA.call.mockReturnValue(session)
 
-      // Mock media acquisition
-      global.navigator.mediaDevices = {
-        getUserMedia: vi.fn().mockResolvedValue(mockStream),
-      } as any
-
-      mockUA.call.mockReturnValue(mockRTCSession)
-
-      // Setup session event handlers
-      const sessionHandlers: Record<string, Function> = {}
-      mockRTCSession.on.mockImplementation((event: string, handler: Function) => {
-        sessionHandlers[event] = handler
-      })
-
-      const callSession = createMockCallSession(mockRTCSession as any, 'outgoing', eventBus)
+      // Use the session ID from mockRTCSession for the call
+      const callSession = createMockCallSession(session as any, 'outgoing', eventBus, session.id)
 
       // Simulate call progress
-      mockRTCSession.isInProgress.mockReturnValue(true)
-      if (sessionHandlers['progress']) {
-        sessionHandlers['progress']({ originator: 'remote' })
-      }
+      mockSipServer.simulateCallProgress(session)
 
       // Simulate call accepted
-      mockRTCSession.isEstablished.mockReturnValue(true)
-      if (sessionHandlers['accepted']) {
-        sessionHandlers['accepted']({ originator: 'remote' })
-      }
+      mockSipServer.simulateCallAccepted(session)
+      mockSipServer.simulateCallConfirmed(session)
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       expect(callSession).toBeDefined()
-      expect(callSession.id).toBe('session-123')
+      expect(callSession.id).toBe(session.id)
       expect(callSession.direction).toBe('outgoing')
     })
 
     it('should receive incoming call successfully', async () => {
-      const mockStream = {
-        getTracks: vi.fn().mockReturnValue([
-          { kind: 'audio', stop: vi.fn() },
-        ]),
-      } as any
+      const session = mockSipServer.simulateIncomingCall(
+        'sip:caller@example.com',
+        'sip:testuser@example.com'
+      )
 
-      // Simulate incoming call
-      let newRTCSessionHandler: Function | null = null
-      mockUA.on.mockImplementation((event: string, handler: Function) => {
-        if (event === 'newRTCSession') {
-          newRTCSessionHandler = handler
-        }
-      })
+      const callSession = createMockCallSession(session as any, 'incoming', eventBus)
 
-      // Trigger incoming call
-      if (newRTCSessionHandler) {
-        newRTCSessionHandler({
-          session: mockRTCSession,
-          originator: 'remote',
-          request: {
-            from: { uri: { user: 'caller', host: 'example.com' } },
-            to: { uri: { user: 'callee', host: 'example.com' } },
-          },
-        })
-      }
-
-      const callSession = createMockCallSession(mockRTCSession as any, 'incoming', eventBus)
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       expect(callSession).toBeDefined()
       expect(callSession.direction).toBe('incoming')
@@ -287,34 +242,20 @@ describe('SIP Workflow Integration Tests', () => {
       eventBus.on('call:confirmed', () => events.push('confirmed'))
       eventBus.on('call:ended', () => events.push('ended'))
 
-      // Setup session handlers
-      const sessionHandlers: Record<string, Function> = {}
-      mockRTCSession.on.mockImplementation((event: string, handler: Function) => {
-        sessionHandlers[event] = handler
-      })
-
-      const callSession = createMockCallSession(mockRTCSession as any, 'outgoing', eventBus)
+      const session = mockSipServer.createSession()
+      const callSession = createMockCallSession(session as any, 'outgoing', eventBus)
 
       // Simulate call lifecycle
-      mockRTCSession.isInProgress.mockReturnValue(true)
-      if (sessionHandlers['progress']) {
-        sessionHandlers['progress']({ originator: 'remote' })
-      }
+      mockSipServer.simulateCallProgress(session)
+      await new Promise((resolve) => setTimeout(resolve, 20))
 
-      mockRTCSession.isEstablished.mockReturnValue(true)
-      if (sessionHandlers['accepted']) {
-        sessionHandlers['accepted']({ originator: 'remote' })
-      }
+      mockSipServer.simulateCallAccepted(session)
+      await new Promise((resolve) => setTimeout(resolve, 20))
 
-      if (sessionHandlers['confirmed']) {
-        sessionHandlers['confirmed']()
-      }
+      mockSipServer.simulateCallConfirmed(session)
+      await new Promise((resolve) => setTimeout(resolve, 20))
 
-      mockRTCSession.isEnded.mockReturnValue(true)
-      if (sessionHandlers['ended']) {
-        sessionHandlers['ended']({ originator: 'local', cause: 'Bye' })
-      }
-
+      mockSipServer.simulateCallEnded(session, 'local', 'Bye')
       await new Promise((resolve) => setTimeout(resolve, 100))
 
       expect(events).toContain('progress')
@@ -324,35 +265,27 @@ describe('SIP Workflow Integration Tests', () => {
 
   describe('Media Management Integration', () => {
     it('should acquire and release media successfully', async () => {
-      const mockStream = {
-        getTracks: vi.fn().mockReturnValue([
-          { kind: 'audio', stop: vi.fn() },
-        ]),
-        getAudioTracks: vi.fn().mockReturnValue([
-          { kind: 'audio', stop: vi.fn() },
-        ]),
-        getVideoTracks: vi.fn().mockReturnValue([]),
-      } as any
-
-      global.navigator.mediaDevices = {
-        getUserMedia: vi.fn().mockResolvedValue(mockStream),
-        enumerateDevices: vi.fn().mockResolvedValue([]),
-      } as any
-
       const stream = await mediaManager.getUserMedia({ audio: true, video: false })
 
       expect(stream).toBeDefined()
-      expect(mediaManager.hasActiveStream).toBe(true)
+      // Check if localStream is set
+      const hasActiveStream = (mediaManager as any).localStream !== undefined
+      expect(hasActiveStream).toBe(true)
 
-      mediaManager.releaseUserMedia()
+      mediaManager.stopLocalStream()
 
-      expect(mediaManager.hasActiveStream).toBe(false)
+      const hasActiveStreamAfterRelease = (mediaManager as any).localStream === undefined
+      expect(hasActiveStreamAfterRelease).toBe(true)
     })
 
     it('should handle media errors gracefully', async () => {
-      global.navigator.mediaDevices = {
-        getUserMedia: vi.fn().mockRejectedValue(new Error('Permission denied')),
-      } as any
+      Object.defineProperty(global.navigator, 'mediaDevices', {
+        value: {
+          getUserMedia: vi.fn().mockRejectedValue(new Error('Permission denied')),
+        },
+        writable: true,
+        configurable: true,
+      })
 
       await expect(
         mediaManager.getUserMedia({ audio: true, video: false })
@@ -362,39 +295,74 @@ describe('SIP Workflow Integration Tests', () => {
 
   describe('DTMF Handling', () => {
     it('should send DTMF tones', async () => {
-      const callSession = createMockCallSession(mockRTCSession as any, 'outgoing', eventBus)
+      const session = mockSipServer.createSession()
+      const callSession = createMockCallSession(session as any, 'outgoing', eventBus)
+
+      // Set call to active state by simulating full call lifecycle
+      mockSipServer.simulateCallProgress(session)
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      mockSipServer.simulateCallAccepted(session)
+      mockSipServer.simulateCallConfirmed(session)
+
+      // Wait for state transition to active
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       callSession.sendDTMF('1')
-      expect(mockRTCSession.sendDTMF).toHaveBeenCalledWith('1', expect.any(Object))
+      expect(session.sendDTMF).toHaveBeenCalledWith('1', expect.any(Object))
 
       callSession.sendDTMF('2')
-      expect(mockRTCSession.sendDTMF).toHaveBeenCalledWith('2', expect.any(Object))
+      expect(session.sendDTMF).toHaveBeenCalledWith('2', expect.any(Object))
     })
   })
 
   describe('Call Transfer', () => {
     it('should transfer call (blind transfer)', async () => {
-      const callSession = createMockCallSession(mockRTCSession as any, 'outgoing', eventBus)
+      const session = mockSipServer.createSession()
+      const callSession = createMockCallSession(session as any, 'outgoing', eventBus)
 
-      mockRTCSession.isEstablished.mockReturnValue(true)
+      // Set call to active state
+      mockSipServer.simulateCallProgress(session)
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      mockSipServer.simulateCallAccepted(session)
+      mockSipServer.simulateCallConfirmed(session)
+
+      // Wait for state transition to active
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       callSession.transfer('sip:transfer@example.com')
 
-      expect(mockRTCSession.refer).toHaveBeenCalledWith('sip:transfer@example.com')
+      expect(session.refer).toHaveBeenCalledWith('sip:transfer@example.com', expect.any(Object))
     })
   })
 
   describe('Hold/Unhold', () => {
     it('should hold and unhold call', async () => {
-      const callSession = createMockCallSession(mockRTCSession as any, 'outgoing', eventBus)
+      const session = mockSipServer.createSession()
+      const callSession = createMockCallSession(session as any, 'outgoing', eventBus)
 
-      mockRTCSession.isEstablished.mockReturnValue(true)
+      // Set call to active state
+      mockSipServer.simulateCallProgress(session)
+      await new Promise((resolve) => setTimeout(resolve, 10))
 
+      mockSipServer.simulateCallAccepted(session)
+      mockSipServer.simulateCallConfirmed(session)
+
+      // Wait for state transition to active
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      // Hold the call
       await callSession.hold()
-      expect(mockRTCSession.hold).toHaveBeenCalled()
+      expect(session.hold).toHaveBeenCalled()
 
+      // Trigger hold event to update CallSession state
+      mockSipServer.simulateHold(session, 'local')
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      // Now unhold
       await callSession.unhold()
-      expect(mockRTCSession.unhold).toHaveBeenCalled()
+      expect(session.unhold).toHaveBeenCalled()
     })
   })
 
@@ -402,18 +370,11 @@ describe('SIP Workflow Integration Tests', () => {
     it('should handle multiple concurrent calls', async () => {
       const activeCalls = new Map()
 
-      const call1 = createMockCallSession(
-        { ...mockRTCSession, id: 'call-1' } as any,
-        'outgoing',
-        eventBus,
-        'call-1'
-      )
-      const call2 = createMockCallSession(
-        { ...mockRTCSession, id: 'call-2' } as any,
-        'incoming',
-        eventBus,
-        'call-2'
-      )
+      const session1 = mockSipServer.createSession('call-1')
+      const call1 = createMockCallSession(session1 as any, 'outgoing', eventBus, 'call-1')
+
+      const session2 = mockSipServer.createSession('call-2')
+      const call2 = createMockCallSession(session2 as any, 'incoming', eventBus, 'call-2')
 
       activeCalls.set('call-1', call1)
       activeCalls.set('call-2', call2)
@@ -433,20 +394,10 @@ describe('SIP Workflow Integration Tests', () => {
       eventBus.on('call:progress', (data) => events.push({ type: 'progress', data }))
       eventBus.on('call:accepted', (data) => events.push({ type: 'accepted', data }))
 
-      mockUA.once.mockImplementation((event: string, handler: Function) => {
-        if (event === 'connected') {
-          setTimeout(() => handler({ socket: { url: 'wss://test.com' } }), 10)
-        }
-        if (event === 'registered') {
-          setTimeout(() => handler({ response: { getHeader: () => '600' } }), 10)
-        }
-      })
-      mockUA.isConnected.mockReturnValue(true)
-      mockUA.isRegistered.mockReturnValue(false)
-
+      mockSipServer.simulateConnect()
       await sipClient.start()
 
-      mockUA.isRegistered.mockReturnValue(true)
+      mockSipServer.simulateRegistered()
       await sipClient.register()
 
       await new Promise((resolve) => setTimeout(resolve, 100))
@@ -458,17 +409,11 @@ describe('SIP Workflow Integration Tests', () => {
 
   describe('Cleanup and Resource Management', () => {
     it('should cleanup resources on stop', async () => {
-      mockUA.once.mockImplementation((event: string, handler: Function) => {
-        if (event === 'connected') {
-          setTimeout(() => handler({}), 10)
-        }
-      })
-      mockUA.isConnected.mockReturnValue(true)
-      mockUA.isRegistered.mockReturnValue(false)
-
+      mockSipServer.simulateConnect()
       await sipClient.start()
       await sipClient.stop()
 
+      const mockUA = mockSipServer.getUA()
       expect(mockUA.stop).toHaveBeenCalled()
       expect(sipClient.connectionState).toBe('disconnected')
     })

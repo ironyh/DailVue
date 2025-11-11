@@ -129,8 +129,9 @@ function formatReport(report: BundleSizeReport): string {
   lines.push(`${'='.repeat(80)}`)
 
   if (!report.buildExists) {
-    lines.push('⚠️  Build artifacts not found. Run `npm run build` first.')
+    lines.push('⚠️  Build artifacts not found. Run `pnpm run build` first.')
     lines.push('   Tests will be skipped.')
+    lines.push('   Or use `pnpm run test:performance:metrics:full` to build and test automatically.')
   } else {
     lines.push(
       `Status: ${report.allPassed ? '✓ PASSED' : '✗ FAILED'} (${report.passedFiles}/${report.totalFiles})`
@@ -215,7 +216,8 @@ describe('Bundle Size Performance Tests', () => {
           console.warn(
             '\n⚠️  Skipping bundle size tests: build artifacts not found in dist/ directory'
           )
-          console.warn('   Run `npm run build` to generate bundles and enable these tests\n')
+          console.warn('   Run `pnpm run build` to generate bundles and enable these tests')
+          console.warn('   Or use `pnpm run test:performance:metrics:full` to build and test automatically\n')
         }
       }
     })

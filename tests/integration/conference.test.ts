@@ -93,7 +93,7 @@ describe('Conference Integration Tests', () => {
     vi.clearAllMocks()
 
     eventBus = new EventBus()
-    mediaManager = new MediaManager(eventBus)
+    mediaManager = new MediaManager({ eventBus })
     mockSipServer = createMockSipServer({ autoAcceptCalls: true })
 
     // Setup media devices
@@ -905,8 +905,7 @@ describe('Conference Integration Tests', () => {
 
     it('should handle hold/unhold for conference participants', async () => {
       const session1 = mockSipServer.createSession('conf-call-1')
-      mockSipServer.simulateCallAccepted(session1)
-
+      
       const callSession1 = new CallSession({
         id: session1.id,
         direction: 'outgoing',
@@ -917,11 +916,20 @@ describe('Conference Integration Tests', () => {
         eventBus,
       })
 
+      // Simulate call lifecycle to get to active state
+      mockSipServer.simulateCallProgress(session1)
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      mockSipServer.simulateCallAccepted(session1)
+      mockSipServer.simulateCallConfirmed(session1)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
       const p1 = createParticipant('p1', 'sip:participant1@example.com', 'Participant 1')
       p1.callSession = callSession1
 
       // Hold participant
       await callSession1.hold()
+      mockSipServer.simulateHold(session1, 'local')
+      await new Promise((resolve) => setTimeout(resolve, 10))
 
       // In real implementation, held state would be tracked
       expect(session1.hold).toHaveBeenCalled()
@@ -941,8 +949,7 @@ describe('Conference Integration Tests', () => {
 
       for (let i = 1; i <= 3; i++) {
         const session = mockSipServer.createSession(`call-${i}`)
-        mockSipServer.simulateCallAccepted(session)
-
+        
         const callSession = new CallSession({
           id: session.id,
           direction: 'outgoing',
@@ -952,6 +959,13 @@ describe('Conference Integration Tests', () => {
           rtcSession: session,
           eventBus,
         })
+
+        // Simulate call lifecycle to get to active state
+        mockSipServer.simulateCallProgress(session)
+        await new Promise((resolve) => setTimeout(resolve, 10))
+        mockSipServer.simulateCallAccepted(session)
+        mockSipServer.simulateCallConfirmed(session)
+        await new Promise((resolve) => setTimeout(resolve, 10))
 
         const p = createParticipant(`p${i}`, `sip:user${i}@example.com`, `User ${i}`)
         p.callSession = callSession

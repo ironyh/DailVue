@@ -200,23 +200,29 @@ describe('AnalyticsPlugin', () => {
       await plugin.install(context, {
         endpoint: 'https://analytics.example.com',
         batchEvents: true,
-        batchSize: 3,
+        batchSize: 4, // Account for plugin:installed event (1) + 3 more = 4 total
         sendInterval: 5000,
       })
+
+      // Wait for plugin:installed event to be processed
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      // Clear the fetch mock to ignore the plugin:installed event
+      fetchMock.mockClear()
 
       // Track events
       eventBus.emit('connected')
       eventBus.emit('registered')
 
-      // Should not send yet (batch size not reached)
+      // Should not send yet (batch size not reached: 1 plugin:installed + 2 new = 3 < 4)
       await new Promise((resolve) => setTimeout(resolve, 50))
       expect(fetchMock).not.toHaveBeenCalled()
 
-      // Track one more event to reach batch size
+      // Track one more event to reach batch size (1 + 2 + 1 = 4)
       eventBus.emit('callStarted', { callId: 'test' })
 
       // Should send now
       await new Promise((resolve) => setTimeout(resolve, 100))
+      expect(fetchMock).toHaveBeenCalled()
     })
 
     it('should send batched events on interval', async () => {

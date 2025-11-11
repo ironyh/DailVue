@@ -32,6 +32,11 @@ class MockMediaRecorder {
 
   stop() {
     this.state = 'inactive'
+    // Trigger ondataavailable with mock data before onstop
+    if (this.ondataavailable) {
+      const mockBlob = new Blob(['mock data'], { type: 'audio/webm' })
+      this.ondataavailable({ data: mockBlob } as any)
+    }
     if (this.onstop) {
       setTimeout(() => this.onstop?.(), 10)
     }
@@ -53,10 +58,22 @@ class MockIDBDatabase {
   }
 
   transaction = vi.fn((storeNames: string[], mode: string) => ({
+    onabort: null,
+    onerror: null,
     objectStore: vi.fn((name: string) => ({
-      add: vi.fn().mockReturnValue({
-        onsuccess: null,
-        onerror: null,
+      add: vi.fn((data: any) => {
+        const request = {
+          onsuccess: null,
+          onerror: null,
+          result: data,
+        }
+        // Trigger onsuccess asynchronously to simulate IndexedDB behavior
+        setTimeout(() => {
+          if (request.onsuccess) {
+            request.onsuccess({ target: request } as any)
+          }
+        }, 10)
+        return request
       }),
       count: vi.fn().mockReturnValue({
         onsuccess: null,
@@ -193,6 +210,21 @@ describe('RecordingPlugin - Edge Cases', () => {
     it('should detect and handle empty recordings', async () => {
       const onRecordingError = vi.fn()
 
+      // Create a mock MediaRecorder that doesn't provide data
+      class EmptyMockMediaRecorder extends MockMediaRecorder {
+        stop() {
+          this.state = 'inactive'
+          // Don't trigger ondataavailable - simulate empty recording
+          if (this.onstop) {
+            setTimeout(() => this.onstop?.(), 10)
+          }
+        }
+      }
+
+      // Temporarily replace the global MediaRecorder
+      const originalMediaRecorder = global.MediaRecorder
+      global.MediaRecorder = EmptyMockMediaRecorder as any
+
       await plugin.install(context, {
         storeInIndexedDB: false,
         onRecordingError,
@@ -209,6 +241,9 @@ describe('RecordingPlugin - Edge Cases', () => {
 
       // Should have called error callback for empty recording
       expect(onRecordingError).toHaveBeenCalled()
+
+      // Restore original MediaRecorder
+      global.MediaRecorder = originalMediaRecorder
     })
 
     it('should not save empty blobs to IndexedDB', async () => {

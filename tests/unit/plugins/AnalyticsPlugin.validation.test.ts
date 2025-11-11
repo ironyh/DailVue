@@ -10,6 +10,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { AnalyticsPlugin } from '../../../src/plugins/AnalyticsPlugin'
 import { EventBus } from '../../../src/core/EventBus'
+import * as loggerModule from '../../../src/utils/logger'
 
 describe('AnalyticsPlugin - Validation', () => {
   describe('Empty Event Tracking Validation', () => {
@@ -19,6 +20,8 @@ describe('AnalyticsPlugin - Validation', () => {
     beforeEach(async () => {
       plugin = new AnalyticsPlugin()
       eventBus = new EventBus()
+      // Enable logging for tests
+      loggerModule.configureLogger({ enabled: true, level: 'warn' })
 
       await plugin.install(
         { eventBus },
@@ -32,12 +35,14 @@ describe('AnalyticsPlugin - Validation', () => {
 
     afterEach(async () => {
       await plugin.uninstall({ eventBus })
+      // Restore logging
+      loggerModule.configureLogger({ enabled: false })
     })
 
     it('should reject null event data when validation enabled', () => {
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-      plugin.trackEvent('test:event', null as any)
+      ;(plugin as any).trackEvent('test:event', null as any)
 
       expect(consoleSpy).toHaveBeenCalled()
       // Logger uses formatted output, check that any argument contains the message
@@ -54,7 +59,7 @@ describe('AnalyticsPlugin - Validation', () => {
     it('should accept undefined event data', () => {
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-      plugin.trackEvent('test:event', undefined)
+      ;(plugin as any).trackEvent('test:event', undefined)
 
       // Should not warn about invalid data
       const calls = consoleSpy.mock.calls
@@ -70,7 +75,7 @@ describe('AnalyticsPlugin - Validation', () => {
     it('should accept empty object event data', () => {
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-      plugin.trackEvent('test:event', {})
+      ;(plugin as any).trackEvent('test:event', {})
 
       // Should not warn about invalid data
       const calls = consoleSpy.mock.calls
@@ -86,7 +91,7 @@ describe('AnalyticsPlugin - Validation', () => {
     it('should reject array event data', () => {
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-      plugin.trackEvent('test:event', [] as any)
+      ;(plugin as any).trackEvent('test:event', [] as any)
 
       expect(consoleSpy).toHaveBeenCalled()
       const calls = consoleSpy.mock.calls
@@ -102,9 +107,9 @@ describe('AnalyticsPlugin - Validation', () => {
     it('should reject non-object event data', () => {
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-      plugin.trackEvent('test:event', 'string' as any)
-      plugin.trackEvent('test:event', 123 as any)
-      plugin.trackEvent('test:event', true as any)
+      ;(plugin as any).trackEvent('test:event', 'string' as any)
+      ;(plugin as any).trackEvent('test:event', 123 as any)
+      ;(plugin as any).trackEvent('test:event', true as any)
 
       expect(consoleSpy).toHaveBeenCalledTimes(3)
 
@@ -127,7 +132,7 @@ describe('AnalyticsPlugin - Validation', () => {
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
       // Null should be allowed when validation disabled
-      plugin.trackEvent('test:event', null as any)
+      ;(plugin as any).trackEvent('test:event', null as any)
 
       const calls = consoleSpy.mock.calls
       expect(
@@ -147,6 +152,8 @@ describe('AnalyticsPlugin - Validation', () => {
     beforeEach(async () => {
       plugin = new AnalyticsPlugin()
       eventBus = new EventBus()
+      // Enable logging for tests
+      loggerModule.configureLogger({ enabled: true, level: 'warn' })
 
       await plugin.install(
         { eventBus },
@@ -160,6 +167,8 @@ describe('AnalyticsPlugin - Validation', () => {
 
     afterEach(async () => {
       await plugin.uninstall({ eventBus })
+      // Restore logging
+      loggerModule.configureLogger({ enabled: false })
     })
 
     it('should reject events exceeding payload size limit', () => {
@@ -170,7 +179,7 @@ describe('AnalyticsPlugin - Validation', () => {
         bigArray: new Array(1000).fill('x'.repeat(100)),
       }
 
-      plugin.trackEvent('test:event', largeData)
+      ;(plugin as any).trackEvent('test:event', largeData)
 
       expect(consoleSpy).toHaveBeenCalled()
       const calls = consoleSpy.mock.calls
@@ -191,7 +200,7 @@ describe('AnalyticsPlugin - Validation', () => {
         message: 'test',
       }
 
-      plugin.trackEvent('test:event', smallData)
+      ;(plugin as any).trackEvent('test:event', smallData)
 
       const calls = consoleSpy.mock.calls
       expect(
@@ -223,7 +232,7 @@ describe('AnalyticsPlugin - Validation', () => {
         data: 'x'.repeat(50000), // 50KB
       }
 
-      plugin.trackEvent('test:event', mediumData)
+      ;(plugin as any).trackEvent('test:event', mediumData)
 
       // Should not exceed 100KB default limit
       const calls = consoleSpy.mock.calls
@@ -243,7 +252,7 @@ describe('AnalyticsPlugin - Validation', () => {
       const circular: any = { prop: 'value' }
       circular.circular = circular
 
-      plugin.trackEvent('test:event', circular)
+      ;(plugin as any).trackEvent('test:event', circular)
 
       expect(consoleSpy).toHaveBeenCalled()
       const calls = consoleSpy.mock.calls
