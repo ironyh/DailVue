@@ -65,5 +65,8 @@ export default defineConfig({
     command: 'pnpm run dev',
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
+    timeout: 120000, // 2 minutes for CI environments
+    stdout: process.env.CI ? 'pipe' : 'ignore',
+    stderr: process.env.CI ? 'pipe' : 'ignore',
   },
 })

@@ -37,6 +37,17 @@ jobs:
       - name: Install Playwright Browsers
         run: pnpm exec playwright install --with-deps ${{ matrix.browser }}
 
+      - name: Create test-results directory
+        run: mkdir -p test-results
+
+      - name: List tests for project
+        run: |
+          echo "Listing tests for project: ${{ matrix.browser }}"
+          pnpm exec playwright test --project=${{ matrix.browser }} --list || true
+        env:
+          CI: true
+        continue-on-error: true
+
       - name: Run E2E tests
         run: pnpm exec playwright test --project=${{ matrix.browser }}
         env:
@@ -59,6 +70,7 @@ jobs:
           name: screenshots-${{ matrix.browser }}
           path: test-results/**/*.png
           retention-days: 30
+          if-no-files-found: warn
 
       - name: Upload videos on failure
         if: failure()
@@ -67,6 +79,7 @@ jobs:
           name: videos-${{ matrix.browser }}
           path: test-results/**/*.webm
           retention-days: 30
+          if-no-files-found: warn
 
   test-mobile:
     timeout-minutes: 60
@@ -96,6 +109,17 @@ jobs:
 
       - name: Install Playwright Browsers
         run: pnpm exec playwright install --with-deps chromium webkit
+
+      - name: Create test-results directory
+        run: mkdir -p test-results
+
+      - name: List tests for project
+        run: |
+          echo "Listing tests for project: ${{ matrix.device }}"
+          pnpm exec playwright test --project="${{ matrix.device }}" --list || true
+        env:
+          CI: true
+        continue-on-error: true
 
       - name: Run Mobile E2E tests
         run: pnpm exec playwright test --project="${{ matrix.device }}"
