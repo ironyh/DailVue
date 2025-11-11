@@ -202,8 +202,8 @@ export const SipClientProvider = defineComponent({
   },
 
   setup(props, { emit, slots }) {
-    // Create event bus instance (shared across provider)
-    const eventBus = ref<EventBus>(new EventBus())
+    // Create or use external event bus instance (shared across provider)
+    const eventBus = ref<EventBus>(props.eventBus ?? new EventBus())
 
     // SIP client instance
     const client = ref<SipClient | null>(null)
