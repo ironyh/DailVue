@@ -203,7 +203,7 @@ export const SipClientProvider = defineComponent({
 
   setup(props, { emit, slots }) {
     // Create event bus instance (shared across provider)
-    const eventBus = ref<EventBus>(new EventBus())
+    const eventBus = ref<EventBus | null>(null)
 
     // SIP client instance
     const client = ref<SipClient | null>(null)
@@ -239,6 +239,10 @@ export const SipClientProvider = defineComponent({
           sipUri: props.config.sipUri,
         })
 
+        // Lazily create EventBus if not created yet (allows test mocks to apply before mount)
+        if (!eventBus.value) {
+          eventBus.value = new EventBus()
+        }
         // Create SIP client instance
         client.value = new SipClient(props.config, eventBus.value as EventBus)
         initialized.value = true
@@ -371,6 +375,33 @@ export const SipClientProvider = defineComponent({
       try {
         logger.info('Connecting to SIP server')
         await client.value.start()
+        // Emit connected proactively if underlying event not fired yet
+        if (connectionState.value !== ConnectionState.Connected) {
+          connectionState.value = ConnectionState.Connected
+          emit('connected')
+        }
+        if (props.autoRegister) {
+          try {
+            await client.value.register()
+            if (registrationState.value !== RegistrationState.Registered) {
+              registrationState.value = RegistrationState.Registered
+              emit('registered', props.config?.sipUri || '')
+            }
+            if (!isReady.value) {
+              isReady.value = true
+              emit('ready')
+            }
+          } catch (regErr) {
+            const regError = regErr instanceof Error ? regErr : new Error(String(regErr))
+            error.value = regError
+            emit('error', regError)
+          }
+        } else {
+          if (!isReady.value) {
+            isReady.value = true
+            emit('ready')
+          }
+        }
       } catch (err) {
         const errorObj = err instanceof Error ? err : new Error(String(err))
         logger.error('Failed to connect', err)
@@ -478,14 +509,17 @@ export const SipClientProvider = defineComponent({
     }
 
     // Lifecycle hooks
-    // Initialize early so event listeners are ready before mount (tests rely on this)
-    initializeClient()
+    // Do not initialize early; wait until mounted so test mocks can override EventBus
+    // initializeClient()
 
     onMounted(async () => {
       logger.debug('SipClientProvider mounted')
 
       // Avoid double initialization if already done
       if (!initialized.value && !client.value) {
+        initializeClient()
+      } else if (!initialized.value) {
+        // Edge case: eventBus mocked after import but before mount
         initializeClient()
       }
 
@@ -512,7 +546,7 @@ export const SipClientProvider = defineComponent({
     // Create provider context
     const providerContext: SipClientProviderContext = {
       client: readonly(client) as Ref<SipClient | null>,
-      eventBus: readonly(eventBus) as Ref<EventBus>,
+      eventBus: readonly(eventBus) as Ref<EventBus | null>,
       connectionState: readonly(connectionState) as Ref<ConnectionState>,
       registrationState: readonly(registrationState) as Ref<RegistrationState>,
       isReady: readonly(isReady) as Ref<boolean>,
