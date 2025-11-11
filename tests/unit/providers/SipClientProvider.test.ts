@@ -236,7 +236,7 @@ describe('SipClientProvider - Phase 7.1 Implementation', () => {
     })
 
     it('should auto-connect when autoConnect is true', async () => {
-      mount(SipClientProvider, {
+      const wrapper = mount(SipClientProvider, {
         props: {
           config: mockConfig,
           autoConnect: true,
@@ -245,11 +245,15 @@ describe('SipClientProvider - Phase 7.1 Implementation', () => {
 
       await flushPromises()
 
+      // Force event bus emit to simulate JsSIP events
+      ;(wrapper.vm as any).eventBus.emitSync?.('sip:connected')
+
       const { SipClient } = await import('@/core/SipClient')
       const mockInstance = vi.mocked(SipClient).mock.results[0]?.value
 
-      // Should call start()
+      // Should call start() and emit connected
       expect(mockInstance?.start).toHaveBeenCalled()
+      expect(wrapper.emitted('connected')).toBeDefined()
     })
 
     it('should emit error if auto-connect fails', async () => {
@@ -497,6 +501,9 @@ describe('SipClientProvider - Phase 7.1 Implementation', () => {
       await flushPromises()
       await new Promise((resolve) => setTimeout(resolve, 10))
 
+      // Explicitly emit via bus to simulate JsSIP
+      ;(wrapper.vm as any).eventBus.emitSync?.('sip:connected')
+
       expect(wrapper.emitted('connected')).toBeDefined()
     })
 
@@ -526,6 +533,8 @@ describe('SipClientProvider - Phase 7.1 Implementation', () => {
 
       await flushPromises()
       await new Promise((resolve) => setTimeout(resolve, 10))
+
+      ;(wrapper.vm as any).eventBus.emitSync?.('sip:registered', { uri: 'sip:alice@example.com' })
 
       expect(wrapper.emitted('registered')).toBeDefined()
       expect(wrapper.emitted('registered')?.[0]?.[0]).toBe('sip:alice@example.com')
@@ -558,6 +567,8 @@ describe('SipClientProvider - Phase 7.1 Implementation', () => {
       await flushPromises()
       await new Promise((resolve) => setTimeout(resolve, 10))
 
+      ;(wrapper.vm as any).eventBus.emitSync?.('sip:registered', { uri: 'sip:alice@example.com' })
+
       expect(wrapper.emitted('ready')).toBeDefined()
     })
 
@@ -587,6 +598,8 @@ describe('SipClientProvider - Phase 7.1 Implementation', () => {
 
       await flushPromises()
       await new Promise((resolve) => setTimeout(resolve, 10))
+
+      ;(wrapper.vm as any).eventBus.emitSync?.('sip:registration_failed', { cause: 'Authentication failed' })
 
       expect(wrapper.emitted('error')).toBeDefined()
       const errorEvent = wrapper.emitted('error')?.[0]?.[0] as Error
