@@ -7,7 +7,7 @@
  */
 
 import { test as base, expect, Browser, BrowserContext, Page } from '@playwright/test'
-import { test as fixtureTest } from './fixtures'
+import { test as fixtureTest, APP_URL } from './fixtures'
 import { SELECTORS, TEST_DATA } from './selectors'
 
 // Define user fixture type
@@ -25,7 +25,7 @@ const test = base.extend<MultiUserFixtures>({
 
     // Setup mocks for user A
     await setupMocksForPage(page)
-    await page.goto('/')
+    await page.goto(APP_URL)
 
     await use({ page, context })
 
@@ -38,7 +38,7 @@ const test = base.extend<MultiUserFixtures>({
 
     // Setup mocks for user B
     await setupMocksForPage(page)
-    await page.goto('/')
+    await page.goto(APP_URL)
 
     await use({ page, context })
 
@@ -51,7 +51,7 @@ const test = base.extend<MultiUserFixtures>({
 
     // Setup mocks for user C
     await setupMocksForPage(page)
-    await page.goto('/')
+    await page.goto(APP_URL)
 
     await use({ page, context })
 

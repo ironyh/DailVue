@@ -5,14 +5,14 @@
  * Critical for VoIP applications that must work reliably on poor connections.
  */
 
-import { test, expect } from './fixtures'
+import { test, expect, APP_URL } from './fixtures'
 import { SELECTORS, TEST_DATA } from './selectors'
 
 test.describe('Network Conditions - Connection Quality', () => {
   test.beforeEach(async ({ page, mockSipServer, mockMediaDevices }) => {
     await mockSipServer()
     await mockMediaDevices()
-    await page.goto('/')
+    await page.goto(APP_URL)
     await expect(page.locator(SELECTORS.APP.ROOT)).toBeVisible()
   })
 
@@ -153,7 +153,7 @@ test.describe('Network Conditions - Connection Interruption', () => {
   test.beforeEach(async ({ page, mockSipServer, mockMediaDevices }) => {
     await mockSipServer()
     await mockMediaDevices()
-    await page.goto('/')
+    await page.goto(APP_URL)
     await expect(page.locator(SELECTORS.APP.ROOT)).toBeVisible()
   })
 
@@ -263,7 +263,7 @@ test.describe('Network Conditions - Bandwidth Throttling', () => {
   test.beforeEach(async ({ page, mockSipServer, mockMediaDevices }) => {
     await mockSipServer()
     await mockMediaDevices()
-    await page.goto('/')
+    await page.goto(APP_URL)
     await expect(page.locator(SELECTORS.APP.ROOT)).toBeVisible()
   })
 
@@ -341,7 +341,7 @@ test.describe('Network Conditions - DNS and Server Failures', () => {
   test.beforeEach(async ({ page, mockSipServer, mockMediaDevices }) => {
     await mockSipServer()
     await mockMediaDevices()
-    await page.goto('/')
+    await page.goto(APP_URL)
     await expect(page.locator(SELECTORS.APP.ROOT)).toBeVisible()
   })
 
@@ -443,7 +443,7 @@ test.describe('Network Conditions - Real-world Scenarios', () => {
   test.beforeEach(async ({ page, mockSipServer, mockMediaDevices }) => {
     await mockSipServer()
     await mockMediaDevices()
-    await page.goto('/')
+    await page.goto(APP_URL)
     await expect(page.locator(SELECTORS.APP.ROOT)).toBeVisible()
   })
 

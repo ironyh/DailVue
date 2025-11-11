@@ -5,7 +5,7 @@
  * Uses Playwright's built-in screenshot comparison.
  */
 
-import { test, expect } from './fixtures'
+import { test, expect, APP_URL } from './fixtures'
 import { SELECTORS, TEST_DATA } from './selectors'
 
 test.describe('Visual Regression Tests', () => {
@@ -15,7 +15,7 @@ test.describe('Visual Regression Tests', () => {
     await mockMediaDevices()
 
     // Navigate to app
-    await page.goto('/')
+    await page.goto(APP_URL)
     await expect(page.locator(SELECTORS.APP.ROOT)).toBeVisible()
   })
 
@@ -251,7 +251,7 @@ test.describe('Visual Regression - Theme Support', () => {
   test.beforeEach(async ({ page, mockSipServer, mockMediaDevices }) => {
     await mockSipServer()
     await mockMediaDevices()
-    await page.goto('/')
+    await page.goto(APP_URL)
     await expect(page.locator(SELECTORS.APP.ROOT)).toBeVisible()
   })
 
@@ -282,7 +282,7 @@ test.describe('Visual Regression - Accessibility', () => {
   test.beforeEach(async ({ page, mockSipServer, mockMediaDevices }) => {
     await mockSipServer()
     await mockMediaDevices()
-    await page.goto('/')
+    await page.goto(APP_URL)
     await expect(page.locator(SELECTORS.APP.ROOT)).toBeVisible()
   })
 

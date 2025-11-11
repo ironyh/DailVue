@@ -42,8 +42,11 @@ let getUserMediaCallCount = 0
 function setupMockMediaDevices(devices: MediaDeviceInfo[], shouldFailOnCall?: number): void {
   let streamCounter = 0
   getUserMediaCallCount = 0 // Reset on each setup
-  global.navigator.mediaDevices = {
-    getUserMedia: vi.fn().mockImplementation((constraints: any) => {
+  Object.defineProperty(global.navigator, 'mediaDevices', {
+    writable: true,
+    configurable: true,
+    value: {
+      getUserMedia: vi.fn().mockImplementation((constraints: any) => {
       getUserMediaCallCount++
       // If this is the call that should fail, reject
       if (shouldFailOnCall && getUserMediaCallCount === shouldFailOnCall) {
@@ -85,7 +88,8 @@ function setupMockMediaDevices(devices: MediaDeviceInfo[], shouldFailOnCall?: nu
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
     dispatchEvent: vi.fn(),
-  } as never
+    } as never,
+  })
 }
 
 describe('Device Switching Integration Tests', () => {
