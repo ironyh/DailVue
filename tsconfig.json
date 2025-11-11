@@ -19,7 +19,7 @@
     "sourceMap": true,
     "outDir": "./dist",
     "declarationDir": "./dist",
-    "noEmit": false,
+    "noEmit": true,
 
     /* Interop Constraints */
     "isolatedModules": true,
