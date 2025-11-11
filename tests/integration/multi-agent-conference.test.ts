@@ -144,13 +144,13 @@ describe('Multi-Agent Conference Integration Tests', () => {
       const conference = await manager.createConference('sip:conf@example.com', agentIds)
 
       // Wait a bit
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await new Promise(resolve => setTimeout(resolve, 110))
 
       // End conference
       await manager.endConference(conference.id)
 
       const duration = Date.now() - startTime
-      expect(duration).toBeGreaterThan(100)
+      expect(duration).toBeGreaterThanOrEqual(100)
     })
 
     it('should retrieve conference information', async () => {

@@ -34,6 +34,9 @@ function createMockDevice(
   } as MediaDeviceInfo
 }
 
+// Global call counter for getUserMedia
+let getUserMediaCallCount = 0
+
 /**
  * Helper function to setup mock navigator.mediaDevices
  */
@@ -164,6 +167,7 @@ describe('Device Switching Integration Tests', () => {
     mockSipServer = createMockSipServer({ autoAcceptCalls: true })
 
     // Setup navigator.mediaDevices with multiple devices
+    // Note: setupMockMediaDevices will be called per test if needed
     setupMockMediaDevices([
       mockAudioInputDevice1,
       mockAudioInputDevice2,
@@ -191,10 +195,9 @@ describe('Device Switching Integration Tests', () => {
       expect(stream1).toBeDefined()
       expect(mediaManager.getLocalStream()).toBeDefined()
 
-      // Create mock session for call
+      // Create mock session for call and set it to active state
       const mockSession = mockSipServer.createSession('test-call')
-      mockSession.isEstablished.mockReturnValue(true)
-
+      
       // Create call session
       const callSession = new CallSession({
         id: mockSession.id,
@@ -206,7 +209,13 @@ describe('Device Switching Integration Tests', () => {
         eventBus,
       })
 
-      // Note: callSession is created for demonstration but not actively used in this test
+      // Simulate call lifecycle to get to active state
+      mockSipServer.simulateCallProgress(mockSession)
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      mockSipServer.simulateCallAccepted(mockSession)
+      mockSipServer.simulateCallConfirmed(mockSession)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
       expect(callSession).toBeDefined()
 
       // Get tracks from stream1 before switching
@@ -239,11 +248,15 @@ describe('Device Switching Integration Tests', () => {
       })
 
       expect(stream).toBeDefined()
+      const originalStream = (mediaManager as any).localStream
+      expect(originalStream).toBeDefined()
 
       // Simulate device failure when trying to switch
-      ;(global.navigator.mediaDevices.getUserMedia as any).mockRejectedValueOnce(
-        new Error('Device not available')
-      )
+      // Modify the existing mock to reject on the next call
+      const getUserMediaMock = global.navigator.mediaDevices.getUserMedia as any
+      
+      // Override the next call to reject
+      getUserMediaMock.mockRejectedValueOnce(new Error('Device not available'))
 
       // Attempt to switch should fail
       await expect(

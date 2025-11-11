@@ -59,10 +59,22 @@ class MockIDBDatabase {
   }
 
   transaction = vi.fn((storeNames: string[], mode: string) => ({
+    onabort: null,
+    onerror: null,
     objectStore: vi.fn((name: string) => ({
-      add: vi.fn().mockReturnValue({
-        onsuccess: null,
-        onerror: null,
+      add: vi.fn((data: any) => {
+        const request = {
+          onsuccess: null,
+          onerror: null,
+          result: data,
+        }
+        // Trigger onsuccess asynchronously to simulate IndexedDB behavior
+        setTimeout(() => {
+          if (request.onsuccess) {
+            request.onsuccess({ target: request } as any)
+          }
+        }, 10)
+        return request
       }),
       count: vi.fn().mockReturnValue({
         onsuccess: null,

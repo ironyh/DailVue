@@ -13,6 +13,8 @@ import * as loggerModule from '../../../src/utils/logger'
 describe('AnalyticsPlugin - Security', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
+    // Restore logging
+    loggerModule.configureLogger({ enabled: false })
   })
 
   describe('Session ID Generation', () => {
@@ -54,6 +56,8 @@ describe('AnalyticsPlugin - Security', () => {
 
     it('should fallback to Math.random when crypto not available', () => {
       vi.stubGlobal('crypto', undefined)
+      // Enable logging for this test
+      loggerModule.configureLogger({ enabled: true, level: 'warn' })
 
       loggerModule.configureLogger({ enabled: true, handler: undefined })
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})

@@ -94,6 +94,7 @@ vi.mock('jssip', () => {
   return {
     default: {
       UA: vi.fn(function () {
+        // Return the shared mockUA instance
         return mockUA
       }),
       WebSocketInterface: vi.fn(),
@@ -186,6 +187,7 @@ describe('Network Resilience Integration Tests', () => {
       scheduleUAEvent('disconnected', {}, 0)
 
       await sipClient.stop()
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       expect(sipClient.connectionState).toBe('disconnected')
 
@@ -302,7 +304,7 @@ describe('Network Resilience Integration Tests', () => {
       await sipClient.start()
       await flushMicrotasks()
 
-      // Should have connected at least once
+      // Should have connected at least once (handlers were registered)
       expect(connectCount).toBeGreaterThan(0)
     })
 

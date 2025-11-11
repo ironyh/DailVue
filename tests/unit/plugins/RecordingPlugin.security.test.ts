@@ -13,6 +13,8 @@ import * as loggerModule from '../../../src/utils/logger'
 describe('RecordingPlugin - Security', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
+    // Restore logging
+    loggerModule.configureLogger({ enabled: false })
   })
 
   describe('Recording ID Generation', () => {
@@ -56,6 +58,8 @@ describe('RecordingPlugin - Security', () => {
 
     it('should fallback to Math.random when crypto not available', () => {
       vi.stubGlobal('crypto', undefined)
+      // Enable logging for this test
+      loggerModule.configureLogger({ enabled: true, level: 'warn' })
 
       loggerModule.configureLogger({ enabled: true, handler: undefined })
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})

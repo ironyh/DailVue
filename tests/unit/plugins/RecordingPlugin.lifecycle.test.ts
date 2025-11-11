@@ -7,7 +7,7 @@
  * - Edge case handling
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { RecordingPlugin } from '../../../src/plugins/RecordingPlugin'
 import * as loggerModule from '../../../src/utils/logger'
 
@@ -17,6 +17,13 @@ describe('RecordingPlugin - Lifecycle', () => {
 
     beforeEach(() => {
       plugin = new RecordingPlugin()
+      // Enable logging for tests
+      loggerModule.configureLogger({ enabled: true, level: 'warn' })
+    })
+
+    afterEach(() => {
+      // Restore logging
+      loggerModule.configureLogger({ enabled: false })
     })
 
     it('should ignore pause when already paused', () => {

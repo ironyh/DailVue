@@ -13,6 +13,7 @@ import { SipClient } from '../../src/core/SipClient'
 import { CallSession } from '../../src/core/CallSession'
 import { MediaManager } from '../../src/core/MediaManager'
 import { EventBus } from '../../src/core/EventBus'
+import { createMockSipServer, type MockRTCSession } from '../helpers/MockSipServer'
 import type { SipClientConfig } from '../../src/types/config.types'
 import { RegistrationState } from '../../src/types/sip.types'
 
@@ -86,10 +87,21 @@ const mockRTCSession = {
 }
 
 vi.mock('jssip', () => {
+  let mockSipServer: ReturnType<typeof createMockSipServer> | null = null
+
   return {
     default: {
       UA: vi.fn(function () {
-        return mockUA
+        // Get the mock server from global if available
+        const server = (global as any).__mockSipServer
+        if (server) {
+          return server.getUA()
+        }
+        // Fallback: create a temporary one
+        if (!mockSipServer) {
+          mockSipServer = createMockSipServer({ autoRegister: false })
+        }
+        return mockSipServer.getUA()
       }),
       WebSocketInterface: vi.fn(),
       debug: {
@@ -142,11 +154,52 @@ function createMockCallSession(
   })
 }
 
+/**
+ * Helper function to setup mock navigator.mediaDevices
+ */
+function setupMockMediaDevices(): void {
+  Object.defineProperty(global.navigator, 'mediaDevices', {
+    value: {
+      getUserMedia: vi.fn().mockResolvedValue({
+        id: 'mock-stream',
+        active: true,
+        getTracks: vi.fn().mockReturnValue([
+          {
+            kind: 'audio',
+            id: 'audio-track-1',
+            enabled: true,
+            stop: vi.fn(),
+            getSettings: vi.fn().mockReturnValue({ deviceId: 'default' }),
+          },
+        ]),
+        getAudioTracks: vi.fn().mockReturnValue([
+          {
+            kind: 'audio',
+            id: 'audio-track-1',
+            enabled: true,
+            stop: vi.fn(),
+            getSettings: vi.fn().mockReturnValue({ deviceId: 'default' }),
+          },
+        ]),
+        getVideoTracks: vi.fn().mockReturnValue([]),
+      }),
+      enumerateDevices: vi.fn().mockResolvedValue([]),
+      getSupportedConstraints: vi.fn().mockReturnValue({}),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    },
+    writable: true,
+    configurable: true,
+  })
+}
+
 describe('SIP Workflow Integration Tests', () => {
   let eventBus: EventBus
   let sipClient: SipClient
   let mediaManager: MediaManager
   let config: SipClientConfig
+  let mockSipServer: ReturnType<typeof createMockSipServer>
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -176,6 +229,10 @@ describe('SIP Workflow Integration Tests', () => {
     })
 
     eventBus = new EventBus()
+    mockSipServer = createMockSipServer({ autoRegister: false })
+    
+    // Store mock server globally so JsSIP mock can access it
+    ;(global as any).__mockSipServer = mockSipServer
 
     config = {
       uri: 'wss://sip.example.com:7443',
@@ -200,6 +257,8 @@ describe('SIP Workflow Integration Tests', () => {
     sipClient.destroy()
     mediaManager.destroy()
     eventBus.destroy()
+    mockSipServer.destroy()
+    delete (global as any).__mockSipServer
   })
 
   describe('Complete SIP Connection Flow', () => {
@@ -315,38 +374,19 @@ describe('SIP Workflow Integration Tests', () => {
       triggerSessionEvent('accepted', { originator: 'remote' })
 
       expect(callSession).toBeDefined()
-      expect(callSession.id).toBe('session-123')
+      expect(callSession.id).toBe(session.id)
       expect(callSession.direction).toBe('outgoing')
     })
 
     it('should receive incoming call successfully', async () => {
-      const mockStream = {
-        getTracks: vi.fn().mockReturnValue([
-          { kind: 'audio', stop: vi.fn() },
-        ]),
-      } as any
+      const session = mockSipServer.simulateIncomingCall(
+        'sip:caller@example.com',
+        'sip:testuser@example.com'
+      )
 
-      // Simulate incoming call
-      let newRTCSessionHandler: Function | null = null
-      mockUA.on.mockImplementation((event: string, handler: Function) => {
-        if (event === 'newRTCSession') {
-          newRTCSessionHandler = handler
-        }
-      })
+      const callSession = createMockCallSession(session as any, 'incoming', eventBus)
 
-      // Trigger incoming call
-      if (newRTCSessionHandler) {
-        newRTCSessionHandler({
-          session: mockRTCSession,
-          originator: 'remote',
-          request: {
-            from: { uri: { user: 'caller', host: 'example.com' } },
-            to: { uri: { user: 'callee', host: 'example.com' } },
-          },
-        })
-      }
-
-      const callSession = createMockCallSession(mockRTCSession as any, 'incoming', eventBus)
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       expect(callSession).toBeDefined()
       expect(callSession.direction).toBe('incoming')
@@ -383,21 +423,6 @@ describe('SIP Workflow Integration Tests', () => {
 
   describe('Media Management Integration', () => {
     it('should acquire and release media successfully', async () => {
-      const mockStream = {
-        getTracks: vi.fn().mockReturnValue([
-          { kind: 'audio', stop: vi.fn() },
-        ]),
-        getAudioTracks: vi.fn().mockReturnValue([
-          { kind: 'audio', stop: vi.fn() },
-        ]),
-        getVideoTracks: vi.fn().mockReturnValue([]),
-      } as any
-
-      global.navigator.mediaDevices = {
-        getUserMedia: vi.fn().mockResolvedValue(mockStream),
-        enumerateDevices: vi.fn().mockResolvedValue([]),
-      } as any
-
       const stream = await mediaManager.getUserMedia({ audio: true, video: false })
 
       expect(stream).toBeDefined()
@@ -409,9 +434,13 @@ describe('SIP Workflow Integration Tests', () => {
     })
 
     it('should handle media errors gracefully', async () => {
-      global.navigator.mediaDevices = {
-        getUserMedia: vi.fn().mockRejectedValue(new Error('Permission denied')),
-      } as any
+      Object.defineProperty(global.navigator, 'mediaDevices', {
+        value: {
+          getUserMedia: vi.fn().mockRejectedValue(new Error('Permission denied')),
+        },
+        writable: true,
+        configurable: true,
+      })
 
       await expect(
         mediaManager.getUserMedia({ audio: true, video: false })
@@ -421,24 +450,44 @@ describe('SIP Workflow Integration Tests', () => {
 
   describe('DTMF Handling', () => {
     it('should send DTMF tones', async () => {
-      const callSession = createMockCallSession(mockRTCSession as any, 'outgoing', eventBus)
+      const session = mockSipServer.createSession()
+      const callSession = createMockCallSession(session as any, 'outgoing', eventBus)
+
+      // Set call to active state by simulating full call lifecycle
+      mockSipServer.simulateCallProgress(session)
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      mockSipServer.simulateCallAccepted(session)
+      mockSipServer.simulateCallConfirmed(session)
+
+      // Wait for state transition to active
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       // Trigger confirmed event to set call to active state
       triggerSessionEvent('confirmed')
 
       callSession.sendDTMF('1')
-      expect(mockRTCSession.sendDTMF).toHaveBeenCalledWith('1', expect.any(Object))
+      expect(session.sendDTMF).toHaveBeenCalledWith('1', expect.any(Object))
 
       callSession.sendDTMF('2')
-      expect(mockRTCSession.sendDTMF).toHaveBeenCalledWith('2', expect.any(Object))
+      expect(session.sendDTMF).toHaveBeenCalledWith('2', expect.any(Object))
     })
   })
 
   describe('Call Transfer', () => {
     it('should transfer call (blind transfer)', async () => {
-      const callSession = createMockCallSession(mockRTCSession as any, 'outgoing', eventBus)
+      const session = mockSipServer.createSession()
+      const callSession = createMockCallSession(session as any, 'outgoing', eventBus)
 
-      mockRTCSession.isEstablished.mockReturnValue(true)
+      // Set call to active state
+      mockSipServer.simulateCallProgress(session)
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      mockSipServer.simulateCallAccepted(session)
+      mockSipServer.simulateCallConfirmed(session)
+
+      // Wait for state transition to active
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       // Trigger confirmed event to set call to active state
       triggerSessionEvent('confirmed')
@@ -451,9 +500,18 @@ describe('SIP Workflow Integration Tests', () => {
 
   describe('Hold/Unhold', () => {
     it('should hold and unhold call', async () => {
-      const callSession = createMockCallSession(mockRTCSession as any, 'outgoing', eventBus)
+      const session = mockSipServer.createSession()
+      const callSession = createMockCallSession(session as any, 'outgoing', eventBus)
 
-      mockRTCSession.isEstablished.mockReturnValue(true)
+      // Set call to active state
+      mockSipServer.simulateCallProgress(session)
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      mockSipServer.simulateCallAccepted(session)
+      mockSipServer.simulateCallConfirmed(session)
+
+      // Wait for state transition to active
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       // Trigger confirmed event to set call to active state
       triggerSessionEvent('confirmed')
@@ -480,18 +538,11 @@ describe('SIP Workflow Integration Tests', () => {
     it('should handle multiple concurrent calls', async () => {
       const activeCalls = new Map()
 
-      const call1 = createMockCallSession(
-        { ...mockRTCSession, id: 'call-1' } as any,
-        'outgoing',
-        eventBus,
-        'call-1'
-      )
-      const call2 = createMockCallSession(
-        { ...mockRTCSession, id: 'call-2' } as any,
-        'incoming',
-        eventBus,
-        'call-2'
-      )
+      const session1 = mockSipServer.createSession('call-1')
+      const call1 = createMockCallSession(session1 as any, 'outgoing', eventBus, 'call-1')
+
+      const session2 = mockSipServer.createSession('call-2')
+      const call2 = createMockCallSession(session2 as any, 'incoming', eventBus, 'call-2')
 
       activeCalls.set('call-1', call1)
       activeCalls.set('call-2', call2)
@@ -533,6 +584,7 @@ describe('SIP Workflow Integration Tests', () => {
       await startPromise
       await sipClient.stop()
 
+      const mockUA = mockSipServer.getUA()
       expect(mockUA.stop).toHaveBeenCalled()
       expect(sipClient.connectionState).toBe('disconnected')
     })

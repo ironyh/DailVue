@@ -42,7 +42,7 @@
   ],
   "scripts": {
     "dev": "vite",
-    "build": "vite build && tsc --emitDeclarationOnly",
+    "build": "vite build && tsc --project tsconfig.build.json",
     "preview": "vite preview",
     "test": "vitest",
     "test:unit": "vitest run tests/unit",
@@ -51,7 +51,9 @@
     "test:performance:bench": "vitest bench tests/performance/benchmarks",
     "test:performance:load": "vitest run tests/performance/load-tests",
     "test:performance:metrics": "vitest run tests/performance/metrics",
+    "test:performance:metrics:full": "pnpm run build && pnpm run test:performance:metrics",
     "test:performance:gc": "node --expose-gc ./node_modules/vitest/vitest.mjs tests/performance",
+    "test:performance:all": "pnpm run build && pnpm run test:performance:gc",
     "test:watch": "vitest watch",
     "test:unit:watch": "vitest watch tests/unit",
     "test:e2e": "playwright test",

@@ -74,6 +74,18 @@ export default defineConfig({
     retry: 2,
     // Test timeout (10 seconds)
     testTimeout: 10000,
+    // Suppress Vue lifecycle warnings in benchmarks (non-critical for performance testing)
+    onConsoleLog: (log, type) => {
+      // Suppress Vue lifecycle warnings in performance benchmarks
+      // These warnings occur because benchmarks test core classes outside Vue component context
+      if (
+        typeof log === 'string' &&
+        log.includes('onUnmounted is called when there is no active component instance')
+      ) {
+        return false // Suppress this warning
+      }
+      return true // Keep other logs
+    },
 
     // Parallelization settings for faster test execution
     // Use thread pool for better performance (default, but explicit here)

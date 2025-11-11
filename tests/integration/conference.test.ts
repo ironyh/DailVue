@@ -957,8 +957,7 @@ describe('Conference Integration Tests', () => {
 
       for (let i = 1; i <= 3; i++) {
         const session = mockSipServer.createSession(`call-${i}`)
-        mockSipServer.simulateCallAccepted(session)
-
+        
         const callSession = new CallSession({
           id: session.id,
           direction: 'outgoing',
@@ -968,6 +967,13 @@ describe('Conference Integration Tests', () => {
           rtcSession: session,
           eventBus,
         })
+
+        // Simulate call lifecycle to get to active state
+        mockSipServer.simulateCallProgress(session)
+        await new Promise((resolve) => setTimeout(resolve, 10))
+        mockSipServer.simulateCallAccepted(session)
+        mockSipServer.simulateCallConfirmed(session)
+        await new Promise((resolve) => setTimeout(resolve, 10))
 
         const p = createParticipant(`p${i}`, `sip:user${i}@example.com`, `User ${i}`)
         p.callSession = callSession
