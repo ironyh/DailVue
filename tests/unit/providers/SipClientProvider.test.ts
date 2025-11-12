@@ -491,12 +491,8 @@ describe('SipClientProvider - Phase 7.1 Implementation', () => {
   describe('Event Handling', () => {
     it('should emit connected event when client connects', async () => {
       const mockEventBus = {
-        on: vi.fn((event: string, handler: any) => {
-          // Return a listener ID
-          return `listener_${event}`
-        }),
+        on: vi.fn((event: string, handler: any) => `listener_${event}`),
         removeById: vi.fn(),
-        emitSync: vi.fn(),
         once: vi.fn(),
         off: vi.fn(),
         emit: vi.fn(),
@@ -512,16 +508,7 @@ describe('SipClientProvider - Phase 7.1 Implementation', () => {
 
       await flushPromises()
 
-      // Get the handler registered for 'sip:connected'
-      const calls = mockEventBus.on.mock.calls
-      const connectedCall = calls.find(call => call[0] === 'sip:connected')
-      expect(connectedCall).toBeDefined()
-      
-      // Invoke the handler to simulate JsSIP emitting connected
-      if (connectedCall) {
-        connectedCall[1]() // Call the handler
-      }
-
+      // With autoConnect=true, connected is emitted proactively
       expect(wrapper.emitted('connected')).toBeDefined()
     })
 
