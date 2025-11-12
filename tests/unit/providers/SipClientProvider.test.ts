@@ -223,19 +223,21 @@ describe('SipClientProvider - Phase 7.1 Implementation', () => {
         warnings: [],
       })
 
+      let errorEmitted: Error | null = null
+
       const wrapper = mount(SipClientProvider, {
         props: {
           config: mockConfig,
           autoConnect: false,
+          onError: (err: Error) => { errorEmitted = err }
         },
       })
 
       await flushPromises()
-      await new Promise(resolve => setTimeout(resolve, 10))
 
       // Should emit error event
-      expect(wrapper.emitted('error')).toBeDefined()
-      expect(wrapper.emitted('error')?.[0]?.[0]).toBeInstanceOf(Error)
+      expect(errorEmitted).toBeInstanceOf(Error)
+      expect(errorEmitted?.message).toContain('Invalid SIP URI')
     })
   })
 
@@ -289,18 +291,22 @@ describe('SipClientProvider - Phase 7.1 Implementation', () => {
         }
       })
 
+      let errorEmitted: Error | null = null
+
       const wrapper = mount(SipClientProvider, {
         props: {
           config: mockConfig,
           autoConnect: true,
+          onError: (err: Error) => { errorEmitted = err }
         },
       })
 
       await flushPromises()
-      await new Promise(resolve => setTimeout(resolve, 10))
+      await new Promise(resolve => setTimeout(resolve, 50))
 
       // Should emit error event
-      expect(wrapper.emitted('error')).toBeDefined()
+      expect(errorEmitted).toBeInstanceOf(Error)
+      expect(errorEmitted?.message).toContain('Connection failed')
     })
   })
 
