@@ -32,7 +32,10 @@ vi.mock('jssip', () => {
         }
         // Fallback: create a temporary one
         if (!mockSipServer) {
-          mockSipServer = createMockSipServer({ autoRegister: false })
+          mockSipServer = createMockSipServer({ 
+            autoRegister: false,
+            networkLatency: 0
+          })
         }
         return mockSipServer.getUA()
       }),
@@ -197,7 +200,10 @@ describe('SIP Workflow Integration Tests', () => {
     })
 
     eventBus = new EventBus()
-    mockSipServer = createMockSipServer({ autoRegister: false })
+    mockSipServer = createMockSipServer({ 
+      autoRegister: false,
+      networkLatency: 0 // Disable latency for CI reliability
+    })
     
     // Store mock server globally so JsSIP mock can access it
     ;(global as any).__mockSipServer = mockSipServer
