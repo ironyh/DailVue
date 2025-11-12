@@ -16,6 +16,7 @@ import { EventBus } from '../../src/core/EventBus'
 import { createMockSipServer, type MockRTCSession } from '../helpers/MockSipServer'
 import type { SipClientConfig } from '../../src/types/config.types'
 import { RegistrationState } from '../../src/types/sip.types'
+import { waitFor, waitForEvent } from '../helpers/testUtils'
 
 // Mock JsSIP to use our MockSipServer
 vi.mock('jssip', () => {
@@ -480,17 +481,24 @@ describe('SIP Workflow Integration Tests', () => {
 
       mockSipServer.simulateConnect()
       await sipClient.start()
-      await new Promise(resolve => setTimeout(resolve, 50))
+      
+      // Wait for connection state to be updated
+      await waitFor(() => sipClient.isConnected, { timeout: 1000, timeoutMessage: 'Connection not established' })
 
       mockSipServer.simulateRegistered()
       await sipClient.register()
-      await new Promise(resolve => setTimeout(resolve, 50))
+      
+      // Wait for registration state to be updated
+      await waitFor(() => sipClient.registrationState === RegistrationState.Registered, { 
+        timeout: 1000, 
+        timeoutMessage: 'Registration not completed' 
+      })
 
       expect(sipClient.isConnected).toBe(true)
       expect(sipClient.registrationState).toBe(RegistrationState.Registered)
       
       // Verify events were propagated
-      expect(events.length).toBeGreaterThan(0)
+      await waitFor(() => events.length > 0, { timeout: 1000 })
       expect(events.some(e => e.type === 'connected')).toBe(true)
       expect(events.some(e => e.type === 'registered')).toBe(true)
     })
