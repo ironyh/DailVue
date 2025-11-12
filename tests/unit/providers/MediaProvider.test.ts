@@ -170,7 +170,12 @@ describe('MediaProvider', () => {
     })
 
     it('should emit ready event after enumeration', async () => {
+      let readyEmitted = false
+
       const wrapper = mount(MediaProvider, {
+        props: {
+          onReady: () => { readyEmitted = true }
+        },
         slots: {
           default: () => h('div', 'Child'),
         },
@@ -179,7 +184,7 @@ describe('MediaProvider', () => {
       await nextTick()
       await nextTick()
 
-      expect(wrapper.emitted('ready')).toBeTruthy()
+      expect(readyEmitted).toBe(true)
     })
   })
 
@@ -453,9 +458,12 @@ describe('MediaProvider', () => {
     })
 
     it('should emit devicesChanged event when devices change', async () => {
+      let devicesChanged = false
+
       const wrapper = mount(MediaProvider, {
         props: {
           watchDeviceChanges: true,
+          onDevicesChanged: () => { devicesChanged = true }
         },
         slots: {
           default: () => h('div', 'Child'),
@@ -477,7 +485,7 @@ describe('MediaProvider', () => {
       await nextTick()
       await nextTick()
 
-      expect(wrapper.emitted('devicesChanged')).toBeTruthy()
+      expect(devicesChanged).toBe(true)
     })
 
     it('should remove device change listener on unmount', async () => {
@@ -504,11 +512,14 @@ describe('MediaProvider', () => {
 
   describe('Event Emissions', () => {
     it('should emit permissionsGranted when permissions are granted', async () => {
+      let permissionsGrantedArgs: any[] = []
+
       const wrapper = mount(MediaProvider, {
         props: {
           autoRequestPermissions: true,
           requestAudio: true,
           requestVideo: false,
+          onPermissionsGranted: (...args: any[]) => { permissionsGrantedArgs = args }
         },
         slots: {
           default: () => h('div', 'Child'),
@@ -518,19 +529,21 @@ describe('MediaProvider', () => {
       await nextTick()
       await flushPromises()
 
-      expect(wrapper.emitted('permissionsGranted')).toBeTruthy()
-      const emittedEvent = wrapper.emitted('permissionsGranted')?.[0]
-      expect(emittedEvent).toEqual([true, false])
+      expect(permissionsGrantedArgs.length).toBeGreaterThan(0)
+      expect(permissionsGrantedArgs).toEqual([true, false])
     })
 
     it('should emit permissionsDenied when permissions are denied', async () => {
       mockGetUserMedia.mockRejectedValue(new Error('Permission denied'))
 
+      let permissionsDenied = false
+
       const wrapper = mount(MediaProvider, {
         props: {
           autoRequestPermissions: true,
           requestAudio: true,
           requestVideo: false,
+          onPermissionsDenied: () => { permissionsDenied = true }
         },
         slots: {
           default: () => h('div', 'Child'),
@@ -540,13 +553,18 @@ describe('MediaProvider', () => {
       await nextTick()
       await flushPromises()
 
-      expect(wrapper.emitted('permissionsDenied')).toBeTruthy()
+      expect(permissionsDenied).toBe(true)
     })
 
     it('should emit error when initialization fails', async () => {
       mockEnumerateDevices.mockRejectedValue(new Error('Enumeration failed'))
 
+      let errorEmitted = false
+
       const wrapper = mount(MediaProvider, {
+        props: {
+          onError: () => { errorEmitted = true }
+        },
         slots: {
           default: () => h('div', 'Child'),
         },
@@ -555,7 +573,7 @@ describe('MediaProvider', () => {
       await nextTick()
       await flushPromises()
 
-      expect(wrapper.emitted('error')).toBeTruthy()
+      expect(errorEmitted).toBe(true)
     })
   })
 
@@ -669,7 +687,12 @@ describe('MediaProvider', () => {
     it('should handle no available devices gracefully', async () => {
       mockEnumerateDevices.mockResolvedValue([])
 
+      let readyEmitted = false
+
       const wrapper = mount(MediaProvider, {
+        props: {
+          onReady: () => { readyEmitted = true }
+        },
         slots: {
           default: () => h('div', 'Child'),
         },
@@ -678,13 +701,18 @@ describe('MediaProvider', () => {
       await nextTick()
       await nextTick()
 
-      expect(wrapper.emitted('ready')).toBeTruthy()
+      expect(readyEmitted).toBe(true)
     })
 
     it('should handle enumeration errors gracefully', async () => {
       mockEnumerateDevices.mockRejectedValue(new Error('Device enumeration failed'))
 
+      let errorEmitted = false
+
       const wrapper = mount(MediaProvider, {
+        props: {
+          onError: () => { errorEmitted = true }
+        },
         slots: {
           default: () => h('div', 'Child'),
         },
@@ -693,15 +721,18 @@ describe('MediaProvider', () => {
       await nextTick()
       await flushPromises()
 
-      expect(wrapper.emitted('error')).toBeTruthy()
+      expect(errorEmitted).toBe(true)
     })
 
     it('should handle permission request errors gracefully', async () => {
       mockGetUserMedia.mockRejectedValue(new Error('Permission denied by user'))
 
+      let permissionsDenied = false
+
       const wrapper = mount(MediaProvider, {
         props: {
           autoRequestPermissions: true,
+          onPermissionsDenied: () => { permissionsDenied = true }
         },
         slots: {
           default: () => h('div', 'Child'),
@@ -711,7 +742,7 @@ describe('MediaProvider', () => {
       await nextTick()
       await nextTick()
 
-      expect(wrapper.emitted('permissionsDenied')).toBeTruthy()
+      expect(permissionsDenied).toBe(true)
     })
   })
 })

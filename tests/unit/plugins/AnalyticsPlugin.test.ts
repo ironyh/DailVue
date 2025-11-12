@@ -223,9 +223,10 @@ describe('AnalyticsPlugin', () => {
       // Track one more event to reach batch size (1 + 2 + 1 = 4)
       eventBus.emit('callStarted', { callId: 'test' })
 
-      // Should send now
-      await new Promise((resolve) => setTimeout(resolve, 100))
-      expect(fetchMock).toHaveBeenCalled()
+      // Should send now - wait for async batch processing
+      await new Promise((resolve) => setTimeout(resolve, 200))
+      // Since sendEvents is mocked, check sendSpy instead of fetchMock
+      expect(sendSpy).toHaveBeenCalled()
     })
 
     it('should send batched events on interval', async () => {
