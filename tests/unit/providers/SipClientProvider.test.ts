@@ -266,12 +266,11 @@ describe('SipClientProvider - Phase 7.1 Implementation', () => {
       const { SipClient } = await import('@/core/SipClient')
 
       // Make start() reject
-      const mockStart = vi.fn().mockRejectedValue(new Error('Connection failed'))
       vi.mocked(SipClient).mockImplementationOnce(function (config: any, eventBus: any) {
         return {
           config,
           eventBus,
-          start: mockStart,
+          start: vi.fn().mockRejectedValue(new Error('Connection failed')),
           stop: vi.fn().mockResolvedValue(undefined),
           register: vi.fn().mockResolvedValue(undefined),
           unregister: vi.fn().mockResolvedValue(undefined),
@@ -280,10 +279,19 @@ describe('SipClientProvider - Phase 7.1 Implementation', () => {
         }
       })
 
+      const mockEventBus = {
+        on: vi.fn((event: string, handler: any) => `listener_${event}`),
+        removeById: vi.fn(),
+        once: vi.fn(),
+        off: vi.fn(),
+        emit: vi.fn(),
+      }
+
       const wrapper = mount(SipClientProvider, {
         props: {
           config: mockConfig,
           autoConnect: true,
+          eventBus: mockEventBus,
         },
       })
 
@@ -465,6 +473,7 @@ describe('SipClientProvider - Phase 7.1 Implementation', () => {
           config: mockConfig,
           autoConnect: true,
           autoRegister: false,
+          eventBus: mockEventBus,
         },
       })
 
