@@ -165,7 +165,7 @@ Professional call center application with queue management and agent features.
 ### Prerequisites
 
 All examples require:
-- **Node.js** 18.0.0 or higher
+- **Node.js** 20.0.0 or higher
 - **pnpm** 8.0.0 or higher (or npm/yarn)
 - **SIP Server** with WebSocket support
 - **Browser** with WebRTC support

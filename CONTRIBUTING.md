@@ -25,7 +25,7 @@ Thank you for your interest in contributing to VueSip! This comprehensive guide 
 
 Before you begin, ensure you have the following installed:
 
-- **Node.js**: Version 18.0.0 or higher
+- **Node.js**: Version 20.0.0 or higher
 - **pnpm**: Version 8.0.0 or higher (required package manager)
 - **Git**: Latest stable version
 - **IDE**: We recommend VS Code with the following extensions:

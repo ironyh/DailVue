@@ -19,7 +19,7 @@ This example showcases the core functionality of VueSip for building SIP-based v
 
 Before running this example, ensure you have:
 
-1. **Node.js** - Version 18.0.0 or higher
+1. **Node.js** - Version 20.0.0 or higher
 2. **pnpm** - Version 8.0.0 or higher (or npm/yarn)
 3. **SIP Server** - Access to a SIP server with WebSocket support (e.g., Asterisk, FreeSWITCH, Kamailio)
 4. **SIP Credentials** - Valid SIP account credentials (URI, password)

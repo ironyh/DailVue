@@ -15,7 +15,7 @@ The previous PR (#59) added comprehensive performance testing infrastructure but
 Created a comprehensive CI workflow with three jobs:
 
 #### Job 1: Standard Tests
-- Runs on Node 18.x and 20.x (matrix strategy)
+- Runs on Node 20.x (matrix strategy)
 - Executes linting, type checking, unit tests, and integration tests
 - Generates and uploads coverage reports
 - Uses pnpm for package management (matching project setup)
@@ -117,7 +117,7 @@ tests/performance/
 
 1. **CI Integration**: Now runs automatically in GitHub Actions
 2. **Error Handling**: Performance tests won't block PRs but will report issues
-3. **Multiple Node Versions**: Tests run on both Node 18 and 20
+3. **Node Version**: Tests run on Node 20.x
 4. **Artifacts**: Results saved for analysis
 5. **Clear Documentation**: This file explains the setup and fixes
 6. **Branch Strategy**: Properly configured for the project's git workflow

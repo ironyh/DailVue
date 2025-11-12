@@ -36,7 +36,7 @@ This example demonstrates the following advanced VueSip capabilities:
 
 Before running this example, you need:
 
-1. **Node.js**: Version 18 or higher
+1. **Node.js**: Version 20.0.0 or higher
 2. **pnpm**: Version 8 or higher (for workspace support)
 3. **SIP Server**: An Asterisk, FreePBX, or compatible SIP server with:
    - WebSocket/WebRTC transport enabled
