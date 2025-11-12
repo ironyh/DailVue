@@ -382,7 +382,8 @@ export const SipClientProvider = defineComponent({
             await client.value.register()
             registrationState.value = RegistrationState.Registered
             isReady.value = true
-            emit('registered', props.config?.sipUri || '')
+            // Emit with config sipUri since register doesn't return it
+            emit('registered', props.config.sipUri)
             emit('ready')
           } catch (regErr) {
             const regError = regErr instanceof Error ? regErr : new Error(String(regErr))
