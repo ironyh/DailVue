@@ -39,11 +39,20 @@ vi.mock('@/core/SipClient', () => ({
 // Mock EventBus
 vi.mock('@/core/EventBus', () => ({
   EventBus: vi.fn(function () {
+    const handlers = new Map<string, Function[]>()
     return {
-      on: vi.fn().mockReturnValue('listener-id'),
+      on: vi.fn((event: string, handler: Function) => {
+        if (!handlers.has(event)) handlers.set(event, [])
+        handlers.get(event)!.push(handler)
+        return 'listener-id'
+      }),
       once: vi.fn().mockReturnValue('listener-id'),
       off: vi.fn(),
       emit: vi.fn(),
+      emitSync: vi.fn((event: string, data?: any) => {
+        const eventHandlers = handlers.get(event) || []
+        eventHandlers.forEach(h => h(data))
+      }),
       removeById: vi.fn(),
     }
   }),
