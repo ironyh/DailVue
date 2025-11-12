@@ -115,6 +115,18 @@ vi.mock('jssip', () => {
   }
 })
 
+// Helper function to schedule UA events asynchronously
+function scheduleUAEvent(event: string, data: any, delay: number = 0) {
+  setTimeout(() => {
+    mockUA.triggerEvent(event, data)
+  }, delay)
+}
+
+// Helper to flush all pending microtasks
+function flushMicrotasks(): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, 0))
+}
+
 describe('Network Resilience Integration Tests', () => {
   let eventBus: EventBus
   let sipClient: SipClient
@@ -430,6 +442,7 @@ describe('Network Resilience Integration Tests', () => {
 
       await sipClient.start()
       await flushMicrotasks()
+      await new Promise(resolve => setTimeout(resolve, 50))
       expect(sipClient.connectionState).toBe('connected')
 
       // Wait for handlers to be set up, then trigger connected event

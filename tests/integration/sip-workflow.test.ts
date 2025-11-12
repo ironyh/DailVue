@@ -480,18 +480,19 @@ describe('SIP Workflow Integration Tests', () => {
 
       mockSipServer.simulateConnect()
       await sipClient.start()
+      await new Promise(resolve => setTimeout(resolve, 50))
 
       mockSipServer.simulateRegistered()
       await sipClient.register()
-
-      const registerPromise = sipClient.register()
-      const successHandlers = onceHandlers.get('registered') ?? []
-      expect(successHandlers.length).toBeGreaterThan(0)
-      successHandlers[0]({ response: { getHeader: () => '600' } })
-      await registerPromise
+      await new Promise(resolve => setTimeout(resolve, 50))
 
       expect(sipClient.isConnected).toBe(true)
       expect(sipClient.registrationState).toBe(RegistrationState.Registered)
+      
+      // Verify events were propagated
+      expect(events.length).toBeGreaterThan(0)
+      expect(events.some(e => e.type === 'connected')).toBe(true)
+      expect(events.some(e => e.type === 'registered')).toBe(true)
     })
   })
 
