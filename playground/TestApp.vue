@@ -1,14 +1,17 @@
 <template>
   <div data-testid="sip-client">
     <div class="container">
-      <h1>VueSip - E2E Test Application</h1>
+      <header>
+        <h1>VueSip - E2E Test Application</h1>
+      </header>
 
-      <!-- Initialization Error -->
-      <div v-if="initializationError" data-testid="initialization-error" class="error-message">
-        <strong>Initialization Error:</strong> {{ initializationError }}
-      </div>
+      <main>
+        <!-- Initialization Error -->
+        <div v-if="initializationError" data-testid="initialization-error" class="error-message">
+          <strong>Initialization Error:</strong> {{ initializationError }}
+        </div>
 
-      <!-- Connection Status -->
+        <!-- Connection Status -->
       <div class="status-bar">
         <div class="status-item">
           <span class="status-label">Connection:</span>
@@ -99,7 +102,7 @@
         <div class="row">
           <div class="col">
             <div class="dialpad-section">
-              <h3>Dialpad</h3>
+              <h2>Dialpad</h2>
               <input
                 v-model="dialNumber"
                 data-testid="dialpad-input"
@@ -142,7 +145,7 @@
           <div class="col">
             <!-- Active Call Display -->
             <div v-if="callState !== 'idle'" class="active-call-panel" data-testid="active-call">
-              <h3>Active Call</h3>
+              <h2>Active Call</h2>
               <div data-testid="call-status" class="call-status">
                 {{ callState }}
               </div>
@@ -249,7 +252,7 @@
               class="incoming-notification"
               data-testid="incoming-call-notification"
             >
-              <h3>Incoming Call</h3>
+              <h2>Incoming Call</h2>
               <p>From: {{ remoteUri }}</p>
             </div>
           </div>
@@ -265,7 +268,7 @@
             {{ showHistory ? 'Hide' : 'Show' }} Call History
           </button>
           <div v-if="showHistory" data-testid="call-history-panel" class="history-panel">
-            <h3>Call History</h3>
+            <h2>Call History</h2>
             <div
               v-for="(entry, index) in history"
               :key="index"
@@ -288,7 +291,7 @@
             {{ showDevices ? 'Hide' : 'Show' }} Device Settings
           </button>
           <div v-if="showDevices" class="device-panel">
-            <h3>Audio Devices</h3>
+            <h2>Audio Devices</h2>
             <div class="form-group" data-testid="audio-input-devices">
               <label>Audio Input:</label>
               <select
@@ -337,13 +340,14 @@
         <i class="pi pi-cog"></i> {{ showSettings ? 'Close' : 'Settings' }}
       </button>
 
-      <!-- Error Display -->
-      <div v-if="lastError" data-testid="error-message" class="error-message">
-        {{ lastError }}
-      </div>
-      <div v-if="registrationError" data-testid="registration-error" class="error-message">
-        {{ registrationError }}
-      </div>
+        <!-- Error Display -->
+        <div v-if="lastError" data-testid="error-message" class="error-message">
+          {{ lastError }}
+        </div>
+        <div v-if="registrationError" data-testid="registration-error" class="error-message">
+          {{ registrationError }}
+        </div>
+      </main>
     </div>
   </div>
 </template>
@@ -842,13 +846,13 @@ h3 {
 }
 
 .btn-primary {
-  background: #3b82f6;
+  background: #2563eb; /* Darker blue for WCAG AA contrast (4.5:1) */
   color: white;
   width: 100%;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #2563eb;
+  background: #1d4ed8;
 }
 
 .btn-success {
@@ -861,12 +865,12 @@ h3 {
 }
 
 .btn-danger {
-  background: #ef4444;
+  background: #dc2626; /* Darker red for WCAG AA contrast (4.5:1) */
   color: white;
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #dc2626;
+  background: #b91c1c;
 }
 
 .btn-secondary {
