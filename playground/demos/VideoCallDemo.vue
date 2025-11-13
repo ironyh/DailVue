@@ -208,8 +208,8 @@ if (hasLocalVideo.value) {
 selectVideoInput(deviceId)
 
 // Display video streams
-const remoteVideoEl = ref<HTMLVideoElement>()
-const localVideoEl = ref<HTMLVideoElement>()
+const remoteVideoEl = ref&lt;HTMLVideoElement&gt;()
+const localVideoEl = ref&lt;HTMLVideoElement&gt;()
 
 watch(remoteStream, (stream) => {
   if (remoteVideoEl.value && stream) {
