@@ -1,5 +1,5 @@
 <template>
-  <div id="app" data-testid="sip-client">
+  <div data-testid="sip-client">
     <div class="container">
       <h1>VueSip - E2E Test Application</h1>
 
@@ -740,10 +740,6 @@ body {
     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   background: #f3f4f6;
   color: #1f2937;
-}
-
-#app {
-  padding: 2rem;
 }
 
 .container {
