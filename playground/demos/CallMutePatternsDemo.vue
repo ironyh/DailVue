@@ -250,7 +250,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useSipClient } from '../../src/composables/useSipClient'
-import { useSipCall } from '../../src/composables/useSipCall'
+import { useCallSession } from '../../src/composables/useCallSession'
 
 // SIP Configuration
 const sipServerUri = ref('sip:example.com')
@@ -273,7 +273,7 @@ const {
   callState,
   hasActiveCall,
   isMuted: isCallMuted,
-} = useSipCall(sipClient)
+} = useCallSession(sipClient)
 
 // Mute State
 const isMuted = ref(false)
