@@ -1,7 +1,9 @@
 <template>
   <div class="network-simulator-demo">
     <h2>📡 Network Condition Simulator</h2>
-    <p class="description">Simulate various network conditions to test call quality and resilience.</p>
+    <p class="description">
+      Simulate various network conditions to test call quality and resilience.
+    </p>
 
     <!-- Connection Status -->
     <div class="status-section">
@@ -117,9 +119,7 @@
         </div>
       </div>
 
-      <button @click="applyCustomSettings" class="apply-btn">
-        Apply Custom Settings
-      </button>
+      <button @click="applyCustomSettings" class="apply-btn">Apply Custom Settings</button>
     </div>
 
     <!-- Call Section -->
@@ -134,9 +134,7 @@
           @keyup.enter="makeCall"
         />
       </div>
-      <button @click="makeCall" :disabled="hasActiveCall">
-        📞 Make Test Call
-      </button>
+      <button @click="makeCall" :disabled="hasActiveCall">📞 Make Test Call</button>
     </div>
 
     <!-- Active Call with Network Stats -->
@@ -161,7 +159,10 @@
             <div class="metric-value">{{ currentMetrics.packetLoss.toFixed(1) }}%</div>
             <div class="metric-label">Packet Loss</div>
             <div
-              :class="['quality-indicator', getQualityClass(currentMetrics.packetLoss, 'packetLoss')]"
+              :class="[
+                'quality-indicator',
+                getQualityClass(currentMetrics.packetLoss, 'packetLoss'),
+              ]"
             >
               {{ getQualityLabel(currentMetrics.packetLoss, 'packetLoss') }}
             </div>
@@ -223,12 +224,8 @@
 
       <!-- Call Controls -->
       <div class="button-group">
-        <button @click="answer" v-if="callState === 'incoming'">
-          ✅ Answer
-        </button>
-        <button @click="hangup" class="danger">
-          📞 Hang Up
-        </button>
+        <button @click="answer" v-if="callState === 'incoming'">✅ Answer</button>
+        <button @click="hangup" class="danger">📞 Hang Up</button>
       </div>
     </div>
 
@@ -247,7 +244,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useSipClient } from '../../src/composables/useSipClient'
-import { useSipCall } from '../../src/composables/useSipCall'
+import { useCallSession } from '../../src/composables/useCallSession'
 
 // SIP Configuration
 const sipServerUri = ref('sip:example.com')
@@ -264,10 +261,9 @@ const {
   makeCall: makeCallFn,
   answer,
   hangup,
-  currentCall,
   callState,
   hasActiveCall,
-} = useSipCall(sipClient)
+} = useCallSession(sipClient.getClient())
 
 // Network Profiles
 interface NetworkProfile {
@@ -371,15 +367,21 @@ const recommendations = computed(() => {
   const recs: string[] = []
 
   if (currentMetrics.value.latency > 200) {
-    recs.push('High latency detected. Consider using a wired connection or moving closer to your router.')
+    recs.push(
+      'High latency detected. Consider using a wired connection or moving closer to your router.'
+    )
   }
 
   if (currentMetrics.value.packetLoss > 5) {
-    recs.push('Significant packet loss. Check your network connection and reduce other network usage.')
+    recs.push(
+      'Significant packet loss. Check your network connection and reduce other network usage.'
+    )
   }
 
   if (currentMetrics.value.jitter > 50) {
-    recs.push('High jitter detected. This may cause audio quality issues. Close bandwidth-intensive applications.')
+    recs.push(
+      'High jitter detected. This may cause audio quality issues. Close bandwidth-intensive applications.'
+    )
   }
 
   if (customBandwidth.value < 100) {
@@ -758,7 +760,7 @@ button.danger:hover:not(:disabled) {
   font-size: 0.875rem;
 }
 
-.setting-group input[type="range"] {
+.setting-group input[type='range'] {
   width: 100%;
   margin-bottom: 0.25rem;
 }
@@ -910,7 +912,9 @@ button.danger:hover:not(:disabled) {
   flex: 1;
   min-height: 2px;
   border-radius: 2px;
-  transition: height 0.3s, background-color 0.3s;
+  transition:
+    height 0.3s,
+    background-color 0.3s;
 }
 
 .chart-legend {

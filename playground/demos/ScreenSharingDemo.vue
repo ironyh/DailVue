@@ -1,7 +1,9 @@
 <template>
   <div class="screen-sharing-demo">
     <h2>🖥️ Screen Sharing</h2>
-    <p class="description">Share your screen, application windows, or browser tabs during video calls.</p>
+    <p class="description">
+      Share your screen, application windows, or browser tabs during video calls.
+    </p>
 
     <!-- Connection Status -->
     <div class="status-section">
@@ -46,9 +48,7 @@
           @keyup.enter="makeVideoCall"
         />
       </div>
-      <button @click="makeVideoCall" :disabled="hasActiveCall">
-        📹 Make Video Call
-      </button>
+      <button @click="makeVideoCall" :disabled="hasActiveCall">📹 Make Video Call</button>
     </div>
 
     <!-- Active Call with Screen Sharing -->
@@ -84,13 +84,7 @@
         </div>
 
         <div class="video-wrapper local">
-          <video
-            ref="localVideo"
-            autoplay
-            playsinline
-            muted
-            class="local-video"
-          ></video>
+          <video ref="localVideo" autoplay playsinline muted class="local-video"></video>
           <div class="video-label local">You</div>
         </div>
       </div>
@@ -100,20 +94,14 @@
         <h4>Screen Sharing</h4>
 
         <div v-if="!isSharingScreen" class="share-options">
-          <p class="info-text">
-            Choose what to share with the other participant:
-          </p>
+          <p class="info-text">Choose what to share with the other participant:</p>
 
           <div class="share-buttons">
             <button @click="shareScreen('screen')" class="share-btn screen">
               🖥️ Share Entire Screen
             </button>
-            <button @click="shareScreen('window')" class="share-btn window">
-              🪟 Share Window
-            </button>
-            <button @click="shareScreen('tab')" class="share-btn tab">
-              🌐 Share Browser Tab
-            </button>
+            <button @click="shareScreen('window')" class="share-btn window">🪟 Share Window</button>
+            <button @click="shareScreen('tab')" class="share-btn tab">🌐 Share Browser Tab</button>
           </div>
 
           <div class="share-settings">
@@ -153,9 +141,7 @@
             </div>
           </div>
 
-          <button @click="stopScreenShare" class="stop-share-btn">
-            ⏹️ Stop Sharing
-          </button>
+          <button @click="stopScreenShare" class="stop-share-btn">⏹️ Stop Sharing</button>
         </div>
       </div>
 
@@ -163,30 +149,16 @@
       <div class="quick-actions">
         <h4>Quick Actions</h4>
         <div class="button-grid">
-          <button
-            @click="toggleCamera"
-            :class="['action-btn', { active: hasLocalVideo }]"
-          >
+          <button @click="toggleCamera" :class="['action-btn', { active: hasLocalVideo }]">
             {{ hasLocalVideo ? '📹' : '📹' }} Camera
           </button>
-          <button
-            @click="toggleMicrophone"
-            :class="['action-btn', { active: !isMuted }]"
-          >
+          <button @click="toggleMicrophone" :class="['action-btn', { active: !isMuted }]">
             {{ isMuted ? '🔇' : '🔊' }} Mic
           </button>
-          <button
-            @click="switchCamera"
-            :disabled="!hasLocalVideo"
-            class="action-btn"
-          >
+          <button @click="switchCamera" :disabled="!hasLocalVideo" class="action-btn">
             🔄 Switch Camera
           </button>
-          <button
-            @click="takeScreenshot"
-            :disabled="!isSharingScreen"
-            class="action-btn"
-          >
+          <button @click="takeScreenshot" :disabled="!isSharingScreen" class="action-btn">
             📸 Screenshot
           </button>
         </div>
@@ -196,11 +168,7 @@
       <div v-if="sharingHistory.length > 0" class="sharing-history">
         <h4>Sharing History</h4>
         <div class="history-list">
-          <div
-            v-for="(entry, index) in sharingHistory"
-            :key="index"
-            class="history-item"
-          >
+          <div v-for="(entry, index) in sharingHistory" :key="index" class="history-item">
             <div class="history-icon">{{ getShareTypeIcon(entry.type) }}</div>
             <div class="history-info">
               <div class="history-type">{{ entry.type }}</div>
@@ -213,12 +181,8 @@
 
       <!-- Call Controls -->
       <div class="button-group">
-        <button @click="answer" v-if="callState === 'incoming'">
-          ✅ Answer
-        </button>
-        <button @click="hangup" class="danger">
-          📞 Hang Up
-        </button>
+        <button @click="answer" v-if="callState === 'incoming'">✅ Answer</button>
+        <button @click="hangup" class="danger">📞 Hang Up</button>
       </div>
     </div>
 
@@ -236,16 +200,17 @@
         </div>
       </div>
       <p v-if="!supportsScreenShare" class="compat-warning">
-        Screen sharing is not supported in your browser. Please use a modern browser like Chrome, Firefox, or Edge.
+        Screen sharing is not supported in your browser. Please use a modern browser like Chrome,
+        Firefox, or Edge.
       </p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useSipClient } from '../../src/composables/useSipClient'
-import { useSipCall } from '../../src/composables/useSipCall'
+import { useCallSession } from '../../src/composables/useCallSession'
 
 // SIP Configuration
 const sipServerUri = ref('sip:example.com')
@@ -268,7 +233,7 @@ const {
   callState,
   hasActiveCall,
   isMuted,
-} = useSipCall(sipClient)
+} = useCallSession(sipClient.getClient())
 
 // Video Elements
 const localVideo = ref<HTMLVideoElement | null>(null)
@@ -411,7 +376,7 @@ const stopScreenShare = async () => {
   try {
     // Stop all tracks in screen stream
     if (screenStream.value) {
-      screenStream.value.getTracks().forEach(track => track.stop())
+      screenStream.value.getTracks().forEach((track) => track.stop())
     }
 
     // Restore original camera stream
@@ -455,7 +420,7 @@ const toggleCamera = async () => {
 
   if (currentCall.value?.localStream) {
     const videoTracks = currentCall.value.localStream.getVideoTracks()
-    videoTracks.forEach(track => {
+    videoTracks.forEach((track) => {
       track.enabled = hasLocalVideo.value
     })
   }
@@ -488,7 +453,7 @@ const takeScreenshot = () => {
       ctx.drawImage(localVideo.value, 0, 0)
 
       // Download screenshot
-      canvas.toBlob(blob => {
+      canvas.toBlob((blob) => {
         if (blob) {
           const url = URL.createObjectURL(blob)
           const a = document.createElement('a')
@@ -545,10 +510,14 @@ const stopSharingTimer = () => {
 // Helpers
 const getShareTypeIcon = (type: string): string => {
   switch (type) {
-    case 'screen': return '🖥️'
-    case 'window': return '🪟'
-    case 'tab': return '🌐'
-    default: return '📺'
+    case 'screen':
+      return '🖥️'
+    case 'window':
+      return '🪟'
+    case 'tab':
+      return '🌐'
+    default:
+      return '📺'
   }
 }
 
@@ -670,7 +639,8 @@ onUnmounted(() => {
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -867,7 +837,7 @@ button.danger:hover:not(:disabled) {
   cursor: pointer;
 }
 
-.share-settings input[type="checkbox"] {
+.share-settings input[type='checkbox'] {
   width: auto;
 }
 

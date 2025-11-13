@@ -1,7 +1,9 @@
 <template>
   <div class="call-recording-demo">
     <h2>📹 Call Recording</h2>
-    <p class="description">Record and playback call audio with duration tracking and file management.</p>
+    <p class="description">
+      Record and playback call audio with duration tracking and file management.
+    </p>
 
     <!-- Connection Status -->
     <div class="status-section">
@@ -42,9 +44,7 @@
           @keyup.enter="makeCall"
         />
       </div>
-      <button @click="makeCall" :disabled="hasActiveCall">
-        📞 Make Call
-      </button>
+      <button @click="makeCall" :disabled="hasActiveCall">📞 Make Call</button>
     </div>
 
     <!-- Active Call with Recording -->
@@ -90,11 +90,7 @@
           >
             🎙️ Start Recording
           </button>
-          <button
-            v-if="isRecording"
-            @click="stopRecording"
-            class="stop-btn"
-          >
+          <button v-if="isRecording" @click="stopRecording" class="stop-btn">
             ⏹️ Stop Recording
           </button>
         </div>
@@ -114,12 +110,8 @@
 
       <!-- Call Controls -->
       <div class="button-group">
-        <button @click="answer" v-if="callState === 'incoming'">
-          ✅ Answer
-        </button>
-        <button @click="hangup" class="danger">
-          📞 Hang Up
-        </button>
+        <button @click="answer" v-if="callState === 'incoming'">✅ Answer</button>
+        <button @click="hangup" class="danger">📞 Hang Up</button>
       </div>
     </div>
 
@@ -128,11 +120,7 @@
       <h3>Saved Recordings ({{ recordings.length }})</h3>
 
       <div class="recordings-list">
-        <div
-          v-for="recording in recordings"
-          :key="recording.id"
-          class="recording-item"
-        >
+        <div v-for="recording in recordings" :key="recording.id" class="recording-item">
           <div class="recording-info">
             <div class="recording-name">{{ recording.name }}</div>
             <div class="recording-meta">
@@ -150,26 +138,14 @@
             >
               {{ currentlyPlaying === recording.id ? '⏸️ Playing' : '▶️ Play' }}
             </button>
-            <button
-              @click="downloadRecording(recording)"
-              class="download-btn"
-            >
-              💾 Download
-            </button>
-            <button
-              @click="deleteRecording(recording.id)"
-              class="delete-btn"
-            >
-              🗑️
-            </button>
+            <button @click="downloadRecording(recording)" class="download-btn">💾 Download</button>
+            <button @click="deleteRecording(recording.id)" class="delete-btn">🗑️</button>
           </div>
         </div>
       </div>
 
       <div class="recordings-actions">
-        <button @click="clearAllRecordings" class="danger">
-          Clear All Recordings
-        </button>
+        <button @click="clearAllRecordings" class="danger">Clear All Recordings</button>
       </div>
     </div>
 
@@ -179,9 +155,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useSipClient } from '../../src/composables/useSipClient'
-import { useSipCall } from '../../src/composables/useSipCall'
+import { useCallSession } from '../../src/composables/useCallSession'
 
 // SIP Configuration
 const sipServerUri = ref('sip:example.com')
@@ -201,7 +177,7 @@ const {
   currentCall,
   callState,
   hasActiveCall,
-} = useSipCall(sipClient)
+} = useCallSession(sipClient.getClient())
 
 // Recording State
 const isRecording = ref(false)
@@ -660,7 +636,8 @@ button.danger:hover:not(:disabled) {
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -683,7 +660,7 @@ button.danger:hover:not(:disabled) {
   cursor: pointer;
 }
 
-.recording-options input[type="checkbox"] {
+.recording-options input[type='checkbox'] {
   width: auto;
 }
 

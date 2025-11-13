@@ -1,7 +1,9 @@
 <template>
   <div class="call-mute-demo">
     <h2>🔇 Call Mute Patterns</h2>
-    <p class="description">Advanced mute/unmute patterns with push-to-talk, auto-mute, and visual indicators.</p>
+    <p class="description">
+      Advanced mute/unmute patterns with push-to-talk, auto-mute, and visual indicators.
+    </p>
 
     <!-- Connection Status -->
     <div class="status-section">
@@ -42,9 +44,7 @@
           @keyup.enter="makeCall"
         />
       </div>
-      <button @click="makeCall" :disabled="hasActiveCall">
-        📞 Make Call
-      </button>
+      <button @click="makeCall" :disabled="hasActiveCall">📞 Make Call</button>
     </div>
 
     <!-- Active Call with Mute Patterns -->
@@ -71,9 +71,7 @@
           <div class="primary">
             {{ isMuted ? 'MICROPHONE MUTED' : 'MICROPHONE ACTIVE' }}
           </div>
-          <div class="secondary" v-if="activeMutePattern">
-            Mode: {{ activeMutePattern }}
-          </div>
+          <div class="secondary" v-if="activeMutePattern">Mode: {{ activeMutePattern }}</div>
         </div>
       </div>
 
@@ -95,11 +93,7 @@
             </label>
           </div>
           <p class="pattern-description">Click to toggle mute on/off</p>
-          <button
-            @click="toggleMute"
-            :disabled="muteMode !== 'standard'"
-            class="mute-btn"
-          >
+          <button @click="toggleMute" :disabled="muteMode !== 'standard'" class="mute-btn">
             {{ isMuted ? '🔊 Unmute' : '🔇 Mute' }}
           </button>
         </div>
@@ -127,9 +121,7 @@
           >
             {{ isPushToTalkActive ? '🎤 TALKING' : '🔇 HOLD TO TALK' }}
           </button>
-          <div class="keyboard-hint">
-            Keyboard: Hold <kbd>Space</kbd> to talk
-          </div>
+          <div class="keyboard-hint">Keyboard: Hold <kbd>Space</kbd> to talk</div>
         </div>
 
         <!-- Auto Mute on Silence -->
@@ -145,9 +137,7 @@
               <span class="slider"></span>
             </label>
           </div>
-          <p class="pattern-description">
-            Auto-mutes after {{ autoMuteDelay / 1000 }}s of silence
-          </p>
+          <p class="pattern-description">Auto-mutes after {{ autoMuteDelay / 1000 }}s of silence</p>
           <div class="audio-level-display">
             <div class="level-label">Audio Level:</div>
             <div class="level-bar-container">
@@ -236,12 +226,8 @@
 
       <!-- Call Controls -->
       <div class="button-group">
-        <button @click="answer" v-if="callState === 'incoming'">
-          ✅ Answer
-        </button>
-        <button @click="hangup" class="danger">
-          📞 Hang Up
-        </button>
+        <button @click="answer" v-if="callState === 'incoming'">✅ Answer</button>
+        <button @click="hangup" class="danger">📞 Hang Up</button>
       </div>
     </div>
   </div>
@@ -250,7 +236,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useSipClient } from '../../src/composables/useSipClient'
-import { useSipCall } from '../../src/composables/useSipCall'
+import { useCallSession } from '../../src/composables/useCallSession'
 
 // SIP Configuration
 const sipServerUri = ref('sip:example.com')
@@ -272,8 +258,7 @@ const {
   currentCall,
   callState,
   hasActiveCall,
-  isMuted: isCallMuted,
-} = useSipCall(sipClient)
+} = useCallSession(sipClient.getClient())
 
 // Mute State
 const isMuted = ref(false)
@@ -523,7 +508,7 @@ const startStatsTimer = () => {
     if (!hasActiveCall.value) return
 
     const now = Date.now()
-    const elapsed = Math.floor((now - lastStateChangeTime.value) / 1000)
+    const _elapsed = Math.floor((now - lastStateChangeTime.value) / 1000)
 
     if (isMuted.value) {
       // Already counted in totalMutedTime, but update for live display
@@ -666,9 +651,9 @@ h5 {
   font-size: 0.875rem;
 }
 
-.form-group input[type="text"],
-.form-group input[type="password"],
-.form-group input[type="number"] {
+.form-group input[type='text'],
+.form-group input[type='password'],
+.form-group input[type='number'] {
   width: 100%;
   padding: 0.5rem;
   border: 1px solid #d1d5db;
@@ -676,7 +661,7 @@ h5 {
   font-size: 0.875rem;
 }
 
-.form-group input[type="range"] {
+.form-group input[type='range'] {
   width: calc(100% - 3rem);
   margin-right: 0.5rem;
 }
@@ -828,7 +813,7 @@ button.danger:hover:not(:disabled) {
 
 .slider:before {
   position: absolute;
-  content: "";
+  content: '';
   height: 18px;
   width: 18px;
   left: 3px;
