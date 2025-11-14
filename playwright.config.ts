@@ -11,8 +11,14 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  /* Opt out of parallel tests on CI. Workers limited to prevent resource exhaustion */
+  workers: process.env.CI ? 1 : 2,
+  /* Global timeout for each test */
+  timeout: 30000, // 30 seconds per test
+  /* Expect timeout for assertions */
+  expect: {
+    timeout: 5000, // 5 seconds for expect assertions
+  },
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
     ['html'],
@@ -30,6 +36,10 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     /* Record video on test failure */
     video: 'retain-on-failure',
+    /* Navigation timeout */
+    navigationTimeout: 15000, // 15 seconds for page loads
+    /* Action timeout */
+    actionTimeout: 10000, // 10 seconds for actions
   },
 
   /* Configure projects for major browsers */
@@ -45,8 +55,15 @@ export default defineConfig({
             '--disable-setuid-sandbox',
             '--disable-gpu',
             '--disable-software-rasterizer',
-            '--single-process', // Essential for containerized environments
-            '--no-zygote', // Works with --single-process for better stability
+            // Only use single-process in strict CI environments to avoid memory exhaustion
+            ...(process.env.CI && process.env.CONTAINER ? ['--single-process', '--no-zygote'] : []),
+            // Memory management
+            '--js-flags=--max-old-space-size=2048',
+            '--disable-extensions',
+            '--disable-background-timer-throttling',
+            '--disable-backgrounding-occluded-windows',
+            '--disable-renderer-backgrounding',
+            // Media device mocking
             '--use-fake-device-for-media-stream',
             '--use-fake-ui-for-media-stream',
           ],
