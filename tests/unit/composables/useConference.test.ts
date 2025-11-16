@@ -801,7 +801,7 @@ describe('useConference', () => {
       await result.startRecording()
 
       expect(result.isRecording.value).toBe(true)
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+
       expect(mockSipClient.startConferenceRecording).toHaveBeenCalledWith(
         result.conference.value!.id
       )
@@ -860,7 +860,7 @@ describe('useConference', () => {
       await result.stopRecording()
 
       expect(result.isRecording.value).toBe(false)
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+
       expect(mockSipClient.stopConferenceRecording).toHaveBeenCalledWith(
         result.conference.value!.id
       )
@@ -1279,14 +1279,16 @@ describe('useConference', () => {
 
       await result.createConference()
 
-      const timerCountBefore = vi.getTimerCount()
-      expect(timerCountBefore).toBeGreaterThan(0)
+      // Verify audio monitoring is active
+      await vi.advanceTimersByTimeAsync(CONFERENCE_CONSTANTS.AUDIO_LEVEL_INTERVAL)
+      expect(mockSipClient.getConferenceAudioLevels).toHaveBeenCalled()
 
+      mockSipClient.getConferenceAudioLevels.mockClear()
       await result.endConference()
 
-      // Timer should be cleared
-      const timerCountAfter = vi.getTimerCount()
-      expect(timerCountAfter).toBeLessThan(timerCountBefore)
+      // Verify audio monitoring stopped (interval no longer running)
+      await vi.advanceTimersByTimeAsync(CONFERENCE_CONSTANTS.AUDIO_LEVEL_INTERVAL * 5)
+      expect(mockSipClient.getConferenceAudioLevels).not.toHaveBeenCalled()
 
       unmount()
     })
