@@ -462,7 +462,7 @@ describe('Network Resilience Integration Tests', () => {
 
       // Wait for start to complete and events to propagate
       await startPromise
-      await flushMicrotasks()
+      await flushMicrotasksHelper()
       await waitForState(() => sipClient.connectionState, 'connected', {
         timeout: 1000,
         description: 'connection state to be connected',
@@ -479,7 +479,7 @@ describe('Network Resilience Integration Tests', () => {
       }
 
       await sipClient.stop()
-      await flushMicrotasks()
+      await flushMicrotasksHelper()
       expect(sipClient.connectionState).toBe('disconnected')
     })
   })
