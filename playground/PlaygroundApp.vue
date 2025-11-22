@@ -3,10 +3,22 @@
     <!-- Header -->
     <header class="playground-header">
       <div class="container">
-        <h1>🎮 VueSip Interactive Playground</h1>
-        <p class="subtitle">
-          Explore and experiment with VueSip composables for building SIP/VoIP applications
-        </p>
+        <div class="header-content">
+          <div class="header-title">
+            <h1>🎮 VueSip Interactive Playground</h1>
+            <p class="subtitle">
+              Explore and experiment with VueSip composables for building SIP/VoIP applications
+            </p>
+          </div>
+          <button
+            @click="toggleTheme"
+            class="theme-toggle"
+            :aria-label="`Switch to ${isDarkMode ? 'light' : 'dark'} mode`"
+            type="button"
+          >
+            <span class="theme-icon">{{ isDarkMode ? '☀️' : '🌙' }}</span>
+          </button>
+        </div>
       </div>
     </header>
 
@@ -196,7 +208,7 @@ const { makeCall, answer, hangup } = useCallSession()</code></pre>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { allExamples } from './examples'
 
 // Use imported examples
@@ -207,6 +219,7 @@ const currentExample = ref('basic-call')
 const activeTab = ref<'demo' | 'code' | 'setup'>('demo')
 const searchQuery = ref('')
 const copiedSnippets = ref<Record<number, boolean>>({})
+const isDarkMode = ref(false)
 
 // Computed
 const filteredExamples = computed(() => {
@@ -282,12 +295,41 @@ const copyCode = async (code: string, index: number) => {
     alert('Failed to copy code. Please select and copy manually.')
   }
 }
+
+const toggleTheme = () => {
+  isDarkMode.value = !isDarkMode.value
+}
+
+const applyTheme = (dark: boolean) => {
+  if (dark) {
+    document.documentElement.classList.add('dark-mode')
+  } else {
+    document.documentElement.classList.remove('dark-mode')
+  }
+}
+
+// Initialize theme from localStorage or system preference
+onMounted(() => {
+  const stored = localStorage.getItem('vuesip-theme')
+  if (stored) {
+    isDarkMode.value = stored === 'dark'
+  } else {
+    isDarkMode.value = window.matchMedia('(prefers-color-scheme: dark)').matches
+  }
+  applyTheme(isDarkMode.value)
+})
+
+// Watch for theme changes
+watch(isDarkMode, (newValue) => {
+  applyTheme(newValue)
+  localStorage.setItem('vuesip-theme', newValue ? 'dark' : 'light')
+})
 </script>
 
 <style scoped>
 .playground {
   min-height: 100vh;
-  background: #f8f9fa;
+  background: var(--bg-secondary);
 }
 
 .playground-header {
@@ -315,6 +357,47 @@ const copyCode = async (code: string, index: number) => {
   opacity: 0.95;
 }
 
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2rem;
+}
+
+.header-title {
+  flex: 1;
+}
+
+.theme-toggle {
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 1.5rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  min-height: 48px;
+}
+
+.theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+}
+
+.theme-toggle:active {
+  transform: scale(0.95);
+}
+
+.theme-icon {
+  display: block;
+  line-height: 1;
+}
+
 .playground-content {
   display: grid;
   grid-template-columns: 300px 1fr;
@@ -326,11 +409,12 @@ const copyCode = async (code: string, index: number) => {
 
 /* Sidebar */
 .playground-sidebar {
-  background: white;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 1.5rem;
   height: fit-content;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
   position: sticky;
   top: 2rem;
 }
@@ -338,7 +422,7 @@ const copyCode = async (code: string, index: number) => {
 .playground-sidebar h2 {
   margin: 0 0 1rem 0;
   font-size: 1.25rem;
-  color: #333;
+  color: var(--text-primary);
 }
 
 /* Search Box */
@@ -350,7 +434,7 @@ const copyCode = async (code: string, index: number) => {
 .search-input {
   width: 100%;
   padding: 0.75rem 2.5rem 0.75rem 1rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--gray-300);
   border-radius: 6px;
   font-size: 0.875rem;
   font-family: inherit;
@@ -359,12 +443,12 @@ const copyCode = async (code: string, index: number) => {
 
 .search-input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 .search-input::placeholder {
-  color: #9ca3af;
+  color: var(--gray-400);
 }
 
 .clear-search {
@@ -374,7 +458,7 @@ const copyCode = async (code: string, index: number) => {
   transform: translateY(-50%);
   background: none;
   border: none;
-  color: #6b7280;
+  color: var(--gray-500);
   cursor: pointer;
   padding: 0.25rem 0.5rem;
   font-size: 1.125rem;
@@ -383,16 +467,16 @@ const copyCode = async (code: string, index: number) => {
 }
 
 .clear-search:hover {
-  color: #ef4444;
+  color: var(--danger);
 }
 
 /* Filter Stats */
 .filter-stats {
   font-size: 0.75rem;
-  color: #6b7280;
+  color: var(--gray-500);
   margin-bottom: 0.75rem;
   padding: 0.5rem;
-  background: #f3f4f6;
+  background: var(--gray-100);
   border-radius: 4px;
   text-align: center;
 }
@@ -417,7 +501,7 @@ const copyCode = async (code: string, index: number) => {
 .tag-badge {
   font-size: 0.625rem;
   padding: 0.125rem 0.375rem;
-  background: #667eea;
+  background: var(--primary);
   color: white;
   border-radius: 3px;
   font-weight: 500;
@@ -427,7 +511,7 @@ const copyCode = async (code: string, index: number) => {
 .no-results {
   text-align: center;
   padding: 2rem 1rem;
-  color: #6b7280;
+  color: var(--gray-500);
 }
 
 .no-results p {
@@ -437,9 +521,9 @@ const copyCode = async (code: string, index: number) => {
 
 .btn-secondary {
   padding: 0.5rem 1rem;
-  background: #f3f4f6;
-  color: #374151;
-  border: 1px solid #d1d5db;
+  background: var(--gray-100);
+  color: var(--gray-700);
+  border: 1px solid var(--gray-300);
   border-radius: 6px;
   font-size: 0.875rem;
   cursor: pointer;
@@ -447,7 +531,7 @@ const copyCode = async (code: string, index: number) => {
 }
 
 .btn-secondary:hover {
-  background: #e5e7eb;
+  background: var(--gray-200);
 }
 
 .example-list {
@@ -468,12 +552,12 @@ const copyCode = async (code: string, index: number) => {
 }
 
 .example-list li:hover {
-  background: #f8f9fa;
+  background: var(--bg-secondary);
 }
 
 .example-list li.active {
-  background: #e7f3ff;
-  border-color: #667eea;
+  background: rgba(102, 126, 234, 0.1);
+  border-color: var(--primary);
 }
 
 .example-icon {
@@ -484,26 +568,26 @@ const copyCode = async (code: string, index: number) => {
 .example-info h3 {
   margin: 0 0 0.25rem 0;
   font-size: 1rem;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .example-info p {
   margin: 0;
   font-size: 0.875rem;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 /* Quick Links */
 .quick-links {
   margin-top: 2rem;
   padding-top: 1.5rem;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border-color);
 }
 
 .quick-links h3 {
   margin: 0 0 1rem 0;
   font-size: 1rem;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .quick-links ul {
@@ -517,7 +601,7 @@ const copyCode = async (code: string, index: number) => {
 }
 
 .quick-links a {
-  color: #667eea;
+  color: var(--primary);
   text-decoration: none;
   font-size: 0.875rem;
   display: block;
@@ -527,12 +611,12 @@ const copyCode = async (code: string, index: number) => {
 }
 
 .quick-links a:hover {
-  background: #f8f9fa;
+  background: var(--bg-secondary);
 }
 
 /* Main Area */
 .playground-main {
-  background: white;
+  background: var(--bg-primary);
   border-radius: 12px;
   padding: 2rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -542,12 +626,12 @@ const copyCode = async (code: string, index: number) => {
 .example-header h2 {
   margin: 0 0 0.5rem 0;
   font-size: 2rem;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .example-header p {
   margin: 0 0 1rem 0;
-  color: #666;
+  color: var(--text-secondary);
   font-size: 1.125rem;
 }
 
@@ -558,7 +642,7 @@ const copyCode = async (code: string, index: number) => {
 }
 
 .tag {
-  background: #e7f3ff;
+  background: rgba(102, 126, 234, 0.1);
   color: #0066cc;
   padding: 0.25rem 0.75rem;
   border-radius: 12px;
@@ -570,7 +654,7 @@ const copyCode = async (code: string, index: number) => {
 .tab-navigation {
   display: flex;
   gap: 0.5rem;
-  border-bottom: 2px solid #e5e7eb;
+  border-bottom: 2px solid var(--border-color);
   margin-bottom: 2rem;
 }
 
@@ -579,7 +663,7 @@ const copyCode = async (code: string, index: number) => {
   border: none;
   padding: 1rem 1.5rem;
   font-size: 1rem;
-  color: #666;
+  color: var(--text-secondary);
   cursor: pointer;
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
@@ -588,12 +672,12 @@ const copyCode = async (code: string, index: number) => {
 }
 
 .tab-navigation button:hover {
-  color: #333;
+  color: var(--text-primary);
 }
 
 .tab-navigation button.active {
-  color: #667eea;
-  border-bottom-color: #667eea;
+  color: var(--primary);
+  border-bottom-color: var(--primary);
 }
 
 /* Tab Content */
@@ -617,12 +701,12 @@ const copyCode = async (code: string, index: number) => {
 .code-snippet h3 {
   margin: 0 0 0.5rem 0;
   font-size: 1.25rem;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .snippet-description {
   margin: 0 0 1rem 0;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .code-snippet code {
@@ -646,7 +730,7 @@ const copyCode = async (code: string, index: number) => {
   gap: 0.375rem;
   padding: 0.5rem 0.75rem;
   background: #2d2d2d;
-  color: #9ca3af;
+  color: var(--gray-400);
   border: 1px solid #3f3f3f;
   border-radius: 6px;
   font-size: 0.75rem;
@@ -664,9 +748,9 @@ const copyCode = async (code: string, index: number) => {
 }
 
 .copy-button.copied {
-  background: #10b981;
+  background: var(--success);
   color: white;
-  border-color: #059669;
+  border-color: var(--success-dark);
 }
 
 .copy-icon {
@@ -696,7 +780,7 @@ const copyCode = async (code: string, index: number) => {
 .setup-content h3 {
   margin: 2rem 0 1rem 0;
   font-size: 1.5rem;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .setup-content h3:first-child {
@@ -710,7 +794,7 @@ const copyCode = async (code: string, index: number) => {
 
 .setup-content li {
   margin-bottom: 0.5rem;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .setup-content pre {
