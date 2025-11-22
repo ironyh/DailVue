@@ -144,9 +144,7 @@ import DtmfDemo from './demos/DtmfDemo.vue'
 import AudioDevicesDemo from './demos/AudioDevicesDemo.vue'
 import CallHistoryDemo from './demos/CallHistoryDemo.vue'
 import CallTransferDemo from './demos/CallTransferDemo.vue'
-// Temporarily disabled due to compilation errors - will fix separately
-// import VideoCallDemo from './demos/VideoCallDemo.vue'
-const VideoCallDemo = { template: '<div>Video Call Demo - Temporarily disabled</div>' }
+import VideoCallDemo from './demos/VideoCallDemo.vue'
 import CallTimerDemo from './demos/CallTimerDemo.vue'
 import SpeedDialDemo from './demos/SpeedDialDemo.vue'
 import DoNotDisturbDemo from './demos/DoNotDisturbDemo.vue'
