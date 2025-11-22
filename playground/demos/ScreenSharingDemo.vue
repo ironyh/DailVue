@@ -208,7 +208,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useSipClient } from '../../src/composables/useSipClient'
 import { useCallSession } from '../../src/composables/useCallSession'
 
