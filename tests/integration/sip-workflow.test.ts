@@ -532,22 +532,28 @@ describe('SIP Workflow Integration Tests', () => {
       await sipClient.start()
       
       // Wait for connection state to be updated
-      await waitFor(() => sipClient.isConnected, { timeout: 1000, timeoutMessage: 'Connection not established' })
+      await waitForCondition(() => sipClient.isConnected, {
+        timeout: 1000,
+        description: 'Connection not established',
+      })
 
       mockSipServer.simulateRegistered()
       await sipClient.register()
 
       // Wait for registration state to be updated
-      await waitFor(() => sipClient.registrationState === RegistrationState.Registered, {
+      await waitForCondition(() => sipClient.registrationState === RegistrationState.Registered, {
         timeout: 1000,
-        timeoutMessage: 'Registration not completed'
+        description: 'Registration not completed',
       })
 
       expect(sipClient.isConnected).toBe(true)
       expect(sipClient.registrationState).toBe(RegistrationState.Registered)
 
       // Verify events were propagated
-      await waitFor(() => events.length > 0, { timeout: 1000 })
+      await waitForCondition(() => events.length > 0, {
+        timeout: 1000,
+        description: 'Events to be propagated',
+      })
       expect(events.some(e => e.type === 'connected')).toBe(true)
       expect(events.some(e => e.type === 'registered')).toBe(true)
     })
