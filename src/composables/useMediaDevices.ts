@@ -13,7 +13,6 @@ import {
   watch,
   onMounted,
   onUnmounted,
-  readonly,
   nextTick,
   type Ref,
   type ComputedRef,
@@ -171,9 +170,6 @@ export function useMediaDevices(
   } = {}
 ): UseMediaDevicesReturn {
   const { autoEnumerate = true, autoMonitor = true } = options
-  
-  // Debug: log when composable is called
-  console.log('useMediaDevices: composable called, autoEnumerate:', autoEnumerate, 'window available:', typeof window !== 'undefined')
 
   // ============================================================================
   // Reactive State
@@ -312,23 +308,6 @@ export function useMediaDevices(
    * // Later: controller.abort()
    * ```
    */
-<<<<<<< HEAD
-  const enumerateDevices = async (signal?: AbortSignal): Promise<MediaDevice[]> => {
-    // Debug log for E2E tests
-    if (typeof window !== 'undefined' && window.location?.search?.includes('test=true')) {
-      console.log('useMediaDevices.enumerateDevices: called')
-    }
-    
-    // Use internal abort signal if none provided (auto-cleanup on unmount)
-    const effectiveSignal = signal ?? internalAbortController.value.signal
-
-    if (isEnumerating.value) {
-      log.debug('Device enumeration already in progress')
-      if (typeof window !== 'undefined' && window.location?.search?.includes('test=true')) {
-        console.log('useMediaDevices.enumerateDevices: already in progress, returning cached devices')
-      }
-      return allDevices.value
-=======
   const enumerateDevices = (signal?: AbortSignal): Promise<MediaDevice[]> => {
     // Use internal abort signal if none provided (auto-cleanup on unmount)
     const effectiveSignal = signal ?? internalAbortController.value.signal
@@ -336,7 +315,6 @@ export function useMediaDevices(
     if (isEnumerating.value && enumerationPromise) {
       log.debug('Device enumeration already in progress, returning pending promise')
       return enumerationPromise
->>>>>>> origin/main
     }
 
     const timer = createOperationTimer()
@@ -345,29 +323,10 @@ export function useMediaDevices(
     isEnumerating.value = true
     lastError.value = null
 
-<<<<<<< HEAD
-      // Check if aborted before starting
-      throwIfAborted(effectiveSignal)
-
-      log.info('Enumerating devices')
-      if (typeof window !== 'undefined' && window.location?.search?.includes('test=true')) {
-        console.log('useMediaDevices.enumerateDevices: starting enumeration')
-      }
-
-      let devices: MediaDevice[]
-      let rawDevices: MediaDeviceInfo[]
-
-      if (mediaManager?.value) {
-        // Use MediaManager if available
-        devices = await mediaManager.value.enumerateDevices()
-
-        // Check signal after first async operation
-=======
     // Store the promise to return to concurrent callers
     enumerationPromise = (async () => {
       try {
         // Check if aborted before starting
->>>>>>> origin/main
         throwIfAborted(effectiveSignal)
 
         log.info('Enumerating devices')
@@ -379,19 +338,8 @@ export function useMediaDevices(
           // Use MediaManager if available
           devices = await mediaManager.value.enumerateDevices()
 
-<<<<<<< HEAD
-      // Update store with raw browser MediaDeviceInfo[]
-      deviceStore.setDevices(rawDevices)
-      
-      // Debug log for E2E tests
-      if (typeof window !== 'undefined' && window.location?.search?.includes('test=true')) {
-        console.log('useMediaDevices: setDevices called with', rawDevices.length, 'devices')
-        console.log('useMediaDevices: audioInputDevices after setDevices:', deviceStore.audioInputDevices.length)
-      }
-=======
           // Check signal after first async operation
           throwIfAborted(effectiveSignal)
->>>>>>> origin/main
 
           rawDevices = await navigator.mediaDevices.enumerateDevices()
         } else {
@@ -856,27 +804,13 @@ export function useMediaDevices(
   // Initialize on mount
   onMounted(async () => {
     log.debug('Composable mounted')
-    
-    // Debug log for E2E tests
-    if (typeof window !== 'undefined' && window.location?.search?.includes('test=true')) {
-      console.log('useMediaDevices: onMounted called, autoEnumerate:', autoEnumerate)
-    }
 
     // Auto-enumerate if enabled
     if (autoEnumerate) {
       try {
-        if (typeof window !== 'undefined' && window.location?.search?.includes('test=true')) {
-          console.log('useMediaDevices: calling enumerateDevices() from onMounted')
-        }
         await enumerateDevices()
-        if (typeof window !== 'undefined' && window.location?.search?.includes('test=true')) {
-          console.log('useMediaDevices: enumerateDevices() completed')
-        }
       } catch (error) {
         log.error('Auto-enumeration failed:', error)
-        if (typeof window !== 'undefined' && window.location?.search?.includes('test=true')) {
-          console.error('useMediaDevices: enumerateDevices() failed:', error)
-        }
       }
     }
 

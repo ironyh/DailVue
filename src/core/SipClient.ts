@@ -4,7 +4,6 @@
  * @packageDocumentation
  */
 
-import { toRaw } from 'vue'
 import JsSIP, { type UA, type Socket } from 'jssip'
 import type { UAConfiguration } from 'jssip/lib/UA'
 import type { EventBus } from './EventBus'
@@ -1879,7 +1878,7 @@ export class SipClient {
     // Convert to plain object to prevent proxy errors
     try {
       // Access sipUri to trigger any proxy errors early
-      const _ = this.config.sipUri
+      void this.config.sipUri
     } catch (e: any) {
       // If there's a proxy error, convert config to plain object
       logger.warn('Config is a Vue proxy, converting to plain object for JsSIP compatibility', e.message)

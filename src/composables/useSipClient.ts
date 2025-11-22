@@ -7,7 +7,7 @@
  * @module composables/useSipClient
  */
 
-import { ref, computed, onUnmounted, readonly, nextTick, toRaw, watch, type Ref, type ComputedRef } from 'vue'
+import { ref, computed, onUnmounted, readonly, nextTick, watch, type Ref, type ComputedRef } from 'vue'
 import { SipClient } from '@/core/SipClient'
 import { EventBus } from '@/core/EventBus'
 import { configStore } from '@/stores/configStore'
