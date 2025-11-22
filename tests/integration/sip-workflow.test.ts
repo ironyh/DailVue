@@ -314,7 +314,7 @@ describe('SIP Workflow Integration Tests', () => {
       const mockUA = mockSipServer.getUA()
       mockUA.call.mockReturnValue(session)
 
-      await sipClient.call('sip:remote@example.com')
+      const callSession = await sipClient.call('sip:remote@example.com')
 
       // Wait for handlers to be registered
       await waitForNextTick()
@@ -530,7 +530,10 @@ describe('SIP Workflow Integration Tests', () => {
       await sipClient.start()
 
       // Wait for connection state to be updated
-      await waitForCondition(() => sipClient.isConnected, { timeout: 1000 })
+      await waitFor(() => sipClient.isConnected, {
+        timeout: 1000,
+        timeoutMessage: 'Connection not established',
+      })
 
       mockSipServer.simulateRegistered()
       await sipClient.register()

@@ -5,7 +5,6 @@
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { SipClient } from '../../src/core/SipClient'
@@ -13,7 +12,6 @@ import { CallSession } from '../../src/core/CallSession'
 import { EventBus } from '../../src/core/EventBus'
 import type { SipClientConfig } from '../../src/types/config.types'
 import {
-  waitForEvent,
   waitForState,
   waitForNextTick,
   flushMicrotasks as flushMicrotasksHelper,
@@ -328,7 +326,7 @@ describe('Network Resilience Integration Tests', () => {
       for (let i = 0; i < 5; i++) {
         mockUA.isConnected.mockReturnValue(true)
         scheduleUAEvent('connected', {}, 0)
-        promises.push(sipClient.start().then(() => flushMicrotasksHelper()))
+        promises.push(sipClient.start().then(() => flushMicrotasks()))
 
         mockUA.isConnected.mockReturnValue(false)
         scheduleUAEvent('disconnected', {}, 0)
