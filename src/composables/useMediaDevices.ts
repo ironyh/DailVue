@@ -24,7 +24,6 @@ import { MediaDeviceKind, PermissionStatus } from '../types/media.types'
 import { createLogger } from '../utils/logger'
 import { throwIfAborted, isAbortError } from '../utils/abortController'
 import { ErrorSeverity, logErrorWithContext, createOperationTimer } from '../utils/errorContext'
-import { isDebugMode } from '../utils/env'
 
 const log = createLogger('useMediaDevices')
 
