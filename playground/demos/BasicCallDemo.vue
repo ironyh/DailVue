@@ -54,6 +54,35 @@
         />
       </div>
 
+      <!-- Remember Me Section -->
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="rememberMe" />
+          <span>Remember me (persist credentials across sessions)</span>
+        </label>
+      </div>
+
+      <!-- Save Password Section (conditional) -->
+      <div v-if="rememberMe" class="form-group nested">
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="savePassword" />
+          <span>Save password</span>
+        </label>
+        <div class="security-warning">
+          <p>
+            ⚠️ <strong>Security Warning:</strong> Saving your password in browser
+            localStorage is not secure. Only use this on trusted devices.
+          </p>
+        </div>
+      </div>
+
+      <!-- Clear Credentials Button (conditional) -->
+      <div v-if="rememberMe" class="form-actions">
+        <button type="button" class="btn btn-secondary btn-sm" @click="clearCredentials">
+          Clear Saved Credentials
+        </button>
+      </div>
+
       <button
         class="btn btn-primary"
         :disabled="!isConfigValid || connecting"
@@ -75,21 +104,6 @@
 
     <!-- Connected Interface -->
     <div v-else class="connected-interface">
-      <!-- Status Bar -->
-      <div class="status-bar">
-        <div class="status-item">
-          <span class="status-dot connected"></span>
-          <span>Connected</span>
-        </div>
-        <div class="status-item">
-          <span class="status-dot" :class="{ connected: isRegistered }"></span>
-          <span>{{ isRegistered ? 'Registered' : 'Not Registered' }}</span>
-        </div>
-        <button class="btn btn-sm btn-secondary" @click="handleDisconnect">
-          Disconnect
-        </button>
-      </div>
-
       <!-- Call Interface -->
       <div v-if="callState === 'idle'" class="call-panel">
         <h3>Make a Call</h3>
@@ -174,8 +188,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useSipClient, useCallSession } from '../../src'
+
+// localStorage keys
+const CREDENTIALS_STORAGE_KEY = 'vuesip-credentials'
+const CREDENTIALS_OPTIONS_KEY = 'vuesip-credentials-options'
+
+interface StoredCredentials {
+  uri: string
+  sipUri: string
+  password?: string
+  displayName: string
+  timestamp: string
+}
+
+interface CredentialsOptions {
+  rememberMe: boolean
+  savePassword: boolean
+}
 
 // Configuration
 const config = ref({
@@ -189,6 +220,8 @@ const config = ref({
 const connecting = ref(false)
 const connectionError = ref('')
 const dialNumber = ref('')
+const rememberMe = ref(false)
+const savePassword = ref(false)
 
 // SIP Client
 const { connect, disconnect, isConnected, isRegistered, error: sipError, updateConfig, getClient } = useSipClient()
@@ -228,6 +261,82 @@ const callStateDisplay = computed(() => {
   }
   return states[callState.value] || callState.value
 })
+
+// Credential Persistence
+const loadCredentials = (): boolean => {
+  const saved = localStorage.getItem(CREDENTIALS_STORAGE_KEY)
+  const options = localStorage.getItem(CREDENTIALS_OPTIONS_KEY)
+
+  if (saved && options) {
+    try {
+      const credentials: StoredCredentials = JSON.parse(saved)
+      const opts: CredentialsOptions = JSON.parse(options)
+
+      if (opts.rememberMe) {
+        config.value.uri = credentials.uri || ''
+        config.value.sipUri = credentials.sipUri || ''
+        config.value.displayName = credentials.displayName || ''
+
+        if (opts.savePassword && credentials.password) {
+          config.value.password = credentials.password
+        }
+
+        rememberMe.value = opts.rememberMe
+        savePassword.value = opts.savePassword
+
+        return true // Credentials loaded successfully
+      }
+    } catch (error) {
+      console.error('Failed to load credentials:', error)
+    }
+  }
+
+  return false // No valid credentials found
+}
+
+const saveCredentials = () => {
+  if (rememberMe.value) {
+    const credentials: StoredCredentials = {
+      uri: config.value.uri,
+      sipUri: config.value.sipUri,
+      displayName: config.value.displayName,
+      timestamp: new Date().toISOString(),
+    }
+
+    if (savePassword.value) {
+      credentials.password = config.value.password
+    }
+
+    const options: CredentialsOptions = {
+      rememberMe: rememberMe.value,
+      savePassword: savePassword.value,
+    }
+
+    // Debug: Log what we're saving
+    console.log('💾 BasicCallDemo: Saving credentials:', {
+      uri: credentials.uri,
+      sipUri: credentials.sipUri,
+      displayName: credentials.displayName,
+      hasPassword: !!credentials.password,
+      passwordLength: credentials.password?.length,
+      passwordValue: credentials.password,
+      passwordChars: credentials.password ? Array.from(credentials.password).map(c => c.charCodeAt(0)) : [],
+      savePassword: savePassword.value
+    })
+
+    localStorage.setItem(CREDENTIALS_STORAGE_KEY, JSON.stringify(credentials))
+    localStorage.setItem(CREDENTIALS_OPTIONS_KEY, JSON.stringify(options))
+  } else {
+    clearCredentials()
+  }
+}
+
+const clearCredentials = () => {
+  localStorage.removeItem(CREDENTIALS_STORAGE_KEY)
+  localStorage.removeItem(CREDENTIALS_OPTIONS_KEY)
+  rememberMe.value = false
+  savePassword.value = false
+}
 
 // Methods
 const handleConnect = async () => {
@@ -333,6 +442,59 @@ const formatDuration = (seconds: number) => {
   const secs = seconds % 60
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
 }
+
+// Load credentials and auto-connect on mount
+onMounted(async () => {
+  const hasCredentials = loadCredentials()
+
+  // Note: PlaygroundApp.vue handles global auto-connect
+  // This demo just loads credentials into the form
+  if (hasCredentials) {
+    console.log('📋 BasicCallDemo: Credentials loaded into form')
+
+    // Only auto-connect if PlaygroundApp didn't already connect
+    if (rememberMe.value && !isConnected.value) {
+      console.log('🔄 BasicCallDemo: Attempting auto-connect...')
+
+      try {
+        await handleConnect()
+        console.log('✅ BasicCallDemo: Auto-connected using saved credentials')
+      } catch (error) {
+        console.error('❌ BasicCallDemo: Auto-connect failed:', error)
+        // Form remains populated for manual retry
+      }
+    } else if (isConnected.value) {
+      console.log('✅ BasicCallDemo: Already connected via PlaygroundApp')
+    }
+  }
+})
+
+// Watch rememberMe checkbox
+watch(rememberMe, (newValue) => {
+  if (newValue) {
+    saveCredentials()
+  } else {
+    clearCredentials()
+  }
+})
+
+// Watch savePassword checkbox
+watch(savePassword, () => {
+  if (rememberMe.value) {
+    saveCredentials()
+  }
+})
+
+// Watch config changes (auto-save when rememberMe is true)
+watch(
+  config,
+  () => {
+    if (rememberMe.value) {
+      saveCredentials()
+    }
+  },
+  { deep: true }
+)
 </script>
 
 <style scoped>
@@ -471,35 +633,6 @@ const formatDuration = (seconds: number) => {
   text-decoration: underline;
 }
 
-.status-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1rem;
-  background: #f9fafb;
-  border-radius: 8px;
-  margin-bottom: 1.5rem;
-}
-
-.status-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  color: #666;
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #ef4444;
-}
-
-.status-dot.connected {
-  background: #10b981;
-}
-
 .call-panel h3 {
   margin: 0 0 1rem 0;
   color: #333;
@@ -571,5 +704,49 @@ const formatDuration = (seconds: number) => {
 
 .call-controls .btn {
   min-width: 120px;
+}
+
+/* Credential Persistence Styles */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #333;
+  cursor: pointer;
+}
+
+.checkbox-label input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.form-group.nested {
+  margin-left: 1.5rem;
+  background: #f9fafb;
+  padding: 1rem;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+
+.security-warning {
+  background: #fef3c7;
+  border: 1px solid #fbbf24;
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.security-warning p {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #92400e;
+  line-height: 1.5;
+}
+
+.form-actions {
+  margin-bottom: 1rem;
+  text-align: center;
 }
 </style>

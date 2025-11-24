@@ -1,5 +1,5 @@
 <template>
-  <div class="playground" data-testid="sip-client">
+  <div :class="['playground', { compact: isCompactMode }]" data-testid="sip-client">
     <!-- Header -->
     <header class="playground-header">
       <div class="container">
@@ -10,17 +10,31 @@
               Explore and experiment with VueSip composables for building SIP/VoIP applications
             </p>
           </div>
-          <button
-            @click="toggleTheme"
-            class="theme-toggle"
-            :aria-label="`Switch to ${isDarkMode ? 'light' : 'dark'} mode`"
-            type="button"
-          >
-            <span class="theme-icon">{{ isDarkMode ? '☀️' : '🌙' }}</span>
-          </button>
+          <div class="header-actions">
+            <button
+              @click="toggleCompact"
+              class="density-toggle"
+              :aria-pressed="isCompactMode"
+              :aria-label="isCompactMode ? 'Disable compact mode' : 'Enable compact mode'"
+              type="button"
+            >
+              <span class="theme-icon">{{ isCompactMode ? '🧩' : '🗜️' }}</span>
+            </button>
+            <button
+              @click="toggleTheme"
+              class="theme-toggle"
+              :aria-label="`Switch to ${isDarkMode ? 'light' : 'dark'} mode`"
+              type="button"
+            >
+              <span class="theme-icon">{{ isDarkMode ? '☀️' : '🌙' }}</span>
+            </button>
+          </div>
         </div>
       </div>
     </header>
+
+    <!-- Call Toolbar -->
+    <CallToolbar />
 
     <!-- Main Content -->
     <div class="playground-content">
@@ -210,9 +224,31 @@ const { makeCall, answer, hangup } = useCallSession()</code></pre>
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { allExamples } from './examples'
+import { useSipClient } from '../src'
+import CallToolbar from './components/CallToolbar.vue'
+
+// localStorage keys for credentials
+const CREDENTIALS_STORAGE_KEY = 'vuesip-credentials'
+const CREDENTIALS_OPTIONS_KEY = 'vuesip-credentials-options'
+
+interface StoredCredentials {
+  uri: string
+  sipUri: string
+  password?: string
+  displayName: string
+  timestamp: string
+}
+
+interface CredentialsOptions {
+  rememberMe: boolean
+  savePassword: boolean
+}
 
 // Use imported examples
 const examples = allExamples
+
+// Get SIP client for global auto-connect
+const { connect, disconnect, isConnected, updateConfig } = useSipClient()
 
 // State
 const currentExample = ref('basic-call')
@@ -220,6 +256,7 @@ const activeTab = ref<'demo' | 'code' | 'setup'>('demo')
 const searchQuery = ref('')
 const copiedSnippets = ref<Record<number, boolean>>({})
 const isDarkMode = ref(false)
+const isCompactMode = ref(false)
 
 // Computed
 const filteredExamples = computed(() => {
@@ -308,8 +345,90 @@ const applyTheme = (dark: boolean) => {
   }
 }
 
+const toggleCompact = () => {
+  isCompactMode.value = !isCompactMode.value
+}
+
+// Global credential loading for auto-connect across all demos
+const loadAndConnectCredentials = async () => {
+  const saved = localStorage.getItem(CREDENTIALS_STORAGE_KEY)
+  const options = localStorage.getItem(CREDENTIALS_OPTIONS_KEY)
+
+  if (saved && options) {
+    try {
+      const credentials: StoredCredentials = JSON.parse(saved)
+      const opts: CredentialsOptions = JSON.parse(options)
+
+      // Debug: Log what was loaded from localStorage
+      console.log('🔍 PlaygroundApp: Loaded from localStorage:', {
+        uri: credentials.uri,
+        sipUri: credentials.sipUri,
+        displayName: credentials.displayName,
+        hasPassword: !!credentials.password,
+        passwordLength: credentials.password?.length,
+        passwordChars: credentials.password ? Array.from(credentials.password).map(c => c.charCodeAt(0)) : [],
+        rememberMe: opts.rememberMe,
+        savePassword: opts.savePassword
+      })
+
+      // Only auto-connect if rememberMe is enabled and not already connected
+      if (opts.rememberMe && !isConnected.value) {
+        console.log('🌐 PlaygroundApp: Loading saved credentials for global auto-connect...')
+
+        // Build config object
+        const config: any = {
+          uri: credentials.uri,
+          sipUri: credentials.sipUri,
+          displayName: credentials.displayName || undefined,
+          autoRegister: true,
+          connectionTimeout: 10000,
+          registerExpires: 600,
+        }
+
+        // Add password if it was saved
+        if (opts.savePassword && credentials.password) {
+          config.password = credentials.password
+        }
+
+        // Debug: Log config before updating
+        console.log('📝 PlaygroundApp: Config to be applied:', {
+          uri: config.uri,
+          sipUri: config.sipUri,
+          displayName: config.displayName,
+          hasPassword: !!config.password,
+          passwordLength: config.password?.length,
+          passwordPreview: config.password ? `${config.password.substring(0, 3)}...` : 'none'
+        })
+
+        // Update configuration
+        const validationResult = updateConfig(config)
+
+        if (!validationResult.valid) {
+          console.error('PlaygroundApp: Invalid saved credentials:', validationResult.errors)
+          return
+        }
+
+        // Auto-connect
+        try {
+          await connect()
+          console.log('✅ PlaygroundApp: Global auto-connect successful')
+        } catch (error) {
+          console.error('❌ PlaygroundApp: Global auto-connect failed:', error)
+          // Don't throw - allow user to manually connect from BasicCallDemo
+        }
+      }
+    } catch (error) {
+      console.error('PlaygroundApp: Failed to load credentials:', error)
+    }
+  }
+}
+
 // Initialize theme from localStorage or system preference
-onMounted(() => {
+onMounted(async () => {
+  // 1. Try to auto-connect with saved credentials (global for all demos)
+  await loadAndConnectCredentials()
+
+  // 2. Initialize theme
   const stored = localStorage.getItem('vuesip-theme')
   if (stored) {
     isDarkMode.value = stored === 'dark'
@@ -317,12 +436,22 @@ onMounted(() => {
     isDarkMode.value = window.matchMedia('(prefers-color-scheme: dark)').matches
   }
   applyTheme(isDarkMode.value)
+
+  // 3. Initialize compact mode
+  const compactStored = localStorage.getItem('vuesip-compact')
+  if (compactStored) {
+    isCompactMode.value = compactStored === 'on'
+  }
 })
 
 // Watch for theme changes
 watch(isDarkMode, (newValue) => {
   applyTheme(newValue)
   localStorage.setItem('vuesip-theme', newValue ? 'dark' : 'light')
+})
+
+watch(isCompactMode, (newVal) => {
+  localStorage.setItem('vuesip-compact', newVal ? 'on' : 'off')
 })
 </script>
 
@@ -333,10 +462,14 @@ watch(isDarkMode, (newValue) => {
 }
 
 .playground-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  position: relative;
+  background: linear-gradient(120deg, #667eea 0%, #764ba2 50%, #4f46e5 100%);
+  background-size: 200% 200%;
+  animation: headerGradient 12s ease infinite;
   color: white;
-  padding: 2rem 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 2.5rem 0;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
 }
 
 .playground-header .container {
@@ -368,10 +501,16 @@ watch(isDarkMode, (newValue) => {
   flex: 1;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .theme-toggle {
   padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: all 0.2s;
@@ -382,11 +521,36 @@ watch(isDarkMode, (newValue) => {
   justify-content: center;
   min-width: 48px;
   min-height: 48px;
+  backdrop-filter: blur(6px) saturate(120%);
+}
+
+.density-toggle {
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 1.2rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  backdrop-filter: blur(6px) saturate(120%);
 }
 
 .theme-toggle:hover {
   background: rgba(255, 255, 255, 0.2);
-  transform: scale(1.05);
+  transform: translateY(-1px) scale(1.05);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.density-toggle:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px) scale(1.05);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
 }
 
 .theme-toggle:active {
@@ -414,7 +578,7 @@ watch(isDarkMode, (newValue) => {
   border-radius: 12px;
   padding: 1.5rem;
   height: fit-content;
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.04);
   position: sticky;
   top: 2rem;
 }
@@ -548,16 +712,38 @@ watch(isDarkMode, (newValue) => {
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
-  border: 2px solid transparent;
+  border: 1.5px solid var(--border-color);
+  background: linear-gradient(var(--bg-primary), var(--bg-primary)) padding-box,
+    linear-gradient(180deg, transparent, rgba(102, 126, 234, 0.15)) border-box;
+  position: relative;
+  overflow: hidden;
 }
 
 .example-list li:hover {
-  background: var(--bg-secondary);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+}
+
+.example-list li::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.06) 35%, transparent 65%);
+  opacity: 0;
+  transform: translateX(-15%);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+}
+
+.example-list li:hover::after {
+  opacity: 1;
+  transform: translateX(0);
 }
 
 .example-list li.active {
-  background: rgba(102, 126, 234, 0.1);
-  border-color: var(--primary);
+  background: linear-gradient(var(--bg-primary), var(--bg-primary)) padding-box,
+    linear-gradient(180deg, rgba(102, 126, 234, 0.6), rgba(99, 102, 241, 0.6)) border-box;
+  border-color: transparent;
 }
 
 .example-icon {
@@ -607,11 +793,12 @@ watch(isDarkMode, (newValue) => {
   display: block;
   padding: 0.5rem;
   border-radius: 4px;
-  transition: background 0.2s;
+  transition: background 0.2s, color 0.2s;
 }
 
 .quick-links a:hover {
-  background: var(--bg-secondary);
+  background: rgba(102,126,234,0.08);
+  color: var(--primary-dark);
 }
 
 /* Main Area */
@@ -619,8 +806,9 @@ watch(isDarkMode, (newValue) => {
   background: var(--bg-primary);
   border-radius: 12px;
   padding: 2rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.04);
   min-height: 600px;
+  border: 1px solid var(--border-color);
 }
 
 .example-header h2 {
@@ -642,42 +830,49 @@ watch(isDarkMode, (newValue) => {
 }
 
 .tag {
-  background: rgba(102, 126, 234, 0.1);
-  color: #0066cc;
+  background: linear-gradient(var(--bg-primary), var(--bg-primary)) padding-box,
+    linear-gradient(90deg, rgba(99,102,241,0.65), rgba(59,130,246,0.65)) border-box;
+  border: 1px solid transparent;
+  color: var(--primary);
   padding: 0.25rem 0.75rem;
-  border-radius: 12px;
+  border-radius: 999px;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 /* Tab Navigation */
 .tab-navigation {
-  display: flex;
-  gap: 0.5rem;
-  border-bottom: 2px solid var(--border-color);
-  margin-bottom: 2rem;
+  display: inline-flex;
+  background: var(--bg-secondary);
+  padding: 0.375rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 1.25rem;
+  gap: 0.375rem;
 }
 
 .tab-navigation button {
-  background: none;
-  border: none;
-  padding: 1rem 1.5rem;
-  font-size: 1rem;
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 0.625rem 1rem;
+  font-size: 0.95rem;
   color: var(--text-secondary);
   cursor: pointer;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
+  border-radius: 8px;
   transition: all 0.2s;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .tab-navigation button:hover {
   color: var(--text-primary);
+  background: rgba(102,126,234,0.06);
 }
 
 .tab-navigation button.active {
-  color: var(--primary);
-  border-bottom-color: var(--primary);
+  color: white;
+  background: linear-gradient(135deg, var(--primary), #4f46e5);
+  border-color: transparent;
+  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.25);
 }
 
 /* Tab Content */
@@ -729,9 +924,9 @@ watch(isDarkMode, (newValue) => {
   align-items: center;
   gap: 0.375rem;
   padding: 0.5rem 0.75rem;
-  background: #2d2d2d;
-  color: var(--gray-400);
-  border: 1px solid #3f3f3f;
+  background: #1f2937;
+  color: var(--gray-300);
+  border: 1px solid #374151;
   border-radius: 6px;
   font-size: 0.75rem;
   cursor: pointer;
@@ -742,15 +937,17 @@ watch(isDarkMode, (newValue) => {
 }
 
 .copy-button:hover {
-  background: #3f3f3f;
+  background: #374151;
   color: white;
-  border-color: #4f4f4f;
+  border-color: #4b5563;
+  transform: translateY(-1px);
 }
 
 .copy-button.copied {
   background: var(--success);
   color: white;
   border-color: var(--success-dark);
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.25);
 }
 
 .copy-icon {
@@ -764,12 +961,26 @@ watch(isDarkMode, (newValue) => {
 
 /* Ensure code block has enough padding for button */
 .code-snippet pre {
-  background: #1e1e1e;
-  color: #d4d4d4;
+  background: linear-gradient(180deg, #111827 0%, #0b1220 100%);
+  color: #e5e7eb;
   padding: 3rem 1.5rem 1.5rem 1.5rem; /* Extra padding at top for button */
-  border-radius: 8px;
+  border-radius: 10px;
   overflow-x: auto;
   margin: 0;
+  border: 1px solid #1f2937;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+  position: relative;
+}
+
+.code-snippet pre::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #6366f1, #3b82f6, #10b981);
+  opacity: 0.8;
 }
 
 /* Setup Container */
@@ -798,12 +1009,13 @@ watch(isDarkMode, (newValue) => {
 }
 
 .setup-content pre {
-  background: #1e1e1e;
-  color: #d4d4d4;
+  background: linear-gradient(180deg, #111827 0%, #0b1220 100%);
+  color: #e5e7eb;
   padding: 1.5rem;
-  border-radius: 8px;
+  border-radius: 10px;
   overflow-x: auto;
   margin: 1rem 0 1.5rem 0;
+  border: 1px solid #1f2937;
 }
 
 .setup-content code {
@@ -842,9 +1054,171 @@ watch(isDarkMode, (newValue) => {
   }
 
   .tab-navigation button {
-    padding: 0.75rem 1rem;
+    padding: 0.625rem 0.875rem;
     font-size: 0.875rem;
     white-space: nowrap;
   }
+}
+
+/* Compact mode adjustments */
+.compact .playground-header {
+  padding: 1.5rem 0;
+}
+
+.compact .playground-header h1 {
+  font-size: 2rem;
+}
+
+.compact .subtitle {
+  font-size: 1rem;
+}
+
+.compact .playground-content {
+  gap: 1.25rem;
+  padding: 0 1rem;
+  grid-template-columns: 240px 1fr;
+}
+
+.compact .playground-sidebar {
+  padding: 1rem;
+}
+
+.compact .search-input {
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.compact .example-list li {
+  padding: 0.75rem;
+}
+
+.compact .tab-navigation {
+  padding: 0.25rem;
+  gap: 0.25rem;
+}
+
+.compact .tab-navigation button {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.compact .playground-main {
+  padding: 1.25rem;
+}
+
+.compact .code-snippet pre {
+  padding: 2.25rem 1rem 1rem 1rem;
+}
+
+.compact .setup-content pre {
+  padding: 1rem;
+}
+
+/* Additional compact refinements */
+.compact .example-header h2 {
+  font-size: 1.5rem;
+}
+
+.compact .example-header p {
+  font-size: 1rem;
+  margin: 0 0 0.75rem 0;
+}
+
+.compact .example-tags {
+  gap: 0.375rem;
+  margin-bottom: 1rem;
+}
+
+.compact .tag {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 10px;
+}
+
+.compact .example-icon {
+  font-size: 1.5rem;
+}
+
+.compact .example-info h3 {
+  font-size: 0.95rem;
+}
+
+.compact .example-info p {
+  font-size: 0.8rem;
+}
+
+.compact .copy-button {
+  padding: 0.375rem 0.5rem;
+  min-height: 28px;
+  min-width: 68px;
+}
+
+.compact .code-snippet code,
+.compact .setup-content code {
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.compact .quick-links {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+}
+
+.compact .quick-links a {
+  padding: 0.375rem;
+  font-size: 0.82rem;
+}
+
+.compact .search-box {
+  margin-bottom: 0.75rem;
+}
+
+.compact .playground-sidebar h2 {
+  font-size: 1.1rem;
+  margin-bottom: 0.75rem;
+}
+
+.compact .filter-stats {
+  padding: 0.375rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Decorative header blobs */
+.playground-header::before,
+.playground-header::after {
+  content: '';
+  position: absolute;
+  filter: blur(40px);
+  opacity: 0.6;
+  transform: translateZ(0);
+}
+
+.playground-header::before {
+  width: 420px;
+  height: 420px;
+  top: -120px;
+  left: -120px;
+  background: radial-gradient(closest-side, rgba(255,255,255,0.25), transparent 70%);
+  animation: floatY 12s ease-in-out infinite alternate;
+}
+
+.playground-header::after {
+  width: 360px;
+  height: 360px;
+  right: -120px;
+  bottom: -120px;
+  background: radial-gradient(closest-side, rgba(99,102,241,0.45), transparent 70%);
+  animation: floatY 14s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes headerGradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes floatY {
+  0% { transform: translateY(0) translateZ(0); }
+  100% { transform: translateY(10px) translateZ(0); }
 }
 </style>
