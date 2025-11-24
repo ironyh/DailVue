@@ -86,9 +86,10 @@ import { useSipClient } from '../../src'
 import { useCallSession } from '../../src'
 
 // Get SIP client state
-const { isConnected, isRegistered } = useSipClient()
+const { isConnected, isRegistered, getClient } = useSipClient()
 
 // Get call session state and methods
+const sipClientRef = computed(() => getClient())
 const {
   session,
   state,
@@ -105,7 +106,7 @@ const {
   unmute,
   hold,
   unhold,
-} = useCallSession()
+} = useCallSession(sipClientRef)
 
 // Computed properties
 const hasActiveCall = computed(() => session.value !== null)
