@@ -170,13 +170,14 @@ const handleHoldToggle = async () => {
 
 <style scoped>
 .call-toolbar {
-  background: linear-gradient(120deg, #667eea 0%, #764ba2 50%, #4f46e5 100%);
+  background: linear-gradient(120deg, #667eea 0%, #764ba2 50%, #4f46e5 100%) !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   padding: 1rem 0;
   position: sticky;
   top: 0;
   z-index: 100;
+  border-radius: 0;
 }
 
 .container {
