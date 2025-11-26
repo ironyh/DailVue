@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
-npx lint-staged
+# Note: If this fails with "command not found", try:
+# - Running `pnpm install` first
+# - Using `git commit --no-verify` as a workaround
+pnpm run lint-staged
