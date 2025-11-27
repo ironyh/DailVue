@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="vueSipGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#42b883"/>
+      <stop offset="100%" style="stop-color:#35495e"/>
+    </linearGradient>
+  </defs>
+  <!-- Phone/SIP icon base -->
+  <rect x="24" y="16" width="80" height="96" rx="12" fill="url(#vueSipGradient)"/>
+  <!-- Screen area -->
+  <rect x="32" y="24" width="64" height="56" rx="4" fill="#fff" opacity="0.9"/>
+  <!-- Vue.js inspired V shape in screen -->
+  <path d="M64 36 L48 68 L56 68 L64 52 L72 68 L80 68 L64 36Z" fill="#42b883"/>
+  <path d="M64 44 L54 64 L58 64 L64 52 L70 64 L74 64 L64 44Z" fill="#35495e"/>
+  <!-- Speaker grille -->
+  <rect x="56" y="88" width="16" height="4" rx="2" fill="#fff" opacity="0.6"/>
+  <!-- Signal waves -->
+  <path d="M96 32 Q104 40 96 48" stroke="#42b883" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M100 28 Q112 40 100 52" stroke="#42b883" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.7"/>
+  <path d="M104 24 Q120 40 104 56" stroke="#42b883" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.4"/>
+</svg>
