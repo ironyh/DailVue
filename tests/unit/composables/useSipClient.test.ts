@@ -71,24 +71,48 @@ describe('useSipClient', () => {
       isRegistered: false,
     }
 
+    // EventBus handlers storage - defined early for use in mockSipClient
+    const eventHandlers = new Map<string, Map<string, (data: unknown) => void>>()
+
+    // Helper to emit events through the mock EventBus
+    const emitEvent = (event: string, data?: unknown) => {
+      const handlers = eventHandlers.get(event)
+      if (handlers) {
+        for (const handler of handlers.values()) {
+          handler(data)
+        }
+      }
+    }
+
     mockSipClient = {
       start: vi.fn().mockImplementation(async () => {
         mockState.connectionState = 'connected'
         mockState.isConnected = true
+        // Emit asynchronously to allow intermediate state observation
+        await Promise.resolve()
+        emitEvent('sip:connected', {})
       }),
       stop: vi.fn().mockImplementation(async () => {
         mockState.connectionState = 'disconnected'
         mockState.isConnected = false
         mockState.registrationState = 'unregistered'
         mockState.isRegistered = false
+        await Promise.resolve()
+        emitEvent('sip:disconnected', {})
       }),
       register: vi.fn().mockImplementation(async () => {
+        // Allow intermediate 'registering' state to be observed
+        await Promise.resolve()
         mockState.registrationState = 'registered'
         mockState.isRegistered = true
+        emitEvent('sip:registered', { uri: testConfig?.sipUri || 'sip:test@example.com', expires: 600 })
       }),
       unregister: vi.fn().mockImplementation(async () => {
+        // Allow intermediate 'unregistering' state to be observed
+        await Promise.resolve()
         mockState.registrationState = 'unregistered'
         mockState.isRegistered = false
+        emitEvent('sip:unregistered', {})
       }),
       updateConfig: vi.fn(),
       destroy: vi.fn(),
@@ -112,15 +136,40 @@ describe('useSipClient', () => {
       _mockState: mockState,
     }
 
-    // Create mock EventBus
+    // Create mock EventBus with working event handlers (uses eventHandlers defined above)
     let eventIdCounter = 0
     mockEventBus = {
-      on: vi.fn().mockImplementation(() => `listener-${eventIdCounter++}`),
+      on: vi.fn().mockImplementation((event: string, handler: (data: unknown) => void) => {
+        const listenerId = `listener-${eventIdCounter++}`
+        if (!eventHandlers.has(event)) {
+          eventHandlers.set(event, new Map())
+        }
+        eventHandlers.get(event)!.set(listenerId, handler)
+        return listenerId
+      }),
       once: vi.fn(),
-      off: vi.fn(),
-      emit: vi.fn(),
-      emitSync: vi.fn(),
+      off: vi.fn().mockImplementation((event: string, listenerId: string) => {
+        eventHandlers.get(event)?.delete(listenerId)
+      }),
+      emit: vi.fn().mockImplementation(async (event: string, data?: unknown) => {
+        const handlers = eventHandlers.get(event)
+        if (handlers) {
+          for (const handler of handlers.values()) {
+            handler(data)
+          }
+        }
+      }),
+      emitSync: vi.fn().mockImplementation((event: string, data?: unknown) => {
+        const handlers = eventHandlers.get(event)
+        if (handlers) {
+          for (const handler of handlers.values()) {
+            handler(data)
+          }
+        }
+      }),
       destroy: vi.fn(),
+      // Expose for tests
+      _handlers: eventHandlers,
     }
 
     // Setup mocks to return instances
@@ -516,7 +565,7 @@ describe('useSipClient', () => {
     })
   })
 
-describe.sequential('reconnect()', () => {
+describe('reconnect()', () => {
     it('should reconnect successfully', async () => {
       const { result, unmount } = withSetup(() => useSipClient({
         ...testConfig,
@@ -561,27 +610,31 @@ describe.sequential('reconnect()', () => {
     })
 
     it('should wait before reconnecting', async () => {
-      const { result, unmount } = withSetup(() => useSipClient(testConfig))
-      const { connect, reconnect } = result
-
-      // Perform initial connect with real timers
-      await connect()
-
-      // Switch to fake timers to control reconnect delay
+      // Use fake timers from the start to avoid timer mode switching
       vi.useFakeTimers()
 
-      // Start reconnect
-      const reconnectPromise = reconnect()
+      try {
+        const { result, unmount } = withSetup(() => useSipClient({
+          ...testConfig,
+          reconnectDelay: 1000, // 1 second delay
+        }))
+        const { connect, reconnect } = result
 
-      // Fast-forward time
-      await vi.advanceTimersByTimeAsync(1000)
+        // Perform initial connect
+        await connect()
 
-      await reconnectPromise
+        // Start reconnect
+        const reconnectPromise = reconnect()
 
-      vi.clearAllTimers()
-      vi.useRealTimers()
+        // Fast-forward time
+        await vi.advanceTimersByTimeAsync(1000)
 
-      unmount()
+        await reconnectPromise
+
+        unmount()
+      } finally {
+        vi.useRealTimers()
+      }
     })
   })
 
@@ -856,24 +909,29 @@ describe.sequential('reconnect()', () => {
     })
   })
 
-  describe.sequential('configurable reconnect delay (MINOR FIX)', () => {
+  describe('configurable reconnect delay (MINOR FIX)', () => {
     it('should use custom reconnect delay', async () => {
-      const { result, unmount } = withSetup(() => useSipClient(testConfig, { reconnectDelay: 2000 }))
-      const { connect, reconnect } = result
-
-      // Connect with real timers
-      await connect()
-
-      // Control the reconnect delay with fake timers
+      // Use fake timers from the start to avoid timer mode switching
       vi.useFakeTimers()
-      const reconnectPromise = reconnect()
-      await vi.advanceTimersByTimeAsync(2000)
-      await reconnectPromise
 
-      vi.clearAllTimers()
-      vi.useRealTimers()
+      try {
+        const { result, unmount } = withSetup(() => useSipClient(testConfig, { reconnectDelay: 2000 }))
+        const { connect, reconnect } = result
 
-      unmount()
+        // Connect
+        await connect()
+
+        // Start reconnect
+        const reconnectPromise = reconnect()
+
+        // Advance time by the reconnect delay
+        await vi.advanceTimersByTimeAsync(2000)
+        await reconnectPromise
+
+        unmount()
+      } finally {
+        vi.useRealTimers()
+      }
     })
   })
 })

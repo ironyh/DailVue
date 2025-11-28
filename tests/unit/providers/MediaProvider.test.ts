@@ -127,10 +127,11 @@ describe('MediaProvider', () => {
         },
       })
 
-      // Wait for ready event to be emitted after enumeration
-      await vi.waitFor(() => {
-        expect(readyEmitted).toHaveBeenCalled()
-      })
+      // Wait for async enumeration to complete
+      await flushPromises()
+      await nextTick()
+
+      expect(readyEmitted).toHaveBeenCalled()
     })
 
     it('should skip enumeration when autoEnumerate is false', async () => {
@@ -181,7 +182,8 @@ describe('MediaProvider', () => {
         },
       })
 
-      await nextTick()
+      // Wait for async enumeration to complete
+      await flushPromises()
       await nextTick()
 
       expect(readyEmitted).toBe(true)
@@ -218,7 +220,8 @@ describe('MediaProvider', () => {
         },
       })
 
-      await nextTick()
+      // Wait for async enumeration and auto-selection to complete
+      await flushPromises()
       await nextTick()
 
       const consumer = wrapper.findComponent(ConsumerComponent)
@@ -514,7 +517,7 @@ describe('MediaProvider', () => {
     it('should emit permissionsGranted when permissions are granted', async () => {
       let permissionsGrantedArgs: any[] = []
 
-      const wrapper = mount(MediaProvider, {
+      mount(MediaProvider, {
         props: {
           autoRequestPermissions: true,
           requestAudio: true,
@@ -526,6 +529,8 @@ describe('MediaProvider', () => {
         },
       })
 
+      // Wait for all async operations to complete
+      await flushPromises()
       await nextTick()
       await flushPromises()
 
@@ -538,7 +543,7 @@ describe('MediaProvider', () => {
 
       let permissionsDenied = false
 
-      const wrapper = mount(MediaProvider, {
+      mount(MediaProvider, {
         props: {
           autoRequestPermissions: true,
           requestAudio: true,
@@ -550,6 +555,8 @@ describe('MediaProvider', () => {
         },
       })
 
+      // Wait for all async operations to complete
+      await flushPromises()
       await nextTick()
       await flushPromises()
 
@@ -561,7 +568,7 @@ describe('MediaProvider', () => {
 
       let errorEmitted = false
 
-      const wrapper = mount(MediaProvider, {
+      mount(MediaProvider, {
         props: {
           onError: () => { errorEmitted = true }
         },
@@ -570,6 +577,8 @@ describe('MediaProvider', () => {
         },
       })
 
+      // Wait for all async operations to complete
+      await flushPromises()
       await nextTick()
       await flushPromises()
 
@@ -664,7 +673,8 @@ describe('MediaProvider', () => {
         },
       })
 
-      await nextTick()
+      // Wait for initial enumeration to complete
+      await flushPromises()
       await nextTick()
 
       const consumer = wrapper.findComponent(ConsumerComponent)
@@ -678,9 +688,13 @@ describe('MediaProvider', () => {
         createMockDevice('audio-input-2', 'Microphone 2', 'audioinput', false),
       ])
 
-      // Re-enumerate
-      await consumer.vm.media.enumerateDevices()
+      // Reset device store to invalidate cache, then re-enumerate
+      // This simulates a device change event which clears the cache
+      deviceStore.reset()
 
+      // Re-enumerate (with cache cleared)
+      await consumer.vm.media.enumerateDevices()
+      await flushPromises()
       await nextTick()
 
       // Device count should update
@@ -703,7 +717,8 @@ describe('MediaProvider', () => {
         },
       })
 
-      await nextTick()
+      // Wait for async enumeration to complete
+      await flushPromises()
       await nextTick()
 
       expect(readyEmitted).toBe(true)

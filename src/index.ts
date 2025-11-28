@@ -167,6 +167,7 @@ export { TransportManager } from './core/TransportManager'
 export { SipClient } from './core/SipClient'
 export { CallSession } from './core/CallSession' // Class, not the interface from types
 export { MediaManager } from './core/MediaManager'
+export { AmiClient, createAmiClient, AmiError, AmiErrorCode } from './core/AmiClient' // AMI WebSocket client for amiws
 // Note: CallSessionOptions exported from composables, not core
 
 // ============================================================================

@@ -1,14 +1,40 @@
 <template>
-  <div class="playground" data-testid="sip-client">
+  <div :class="['playground', { compact: isCompactMode }]" data-testid="sip-client">
     <!-- Header -->
     <header class="playground-header">
       <div class="container">
-        <h1>🎮 VueSip Interactive Playground</h1>
-        <p class="subtitle">
-          Explore and experiment with VueSip composables for building SIP/VoIP applications
-        </p>
+        <div class="header-content">
+          <div class="header-title">
+            <h1>🎮 VueSip Interactive Playground</h1>
+            <p class="subtitle">
+              Explore and experiment with VueSip composables for building SIP/VoIP applications
+            </p>
+          </div>
+          <div class="header-actions">
+            <button
+              @click="toggleCompact"
+              class="density-toggle"
+              :aria-pressed="isCompactMode"
+              :aria-label="isCompactMode ? 'Disable compact mode' : 'Enable compact mode'"
+              type="button"
+            >
+              <span class="theme-icon">{{ isCompactMode ? '🧩' : '🗜️' }}</span>
+            </button>
+            <button
+              @click="toggleTheme"
+              class="theme-toggle"
+              :aria-label="`Switch to ${isDarkMode ? 'light' : 'dark'} mode`"
+              type="button"
+            >
+              <span class="theme-icon">{{ isDarkMode ? '☀️' : '🌙' }}</span>
+            </button>
+          </div>
+        </div>
       </div>
     </header>
+
+    <!-- Call Toolbar -->
+    <CallToolbar />
 
     <!-- Main Content -->
     <div class="playground-content">
@@ -16,20 +42,63 @@
       <aside class="playground-sidebar">
         <nav>
           <h2>Examples</h2>
+
+          <!-- Search Input -->
+          <div class="search-box">
+            <input
+              v-model="searchQuery"
+              type="search"
+              placeholder="Search demos..."
+              class="search-input"
+              aria-label="Search demos"
+            />
+            <button
+              v-if="searchQuery"
+              @click="searchQuery = ''"
+              class="clear-search"
+              aria-label="Clear search"
+              type="button"
+            >
+              ✕
+            </button>
+          </div>
+
+          <!-- Filter Stats -->
+          <div v-if="searchQuery" class="filter-stats">
+            Showing {{ filteredExamples.length }} of {{ examples.length }} demos
+          </div>
+
+          <!-- Example List -->
           <ul class="example-list">
             <li
-              v-for="example in examples"
+              v-for="example in filteredExamples"
               :key="example.id"
               :class="{ active: currentExample === example.id }"
               @click="selectExample(example.id)"
             >
               <span class="example-icon">{{ example.icon }}</span>
               <div class="example-info">
-                <h3>{{ example.title }}</h3>
-                <p>{{ example.description }}</p>
+                <h3 v-html="highlightMatch(example.title)"></h3>
+                <p v-html="highlightMatch(example.description)"></p>
+              </div>
+              <!-- Show matching tags when searching -->
+              <div v-if="searchQuery && getMatchingTags(example.tags).length > 0" class="matching-tags">
+                <span
+                  v-for="tag in getMatchingTags(example.tags)"
+                  :key="tag"
+                  class="tag-badge"
+                >
+                  {{ tag }}
+                </span>
               </div>
             </li>
           </ul>
+
+          <!-- No Results Message -->
+          <div v-if="filteredExamples.length === 0" class="no-results">
+            <p>No demos found matching "{{ searchQuery }}"</p>
+            <button @click="searchQuery = ''" type="button" class="btn-secondary">Clear search</button>
+          </div>
         </nav>
 
         <!-- Quick Links -->
@@ -96,7 +165,22 @@
               <p v-if="snippet.description" class="snippet-description">
                 {{ snippet.description }}
               </p>
-              <pre><code>{{ snippet.code }}</code></pre>
+              <div class="code-block-wrapper">
+                <button
+                  @click="copyCode(snippet.code, index)"
+                  class="copy-button"
+                  :class="{ copied: copiedSnippets[index] }"
+                  :aria-label="copiedSnippets[index] ? 'Copied!' : 'Copy code'"
+                  type="button"
+                >
+                  <span v-if="copiedSnippets[index]" class="copy-icon">✓</span>
+                  <span v-else class="copy-icon">📋</span>
+                  <span class="copy-text">
+                    {{ copiedSnippets[index] ? 'Copied!' : 'Copy' }}
+                  </span>
+                </button>
+                <pre><code>{{ snippet.code }}</code></pre>
+              </div>
             </div>
           </div>
 
@@ -138,1159 +222,63 @@ const { makeCall, answer, hangup } = useCallSession()</code></pre>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import BasicCallDemo from './demos/BasicCallDemo.vue'
-import DtmfDemo from './demos/DtmfDemo.vue'
-import AudioDevicesDemo from './demos/AudioDevicesDemo.vue'
-import CallHistoryDemo from './demos/CallHistoryDemo.vue'
-import CallTransferDemo from './demos/CallTransferDemo.vue'
-// Temporarily disabled due to compilation errors - will fix separately
-// import VideoCallDemo from './demos/VideoCallDemo.vue'
-const VideoCallDemo = { template: '<div>Video Call Demo - Temporarily disabled</div>' }
-import CallTimerDemo from './demos/CallTimerDemo.vue'
-import SpeedDialDemo from './demos/SpeedDialDemo.vue'
-import DoNotDisturbDemo from './demos/DoNotDisturbDemo.vue'
-import CallQualityDemo from './demos/CallQualityDemo.vue'
-import CustomRingtonesDemo from './demos/CustomRingtonesDemo.vue'
-import CallRecordingDemo from './demos/CallRecordingDemo.vue'
-import ConferenceCallDemo from './demos/ConferenceCallDemo.vue'
-import CallMutePatternsDemo from './demos/CallMutePatternsDemo.vue'
-import NetworkSimulatorDemo from './demos/NetworkSimulatorDemo.vue'
-import ScreenSharingDemo from './demos/ScreenSharingDemo.vue'
-import CallWaitingDemo from './demos/CallWaitingDemo.vue'
-import SipMessagingDemo from './demos/SipMessagingDemo.vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { allExamples } from './examples'
+import CallToolbar from './components/CallToolbar.vue'
+import { playgroundSipClient } from './sipClient'
 
-// Example definitions
-const examples = [
-  {
-    id: 'basic-call',
-    icon: '📞',
-    title: 'Basic Audio Call',
-    description: 'Simple one-to-one audio calling',
-    tags: ['Beginner', 'Audio', 'Core'],
-    component: BasicCallDemo,
-    setupGuide: '<p>This example demonstrates basic SIP calling functionality. Configure your SIP server details in the connection panel to get started.</p>',
-    codeSnippets: [
-      {
-        title: 'Basic Call Setup',
-        description: 'Initialize SIP client and make a call',
-        code: `import { useSipClient, useCallSession } from 'vuesip'
+// localStorage keys for credentials
+const CREDENTIALS_STORAGE_KEY = 'vuesip-credentials'
+const CREDENTIALS_OPTIONS_KEY = 'vuesip-credentials-options'
 
-const { connect, isConnected } = useSipClient()
-const { makeCall, hangup, callState } = useCallSession()
-
-// Connect to SIP server
-await connect()
-
-// Make a call
-await makeCall('sip:user@example.com')
-
-// End the call
-await hangup()`,
-      },
-      {
-        title: 'Handling Incoming Calls',
-        description: 'Answer or reject incoming calls',
-        code: `const { answer, reject, callState, remoteUri } = useCallSession()
-
-// Watch for incoming calls
-watch(callState, (state) => {
-  if (state === 'incoming') {
-    console.log('Incoming call from:', remoteUri.value)
-  }
-})
-
-// Answer the call
-await answer({ audio: true, video: false })
-
-// Or reject it
-await reject(486) // Busy Here`,
-      },
-    ],
-  },
-  {
-    id: 'dtmf',
-    icon: '🔢',
-    title: 'DTMF Tones',
-    description: 'Send dialpad tones during calls',
-    tags: ['Audio', 'DTMF', 'Interactive'],
-    component: DtmfDemo,
-    setupGuide: '<p>DTMF (Dual-Tone Multi-Frequency) allows you to send dialpad tones during an active call, useful for IVR systems and menu navigation.</p>',
-    codeSnippets: [
-      {
-        title: 'Sending DTMF Tones',
-        description: 'Send individual digits or sequences',
-        code: `import { useDTMF } from 'vuesip'
-
-const { sendTone, canSendDTMF } = useDTMF(sessionRef)
-
-// Send a single digit
-await sendTone('1')
-
-// Send a sequence with delay between tones
-for (const digit of '1234') {
-  await sendTone(digit)
-  await new Promise(resolve => setTimeout(resolve, 100))
-}`,
-      },
-    ],
-  },
-  {
-    id: 'audio-devices',
-    icon: '🎤',
-    title: 'Audio Devices',
-    description: 'Manage microphones and speakers',
-    tags: ['Audio', 'Devices', 'Settings'],
-    component: AudioDevicesDemo,
-    setupGuide: '<p>Manage audio input and output devices for your SIP calls. Users can select their preferred microphone and speaker.</p>',
-    codeSnippets: [
-      {
-        title: 'Audio Device Management',
-        description: 'List and select audio devices',
-        code: `import { useMediaDevices } from 'vuesip'
-
-const {
-  audioInputDevices,
-  audioOutputDevices,
-  selectedAudioInputId,
-  selectedAudioOutputId,
-  selectAudioInput,
-  selectAudioOutput,
-  enumerateDevices
-} = useMediaDevices()
-
-// Enumerate available devices
-await enumerateDevices()
-
-// Select a specific microphone
-selectAudioInput(deviceId)
-
-// Select a specific speaker
-selectAudioOutput(deviceId)`,
-      },
-    ],
-  },
-  {
-    id: 'call-history',
-    icon: '📋',
-    title: 'Call History',
-    description: 'View and manage call history',
-    tags: ['Advanced', 'History', 'Analytics'],
-    component: CallHistoryDemo,
-    setupGuide: '<p>Call history is automatically tracked and stored in IndexedDB. View statistics, search, filter, and export your call history.</p>',
-    codeSnippets: [
-      {
-        title: 'Using Call History',
-        description: 'Access and manage call history',
-        code: `import { useCallHistory } from 'vuesip'
-
-const {
-  history,
-  searchHistory,
-  getStatistics,
-  exportHistory,
-  clearHistory
-} = useCallHistory()
-
-// Get all call history
-console.log(history.value)
-
-// Search history
-const results = searchHistory('john')
-
-// Get statistics
-const stats = getStatistics()
-console.log(\`Total calls: \${stats.totalCalls}\`)
-
-// Export to CSV
-await exportHistory({
-  format: 'csv',
-  filename: 'my-calls'
-})`,
-      },
-    ],
-  },
-  {
-    id: 'call-transfer',
-    icon: '🔀',
-    title: 'Call Transfer',
-    description: 'Transfer calls to other numbers',
-    tags: ['Advanced', 'Transfer', 'Call Control'],
-    component: CallTransferDemo,
-    setupGuide: '<p>Transfer active calls using blind transfer (immediate) or attended transfer (with consultation). Requires an active call to use.</p>',
-    codeSnippets: [
-      {
-        title: 'Blind Transfer',
-        description: 'Immediately transfer a call',
-        code: `import { useCallControls } from 'vuesip'
-
-const {
-  blindTransfer,
-  isTransferring
-} = useCallControls(sipClient)
-
-// Transfer call to another number
-await blindTransfer(
-  'call-id-123',
-  'sip:transfer@example.com'
-)`,
-      },
-      {
-        title: 'Attended Transfer',
-        description: 'Consult before transferring',
-        code: `const {
-  initiateAttendedTransfer,
-  completeAttendedTransfer,
-  consultationCall
-} = useCallControls(sipClient)
-
-// Start consultation
-const consultId = await initiateAttendedTransfer(
-  'call-id-123',
-  'sip:consult@example.com'
-)
-
-// Talk to consultation target...
-
-// Complete the transfer
-await completeAttendedTransfer()`,
-      },
-    ],
-  },
-  {
-    id: 'video-call',
-    icon: '📹',
-    title: 'Video Calling',
-    description: 'Make video calls with camera',
-    tags: ['Video', 'WebRTC', 'Advanced'],
-    component: VideoCallDemo,
-    setupGuide: '<p>Enable video calling with camera support. Grant camera and microphone permissions to use video features. Select different cameras and toggle video during calls.</p>',
-    codeSnippets: [
-      {
-        title: 'Making Video Calls',
-        description: 'Start a call with video enabled',
-        code: `import { useCallSession } from 'vuesip'
-
-const {
-  makeCall,
-  answer,
-  localStream,
-  remoteStream
-} = useCallSession(sipClient)
-
-// Make video call
-await makeCall('sip:friend@example.com', {
-  audio: true,
-  video: true
-})
-
-// Answer with video
-await answer({
-  audio: true,
-  video: true
-})`,
-      },
-      {
-        title: 'Video Controls',
-        description: 'Toggle video during calls',
-        code: `const {
-  enableVideo,
-  disableVideo,
-  hasLocalVideo
-} = useCallSession(sipClient)
-
-// Toggle video
-if (hasLocalVideo.value) {
-  await disableVideo()
-} else {
-  await enableVideo()
+interface StoredCredentials {
+  uri: string
+  sipUri: string
+  password?: string
+  displayName: string
+  timestamp: string
 }
 
-// Display video streams
-watch(remoteStream, (stream) => {
-  videoElement.srcObject = stream
-})`,
-      },
-    ],
-  },
-  {
-    id: 'call-timer',
-    icon: '⏱️',
-    title: 'Call Timer',
-    description: 'Display call duration in various formats',
-    tags: ['UI', 'Formatting', 'Simple'],
-    component: CallTimerDemo,
-    setupGuide: '<p>Learn how to display call duration in different formats. Shows MM:SS, HH:MM:SS, human-readable, and compact formats.</p>',
-    codeSnippets: [
-      {
-        title: 'Duration Formatting',
-        description: 'Format call duration in different styles',
-        code: `import { useCallSession } from 'vuesip'
-
-const { duration } = useCallSession(sipClient)
-
-// Format as MM:SS
-const formatMMSS = (seconds: number) => {
-  const mins = Math.floor(seconds / 60)
-  const secs = seconds % 60
-  return \`\${mins}:\${secs.toString().padStart(2, '0')}\`
+interface CredentialsOptions {
+  rememberMe: boolean
+  savePassword: boolean
 }
 
-// Format as HH:MM:SS
-const formatHHMMSS = (seconds: number) => {
-  const hours = Math.floor(seconds / 3600)
-  const mins = Math.floor((seconds % 3600) / 60)
-  const secs = seconds % 60
-  return \`\${hours}:\${mins.toString().padStart(2, '0')}:\${secs.toString().padStart(2, '0')}\`
-}
-
-// Human readable
-const formatHuman = (seconds: number) => {
-  const hours = Math.floor(seconds / 3600)
-  const mins = Math.floor((seconds % 3600) / 60)
-  const secs = seconds % 60
-
-  const parts = []
-  if (hours > 0) parts.push(\`\${hours}h\`)
-  if (mins > 0) parts.push(\`\${mins}m\`)
-  if (secs > 0) parts.push(\`\${secs}s\`)
-  return parts.join(' ')
-}`,
-      },
-    ],
-  },
-  {
-    id: 'speed-dial',
-    icon: '⭐',
-    title: 'Speed Dial',
-    description: 'Quick-dial saved contacts',
-    tags: ['UI', 'Contacts', 'Practical'],
-    component: SpeedDialDemo,
-    setupGuide: '<p>Save frequently called contacts for one-click dialing. Contacts are stored in localStorage and persist across sessions.</p>',
-    codeSnippets: [
-      {
-        title: 'Speed Dial Management',
-        description: 'Save and dial favorite contacts',
-        code: `import { ref } from 'vuesip'
-
-interface Contact {
-  name: string
-  number: string
-}
-
-const speedDial = ref<Contact[]>([])
-
-// Load from localStorage
-const loadSpeedDial = () => {
-  const saved = localStorage.getItem('speed-dial')
-  if (saved) speedDial.value = JSON.parse(saved)
-}
-
-// Add contact
-const addContact = (contact: Contact) => {
-  speedDial.value.push(contact)
-  localStorage.setItem('speed-dial', JSON.stringify(speedDial.value))
-}
-
-// Quick dial
-const quickDial = async (contact: Contact) => {
-  await makeCall(contact.number)
-}`,
-      },
-    ],
-  },
-  {
-    id: 'do-not-disturb',
-    icon: '🔕',
-    title: 'Do Not Disturb',
-    description: 'Auto-reject incoming calls',
-    tags: ['Feature', 'Auto-Action', 'Simple'],
-    component: DoNotDisturbDemo,
-    setupGuide: '<p>Enable Do Not Disturb mode to automatically reject all incoming calls. Perfect for focus time or meetings.</p>',
-    codeSnippets: [
-      {
-        title: 'DND Implementation',
-        description: 'Auto-reject calls when DND is enabled',
-        code: `import { ref, watch } from 'vue'
-import { useCallSession } from 'vuesip'
-
-const dndEnabled = ref(false)
-
-const { state, reject } = useCallSession(sipClient)
-
-// Auto-reject incoming calls
-watch(state, async (newState) => {
-  if (newState === 'incoming' && dndEnabled.value) {
-    console.log('Auto-rejecting due to DND')
-    await reject(486) // 486 Busy Here
-  }
-})
-
-// Save DND state
-watch(dndEnabled, (enabled) => {
-  localStorage.setItem('dnd-enabled', String(enabled))
-})`,
-      },
-    ],
-  },
-  {
-    id: 'call-quality',
-    icon: '📊',
-    title: 'Call Quality Metrics',
-    description: 'Monitor real-time call statistics',
-    tags: ['Advanced', 'Monitoring', 'Debug'],
-    component: CallQualityDemo,
-    setupGuide: '<p>View real-time call quality metrics including packet loss, jitter, RTT, and codec information. Essential for diagnosing call quality issues.</p>',
-    codeSnippets: [
-      {
-        title: 'Getting Call Statistics',
-        description: 'Access WebRTC stats during calls',
-        code: `import { useCallSession } from 'vuesip'
-
-const { session } = useCallSession(sipClient)
-
-const getCallStats = async () => {
-  if (!session.value?.connection) return
-
-  const stats = await session.value.connection.getStats()
-
-  const metrics = {
-    packetLoss: 0,
-    jitter: 0,
-    rtt: 0
-  }
-
-  stats.forEach(report => {
-    if (report.type === 'inbound-rtp') {
-      metrics.packetLoss = report.packetsLost || 0
-      metrics.jitter = report.jitter * 1000
-    }
-
-    if (report.type === 'candidate-pair') {
-      metrics.rtt = report.currentRoundTripTime * 1000
-    }
-  })
-
-  return metrics
-}
-
-// Poll every 2 seconds
-setInterval(getCallStats, 2000)`,
-      },
-    ],
-  },
-  {
-    id: 'custom-ringtones',
-    icon: '🔔',
-    title: 'Custom Ringtones',
-    description: 'Play custom audio for incoming calls',
-    tags: ['Audio', 'Customization', 'UI'],
-    component: CustomRingtonesDemo,
-    setupGuide: '<p>Customize the incoming call experience with different ringtones. Select from built-in tones or use custom audio files with volume control.</p>',
-    codeSnippets: [
-      {
-        title: 'Ringtone Playback',
-        description: 'Play audio on incoming calls',
-        code: `import { ref, watch } from 'vue'
-import { useCallSession } from 'vuesip'
-
-const ringtone = ref<HTMLAudioElement | null>(null)
-
-// Initialize ringtone
-const initRingtone = () => {
-  ringtone.value = new Audio('/ringtones/default.mp3')
-  ringtone.value.loop = true
-  ringtone.value.volume = 0.8
-}
-
-const { state } = useCallSession(sipClient)
-
-watch(state, (newState, oldState) => {
-  if (newState === 'incoming') {
-    // Start ringing
-    ringtone.value?.play()
-
-    // Vibrate if supported
-    if (navigator.vibrate) {
-      navigator.vibrate([500, 250, 500])
-    }
-  } else if (oldState === 'incoming') {
-    // Stop ringing
-    ringtone.value?.pause()
-    if (ringtone.value) ringtone.value.currentTime = 0
-  }
-})`,
-      },
-    ],
-  },
-  {
-    id: 'call-recording',
-    icon: '📹',
-    title: 'Call Recording',
-    description: 'Record and playback call audio',
-    tags: ['Advanced', 'Recording', 'Media'],
-    component: CallRecordingDemo,
-    setupGuide: '<p>Record call audio using the MediaRecorder API. Save recordings to disk or play them back later. Recordings are stored temporarily in memory.</p>',
-    codeSnippets: [
-      {
-        title: 'Recording Setup',
-        description: 'Start recording call audio',
-        code: `import { ref } from 'vue'
-import { useCallSession } from 'vuesip'
-
-const mediaRecorder = ref<MediaRecorder | null>(null)
-const recordedChunks = ref<Blob[]>([])
-
-const { session } = useCallSession(sipClient)
-
-const startRecording = async () => {
-  if (!session.value?.remoteStream) return
-
-  const stream = session.value.remoteStream
-  mediaRecorder.value = new MediaRecorder(stream, {
-    mimeType: 'audio/webm'
-  })
-
-  recordedChunks.value = []
-
-  mediaRecorder.value.ondataavailable = (event) => {
-    if (event.data.size > 0) {
-      recordedChunks.value.push(event.data)
-    }
-  }
-
-  mediaRecorder.value.start()
-}
-
-const stopRecording = () => {
-  if (mediaRecorder.value) {
-    mediaRecorder.value.stop()
-
-    // Create blob from chunks
-    const blob = new Blob(recordedChunks.value, {
-      type: 'audio/webm'
-    })
-
-    // Download or save
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'recording.webm'
-    a.click()
-  }
-}`,
-      },
-    ],
-  },
-  {
-    id: 'conference-call',
-    icon: '👥',
-    title: 'Conference Call',
-    description: 'Manage multiple simultaneous calls',
-    tags: ['Advanced', 'Multi-party', 'Complex'],
-    component: ConferenceCallDemo,
-    setupGuide: '<p>Manage conference calls with multiple participants. Hold, mute, and control individual participants. Merge calls together.</p>',
-    codeSnippets: [
-      {
-        title: 'Managing Multiple Calls',
-        description: 'Handle multiple simultaneous calls',
-        code: `import { ref } from 'vue'
-import { useSipClient } from 'vuesip'
-
-const activeCalls = ref<Call[]>([])
-
-const { makeCall, sessions } = useSipClient()
-
-// Add participant to conference
-const addParticipant = async (uri: string) => {
-  const callId = await makeCall(uri)
-
-  activeCalls.value.push({
-    id: callId,
-    uri,
-    state: 'connecting'
-  })
-}
-
-// Hold/Resume specific call
-const toggleCallHold = async (callId: string) => {
-  const call = sessions.value.get(callId)
-  if (!call) return
-
-  if (call.isOnHold) {
-    await call.unhold()
-  } else {
-    await call.hold()
-  }
-}
-
-// Mute specific call
-const muteCall = async (callId: string) => {
-  const call = sessions.value.get(callId)
-  await call?.mute()
-}
-
-// End specific call
-const endCall = async (callId: string) => {
-  const call = sessions.value.get(callId)
-  await call?.hangup()
-
-  const index = activeCalls.value.findIndex(c => c.id === callId)
-  if (index !== -1) {
-    activeCalls.value.splice(index, 1)
-  }
-}`,
-      },
-    ],
-  },
-  {
-    id: 'call-mute-patterns',
-    icon: '🔇',
-    title: 'Call Mute Patterns',
-    description: 'Advanced mute controls and patterns',
-    tags: ['Advanced', 'Audio', 'Patterns'],
-    component: CallMutePatternsDemo,
-    setupGuide: '<p>Explore different mute patterns including push-to-talk, auto-mute on silence, and scheduled mute/unmute. Perfect for different use cases like meetings and presentations.</p>',
-    codeSnippets: [
-      {
-        title: 'Push-to-Talk Implementation',
-        description: 'Hold key to unmute temporarily',
-        code: `import { ref, onMounted, onUnmounted } from 'vue'
-import { useCallSession } from 'vuesip'
-
-const { mute, unmute, isMuted } = useCallSession(sipClient)
-const isPushToTalkActive = ref(false)
-
-const handleKeyDown = async (event: KeyboardEvent) => {
-  if (event.code === 'Space' && !isPushToTalkActive.value) {
-    isPushToTalkActive.value = true
-    await unmute()
-  }
-}
-
-const handleKeyUp = async (event: KeyboardEvent) => {
-  if (event.code === 'Space' && isPushToTalkActive.value) {
-    isPushToTalkActive.value = false
-    await mute()
-  }
-}
-
-onMounted(() => {
-  window.addEventListener('keydown', handleKeyDown)
-  window.addEventListener('keyup', handleKeyUp)
-
-  // Start muted for push-to-talk
-  mute()
-})
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeyDown)
-  window.removeEventListener('keyup', handleKeyUp)
-})`,
-      },
-      {
-        title: 'Auto-Mute on Silence',
-        description: 'Automatically mute when no audio detected',
-        code: `const autoMuteDelay = ref(3000) // 3 seconds
-let silenceTimer: number | null = null
-
-// Monitor audio level
-const checkAudioLevel = (level: number) => {
-  if (level < 10) {
-    // Low audio, start silence timer
-    if (!silenceTimer) {
-      silenceTimer = window.setTimeout(async () => {
-        await mute()
-      }, autoMuteDelay.value)
-    }
-  } else {
-    // Audio detected, cancel timer and unmute
-    if (silenceTimer) {
-      clearTimeout(silenceTimer)
-      silenceTimer = null
-    }
-    if (isMuted.value) {
-      await unmute()
-    }
-  }
-}`,
-      },
-    ],
-  },
-  {
-    id: 'network-simulator',
-    icon: '📡',
-    title: 'Network Simulator',
-    description: 'Simulate network conditions',
-    tags: ['Debug', 'Testing', 'Advanced'],
-    component: NetworkSimulatorDemo,
-    setupGuide: '<p>Test your application under various network conditions. Simulate latency, packet loss, jitter, and bandwidth constraints to see how your calls perform.</p>',
-    codeSnippets: [
-      {
-        title: 'Network Condition Profiles',
-        description: 'Pre-defined network profiles',
-        code: `interface NetworkProfile {
-  name: string
-  latency: number     // ms
-  packetLoss: number  // %
-  jitter: number      // ms
-  bandwidth: number   // kbps
-}
-
-const profiles: NetworkProfile[] = [
-  {
-    name: 'Excellent',
-    latency: 20,
-    packetLoss: 0,
-    jitter: 5,
-    bandwidth: 10000
-  },
-  {
-    name: '4G Mobile',
-    latency: 100,
-    packetLoss: 2,
-    jitter: 25,
-    bandwidth: 500
-  },
-  {
-    name: 'Poor WiFi',
-    latency: 300,
-    packetLoss: 10,
-    jitter: 100,
-    bandwidth: 256
-  }
-]
-
-const applyProfile = (profile: NetworkProfile) => {
-  console.log(\`Simulating: \${profile.name}\`)
-  // Apply settings to connection
-}`,
-      },
-      {
-        title: 'Quality Metrics',
-        description: 'Calculate call quality score',
-        code: `const calculateQuality = (
-  latency: number,
-  packetLoss: number,
-  jitter: number
-): string => {
-  let score = 100
-
-  // Penalize for latency
-  if (latency > 400) score -= 50
-  else if (latency > 200) score -= 30
-  else if (latency > 100) score -= 15
-
-  // Penalize for packet loss
-  if (packetLoss > 10) score -= 40
-  else if (packetLoss > 5) score -= 25
-  else if (packetLoss > 2) score -= 10
-
-  // Penalize for jitter
-  if (jitter > 100) score -= 30
-  else if (jitter > 50) score -= 15
-  else if (jitter > 25) score -= 5
-
-  if (score >= 80) return 'Excellent'
-  if (score >= 60) return 'Good'
-  if (score >= 40) return 'Fair'
-  return 'Poor'
-}`,
-      },
-    ],
-  },
-  {
-    id: 'screen-sharing',
-    icon: '🖥️',
-    title: 'Screen Sharing',
-    description: 'Share screen during video calls',
-    tags: ['Video', 'Advanced', 'Screen'],
-    component: ScreenSharingDemo,
-    setupGuide: '<p>Share your screen, application windows, or browser tabs during video calls. Requires WebRTC screen capture API support.</p>',
-    codeSnippets: [
-      {
-        title: 'Start Screen Sharing',
-        description: 'Request screen capture permission',
-        code: `import { ref } from 'vue'
-import { useCallSession } from 'vuesip'
-
-const screenStream = ref<MediaStream | null>(null)
-const { session } = useCallSession(sipClient)
-
-const startScreenShare = async () => {
-  try {
-    // Request screen capture
-    screenStream.value = await navigator.mediaDevices.getDisplayMedia({
-      video: {
-        cursor: 'always'
-      },
-      audio: false
-    })
-
-    // Replace video track in call
-    const videoTrack = screenStream.value.getVideoTracks()[0]
-
-    const sender = session.value.connection
-      .getSenders()
-      .find(s => s.track?.kind === 'video')
-
-    if (sender) {
-      await sender.replaceTrack(videoTrack)
-    }
-
-    // Listen for stop sharing
-    videoTrack.onended = () => {
-      stopScreenShare()
-    }
-  } catch (error) {
-    console.error('Screen sharing failed:', error)
-  }
-}
-
-const stopScreenShare = async () => {
-  if (screenStream.value) {
-    screenStream.value.getTracks().forEach(track => track.stop())
-    screenStream.value = null
-  }
-
-  // Restore camera stream
-  // ... restore original video track
-}`,
-      },
-      {
-        title: 'Screen Share Options',
-        description: 'Configure capture settings',
-        code: `const shareScreen = async (options: {
-  type: 'screen' | 'window' | 'tab'
-  audio: boolean
-  highQuality: boolean
-}) => {
-  const constraints: any = {
-    video: {
-      cursor: 'always',
-      displaySurface: options.type
-    },
-    audio: options.audio
-  }
-
-  if (options.highQuality) {
-    constraints.video.width = { ideal: 1920 }
-    constraints.video.height = { ideal: 1080 }
-    constraints.video.frameRate = { ideal: 30 }
-  } else {
-    constraints.video.width = { ideal: 1280 }
-    constraints.video.height = { ideal: 720 }
-    constraints.video.frameRate = { ideal: 15 }
-  }
-
-  const stream = await navigator.mediaDevices
-    .getDisplayMedia(constraints)
-
-  return stream
-}`,
-      },
-    ],
-  },
-  {
-    id: 'call-waiting',
-    icon: '📱',
-    title: 'Call Waiting & Switching',
-    description: 'Handle multiple calls and switch between them',
-    tags: ['Advanced', 'Multi-Call', 'Practical'],
-    component: CallWaitingDemo,
-    setupGuide: '<p>Handle multiple simultaneous calls with call waiting. Switch between active calls, hold/resume calls, and manage incoming calls while on another call.</p>',
-    codeSnippets: [
-      {
-        title: 'Managing Multiple Calls',
-        description: 'Track and switch between calls',
-        code: `import { ref } from 'vue'
-import { useSipClient } from 'vuesip'
-
-interface Call {
-  id: string
-  remoteUri: string
-  state: 'active' | 'held' | 'incoming'
-  isHeld: boolean
-}
-
-const calls = ref<Call[]>([])
-const activeCallId = ref<string | null>(null)
-
-// Answer incoming call and hold current
-const answerAndHoldActive = async (callId: string) => {
-  // Hold current active call
-  if (activeCallId.value) {
-    const current = calls.value.find(c => c.id === activeCallId.value)
-    if (current) {
-      await holdCall(current.id)
-    }
-  }
-
-  // Answer new call
-  const call = calls.value.find(c => c.id === callId)
-  if (call) {
-    await answerCall(callId)
-    activeCallId.value = callId
-  }
-}
-
-// Switch between calls
-const switchToCall = async (callId: string) => {
-  // Hold current
-  if (activeCallId.value) {
-    await holdCall(activeCallId.value)
-  }
-
-  // Resume target
-  await resumeCall(callId)
-  activeCallId.value = callId
-}`,
-      },
-      {
-        title: 'Call Waiting Settings',
-        description: 'Configure call waiting behavior',
-        code: `const callWaitingEnabled = ref(true)
-const autoAnswerWaiting = ref(false)
-const maxSimultaneousCalls = ref(3)
-
-// Handle incoming call with call waiting
-watch(incomingCall, async (call) => {
-  if (!call) return
-
-  if (!callWaitingEnabled.value && calls.value.length > 0) {
-    // Reject if call waiting disabled
-    await rejectCall(call.id, 486) // Busy Here
-    return
-  }
-
-  if (calls.value.length >= maxSimultaneousCalls.value) {
-    // Reject if max calls reached
-    await rejectCall(call.id, 486)
-    return
-  }
-
-  // Play call waiting tone
-  playCallWaitingTone()
-
-  if (autoAnswerWaiting.value) {
-    // Auto-answer and hold current
-    await answerAndHoldActive(call.id)
-  }
-})`,
-      },
-      {
-        title: 'Swap and Merge Calls',
-        description: 'Advanced multi-call operations',
-        code: `// Swap active and held calls
-const swapCalls = () => {
-  const activeCall = calls.value.find(c => c.id === activeCallId.value)
-  const heldCall = calls.value.find(c => c.isHeld)
-
-  if (activeCall && heldCall) {
-    // Hold active
-    activeCall.isHeld = true
-
-    // Resume held
-    heldCall.isHeld = false
-    activeCallId.value = heldCall.id
-  }
-}
-
-// Merge all calls into conference
-const mergeAllCalls = async () => {
-  // Resume all held calls
-  calls.value.forEach(call => {
-    call.isHeld = false
-  })
-
-  console.log(\`Merged \${calls.value.length} calls into conference\`)
-}`,
-      },
-    ],
-  },
-  {
-    id: 'sip-messaging',
-    icon: '📨',
-    title: 'SIP Instant Messaging',
-    description: 'Send and receive instant messages',
-    tags: ['Messaging', 'Chat', 'Advanced'],
-    component: SipMessagingDemo,
-    setupGuide: '<p>Send and receive instant messages over SIP using the MESSAGE method (RFC 3428). Perfect for text-based communication alongside voice calls.</p>',
-    codeSnippets: [
-      {
-        title: 'Sending Messages',
-        description: 'Send SIP MESSAGE requests',
-        code: `import { useSipClient } from 'vuesip'
-
-const { sipClient } = useSipClient()
-
-const sendMessage = async (
-  toUri: string,
-  message: string
-) => {
-  try {
-    // Create MESSAGE request
-    const request = sipClient.value.createMessage(
-      toUri,
-      message,
-      'text/plain'
-    )
-
-    // Send message
-    await request.send()
-
-    console.log('Message sent:', message)
-    return true
-  } catch (error) {
-    console.error('Failed to send message:', error)
-    return false
-  }
-}
-
-// Usage
-await sendMessage(
-  'sip:friend@example.com',
-  'Hello! How are you?'
-)`,
-      },
-      {
-        title: 'Receiving Messages',
-        description: 'Handle incoming MESSAGE requests',
-        code: `import { watch } from 'vue'
-
-// Listen for incoming messages
-sipClient.value.on('message', (request) => {
-  const from = request.from.uri.toString()
-  const body = request.body
-
-  console.log('Message from:', from)
-  console.log('Content:', body)
-
-  // Send 200 OK response
-  request.accept()
-
-  // Process message
-  handleIncomingMessage(from, body)
-})
-
-const handleIncomingMessage = (
-  fromUri: string,
-  content: string
-) => {
-  // Find or create conversation
-  let conversation = conversations.value
-    .find(c => c.uri === fromUri)
-
-  if (!conversation) {
-    conversation = createConversation(fromUri)
-  }
-
-  // Add message
-  conversation.messages.push({
-    id: Date.now().toString(),
-    content,
-    direction: 'inbound',
-    timestamp: new Date()
-  })
-
-  // Show notification
-  showNotification(conversation.name, content)
-}`,
-      },
-      {
-        title: 'Typing Indicators',
-        description: 'Send typing notifications',
-        code: `const sendTypingIndicator = async (
-  toUri: string,
-  isTyping: boolean
-) => {
-  const contentType = 'application/im-iscomposing+xml'
-
-  const body = \`<?xml version="1.0" encoding="UTF-8"?>
-<isComposing>
-  <state>\${isTyping ? 'active' : 'idle'}</state>
-  <contenttype>text/plain</contenttype>
-</isComposing>\`
-
-  await sipClient.value.createMessage(
-    toUri,
-    body,
-    contentType
-  ).send()
-}
-
-// Send when user types
-let typingTimer: number | null = null
-
-const handleTyping = (toUri: string) => {
-  // Clear existing timer
-  if (typingTimer) clearTimeout(typingTimer)
-
-  // Send "typing" indicator
-  sendTypingIndicator(toUri, true)
-
-  // Auto-stop after 2 seconds
-  typingTimer = setTimeout(() => {
-    sendTypingIndicator(toUri, false)
-  }, 2000)
-}`,
-      },
-      {
-        title: 'Message Delivery Status',
-        description: 'Track message delivery',
-        code: `interface Message {
-  id: string
-  content: string
-  status: 'sending' | 'sent' | 'delivered' | 'failed'
-}
-
-const sendMessageWithStatus = async (
-  toUri: string,
-  content: string
-): Promise<Message> => {
-  const message: Message = {
-    id: Date.now().toString(),
-    content,
-    status: 'sending'
-  }
-
-  try {
-    const request = sipClient.value.createMessage(
-      toUri,
-      content,
-      'text/plain'
-    )
-
-    // Send message
-    await request.send()
-
-    message.status = 'sent'
-
-    // Wait for response
-    request.on('response', (response) => {
-      if (response.statusCode === 200) {
-        message.status = 'delivered'
-      } else {
-        message.status = 'failed'
-      }
-    })
-
-  } catch (error) {
-    message.status = 'failed'
-  }
-
-  return message
-}`,
-      },
-    ],
-  },
-]
+// Use imported examples
+const examples = allExamples
+
+// Get shared SIP client for global auto-connect
+const { connect, disconnect, isConnected, updateConfig } = playgroundSipClient
 
 // State
 const currentExample = ref('basic-call')
 const activeTab = ref<'demo' | 'code' | 'setup'>('demo')
+const searchQuery = ref('')
+const copiedSnippets = ref<Record<number, boolean>>({})
+const isDarkMode = ref(false)
+const isCompactMode = ref(false)
 
 // Computed
+const filteredExamples = computed(() => {
+  if (!searchQuery.value.trim()) {
+    return examples
+  }
+
+  const query = searchQuery.value.toLowerCase()
+  return examples.filter(example => {
+    // Search in title
+    if (example.title.toLowerCase().includes(query)) return true
+
+    // Search in description
+    if (example.description.toLowerCase().includes(query)) return true
+
+    // Search in tags
+    if (example.tags.some(tag => tag.toLowerCase().includes(query))) return true
+
+    return false
+  })
+})
+
 const activeExample = computed(() => {
   return examples.find((ex) => ex.id === currentExample.value) || examples[0]
 })
@@ -1300,19 +288,188 @@ const selectExample = (id: string) => {
   currentExample.value = id
   activeTab.value = 'demo'
 }
+
+const highlightMatch = (text: string): string => {
+  if (!searchQuery.value.trim()) return text
+
+  const regex = new RegExp(`(${searchQuery.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')
+  return text.replace(regex, '<mark>$1</mark>')
+}
+
+const getMatchingTags = (tags: string[]): string[] => {
+  if (!searchQuery.value.trim()) return []
+
+  const query = searchQuery.value.toLowerCase()
+  return tags.filter(tag => tag.toLowerCase().includes(query))
+}
+
+const copyCode = async (code: string, index: number) => {
+  try {
+    // Modern Clipboard API
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(code)
+    } else {
+      // Fallback for older browsers
+      const textarea = document.createElement('textarea')
+      textarea.value = code
+      textarea.style.position = 'fixed'
+      textarea.style.opacity = '0'
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+    }
+
+    // Show success feedback
+    copiedSnippets.value[index] = true
+
+    // Reset after 2 seconds
+    setTimeout(() => {
+      copiedSnippets.value[index] = false
+    }, 2000)
+  } catch (error) {
+    console.error('Failed to copy code:', error)
+    alert('Failed to copy code. Please select and copy manually.')
+  }
+}
+
+const toggleTheme = () => {
+  isDarkMode.value = !isDarkMode.value
+}
+
+const applyTheme = (dark: boolean) => {
+  if (dark) {
+    document.documentElement.classList.add('dark-mode')
+  } else {
+    document.documentElement.classList.remove('dark-mode')
+  }
+}
+
+const toggleCompact = () => {
+  isCompactMode.value = !isCompactMode.value
+}
+
+// Global credential loading for auto-connect across all demos
+const loadAndConnectCredentials = async () => {
+  const saved = localStorage.getItem(CREDENTIALS_STORAGE_KEY)
+  const options = localStorage.getItem(CREDENTIALS_OPTIONS_KEY)
+
+  if (saved && options) {
+    try {
+      const credentials: StoredCredentials = JSON.parse(saved)
+      const opts: CredentialsOptions = JSON.parse(options)
+
+      // Debug: Log what was loaded from localStorage
+      console.log('🔍 PlaygroundApp: Loaded from localStorage:', {
+        uri: credentials.uri,
+        sipUri: credentials.sipUri,
+        displayName: credentials.displayName,
+        hasPassword: !!credentials.password,
+        passwordLength: credentials.password?.length,
+        passwordChars: credentials.password ? Array.from(credentials.password).map(c => c.charCodeAt(0)) : [],
+        rememberMe: opts.rememberMe,
+        savePassword: opts.savePassword
+      })
+
+      // Only auto-connect if rememberMe is enabled and not already connected
+      if (opts.rememberMe && !isConnected.value) {
+        console.log('🌐 PlaygroundApp: Loading saved credentials for global auto-connect...')
+
+        // Build config object
+        const config: any = {
+          uri: credentials.uri,
+          sipUri: credentials.sipUri,
+          displayName: credentials.displayName || undefined,
+          autoRegister: true,
+          connectionTimeout: 10000,
+          registerExpires: 600,
+        }
+
+        // Add password if it was saved
+        if (opts.savePassword && credentials.password) {
+          config.password = credentials.password
+        }
+
+        // Debug: Log config before updating
+        console.log('📝 PlaygroundApp: Config to be applied:', {
+          uri: config.uri,
+          sipUri: config.sipUri,
+          displayName: config.displayName,
+          hasPassword: !!config.password,
+          passwordLength: config.password?.length,
+          passwordPreview: config.password ? `${config.password.substring(0, 3)}...` : 'none'
+        })
+
+        // Update configuration
+        const validationResult = updateConfig(config)
+
+        if (!validationResult.valid) {
+          console.error('PlaygroundApp: Invalid saved credentials:', validationResult.errors)
+          return
+        }
+
+        // Auto-connect
+        try {
+          await connect()
+          console.log('✅ PlaygroundApp: Global auto-connect successful')
+        } catch (error) {
+          console.error('❌ PlaygroundApp: Global auto-connect failed:', error)
+          // Don't throw - allow user to manually connect from BasicCallDemo
+        }
+      }
+    } catch (error) {
+      console.error('PlaygroundApp: Failed to load credentials:', error)
+    }
+  }
+}
+
+// Initialize theme from localStorage or system preference
+onMounted(async () => {
+  // 1. Try to auto-connect with saved credentials (global for all demos)
+  await loadAndConnectCredentials()
+
+  // 2. Initialize theme
+  const stored = localStorage.getItem('vuesip-theme')
+  if (stored) {
+    isDarkMode.value = stored === 'dark'
+  } else {
+    isDarkMode.value = window.matchMedia('(prefers-color-scheme: dark)').matches
+  }
+  applyTheme(isDarkMode.value)
+
+  // 3. Initialize compact mode
+  const compactStored = localStorage.getItem('vuesip-compact')
+  if (compactStored) {
+    isCompactMode.value = compactStored === 'on'
+  }
+})
+
+// Watch for theme changes
+watch(isDarkMode, (newValue) => {
+  applyTheme(newValue)
+  localStorage.setItem('vuesip-theme', newValue ? 'dark' : 'light')
+})
+
+watch(isCompactMode, (newVal) => {
+  localStorage.setItem('vuesip-compact', newVal ? 'on' : 'off')
+})
 </script>
 
 <style scoped>
 .playground {
   min-height: 100vh;
-  background: #f8f9fa;
+  background: var(--bg-secondary);
 }
 
 .playground-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  position: relative;
+  background: linear-gradient(120deg, #667eea 0%, #764ba2 50%, #4f46e5 100%);
+  background-size: 200% 200%;
+  animation: headerGradient 12s ease infinite;
   color: white;
-  padding: 2rem 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 2.5rem 0;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
 }
 
 .playground-header .container {
@@ -1333,6 +490,78 @@ const selectExample = (id: string) => {
   opacity: 0.95;
 }
 
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2rem;
+}
+
+.header-title {
+  flex: 1;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.theme-toggle {
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 1.5rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  min-height: 48px;
+  backdrop-filter: blur(6px) saturate(120%);
+}
+
+.density-toggle {
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 1.2rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  backdrop-filter: blur(6px) saturate(120%);
+}
+
+.theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px) scale(1.05);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.density-toggle:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px) scale(1.05);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.theme-toggle:active {
+  transform: scale(0.95);
+}
+
+.theme-icon {
+  display: block;
+  line-height: 1;
+}
+
 .playground-content {
   display: grid;
   grid-template-columns: 300px 1fr;
@@ -1344,11 +573,12 @@ const selectExample = (id: string) => {
 
 /* Sidebar */
 .playground-sidebar {
-  background: white;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 1.5rem;
   height: fit-content;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.04);
   position: sticky;
   top: 2rem;
 }
@@ -1356,7 +586,116 @@ const selectExample = (id: string) => {
 .playground-sidebar h2 {
   margin: 0 0 1rem 0;
   font-size: 1.25rem;
-  color: #333;
+  color: var(--text-primary);
+}
+
+/* Search Box */
+.search-box {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.75rem 2.5rem 0.75rem 1rem;
+  border: 1px solid var(--gray-300);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.search-input::placeholder {
+  color: var(--gray-400);
+}
+
+.clear-search {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--gray-500);
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  font-size: 1.125rem;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.clear-search:hover {
+  color: var(--danger);
+}
+
+/* Filter Stats */
+.filter-stats {
+  font-size: 0.75rem;
+  color: var(--gray-500);
+  margin-bottom: 0.75rem;
+  padding: 0.5rem;
+  background: var(--gray-100);
+  border-radius: 4px;
+  text-align: center;
+}
+
+/* Highlight Mark */
+:deep(mark) {
+  background-color: #fef3c7;
+  color: inherit;
+  padding: 0.125rem 0.25rem;
+  border-radius: 2px;
+  font-weight: 600;
+}
+
+/* Matching Tags */
+.matching-tags {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.tag-badge {
+  font-size: 0.625rem;
+  padding: 0.125rem 0.375rem;
+  background: var(--primary);
+  color: white;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+/* No Results */
+.no-results {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--gray-500);
+}
+
+.no-results p {
+  margin: 0 0 1rem 0;
+  font-size: 0.875rem;
+}
+
+.btn-secondary {
+  padding: 0.5rem 1rem;
+  background: var(--gray-100);
+  color: var(--gray-700);
+  border: 1px solid var(--gray-300);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background: var(--gray-200);
 }
 
 .example-list {
@@ -1373,16 +712,38 @@ const selectExample = (id: string) => {
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
-  border: 2px solid transparent;
+  border: 1.5px solid var(--border-color);
+  background: linear-gradient(var(--bg-primary), var(--bg-primary)) padding-box,
+    linear-gradient(180deg, transparent, rgba(102, 126, 234, 0.15)) border-box;
+  position: relative;
+  overflow: hidden;
 }
 
 .example-list li:hover {
-  background: #f8f9fa;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+}
+
+.example-list li::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.06) 35%, transparent 65%);
+  opacity: 0;
+  transform: translateX(-15%);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+}
+
+.example-list li:hover::after {
+  opacity: 1;
+  transform: translateX(0);
 }
 
 .example-list li.active {
-  background: #e7f3ff;
-  border-color: #667eea;
+  background: linear-gradient(var(--bg-primary), var(--bg-primary)) padding-box,
+    linear-gradient(180deg, rgba(102, 126, 234, 0.6), rgba(99, 102, 241, 0.6)) border-box;
+  border-color: transparent;
 }
 
 .example-icon {
@@ -1393,26 +754,26 @@ const selectExample = (id: string) => {
 .example-info h3 {
   margin: 0 0 0.25rem 0;
   font-size: 1rem;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .example-info p {
   margin: 0;
   font-size: 0.875rem;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 /* Quick Links */
 .quick-links {
   margin-top: 2rem;
   padding-top: 1.5rem;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border-color);
 }
 
 .quick-links h3 {
   margin: 0 0 1rem 0;
   font-size: 1rem;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .quick-links ul {
@@ -1426,37 +787,39 @@ const selectExample = (id: string) => {
 }
 
 .quick-links a {
-  color: #667eea;
+  color: var(--primary);
   text-decoration: none;
   font-size: 0.875rem;
   display: block;
   padding: 0.5rem;
   border-radius: 4px;
-  transition: background 0.2s;
+  transition: background 0.2s, color 0.2s;
 }
 
 .quick-links a:hover {
-  background: #f8f9fa;
+  background: rgba(102,126,234,0.08);
+  color: var(--primary-dark);
 }
 
 /* Main Area */
 .playground-main {
-  background: white;
+  background: var(--bg-primary);
   border-radius: 12px;
   padding: 2rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.04);
   min-height: 600px;
+  border: 1px solid var(--border-color);
 }
 
 .example-header h2 {
   margin: 0 0 0.5rem 0;
   font-size: 2rem;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .example-header p {
   margin: 0 0 1rem 0;
-  color: #666;
+  color: var(--text-secondary);
   font-size: 1.125rem;
 }
 
@@ -1467,42 +830,49 @@ const selectExample = (id: string) => {
 }
 
 .tag {
-  background: #e7f3ff;
-  color: #0066cc;
+  background: linear-gradient(var(--bg-primary), var(--bg-primary)) padding-box,
+    linear-gradient(90deg, rgba(99,102,241,0.65), rgba(59,130,246,0.65)) border-box;
+  border: 1px solid transparent;
+  color: var(--primary);
   padding: 0.25rem 0.75rem;
-  border-radius: 12px;
+  border-radius: 999px;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 /* Tab Navigation */
 .tab-navigation {
-  display: flex;
-  gap: 0.5rem;
-  border-bottom: 2px solid #e5e7eb;
-  margin-bottom: 2rem;
+  display: inline-flex;
+  background: var(--bg-secondary);
+  padding: 0.375rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 1.25rem;
+  gap: 0.375rem;
 }
 
 .tab-navigation button {
-  background: none;
-  border: none;
-  padding: 1rem 1.5rem;
-  font-size: 1rem;
-  color: #666;
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 0.625rem 1rem;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
   cursor: pointer;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
+  border-radius: 8px;
   transition: all 0.2s;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .tab-navigation button:hover {
-  color: #333;
+  color: var(--text-primary);
+  background: rgba(102,126,234,0.06);
 }
 
 .tab-navigation button.active {
-  color: #667eea;
-  border-bottom-color: #667eea;
+  color: white;
+  background: linear-gradient(135deg, var(--primary), #4f46e5);
+  border-color: transparent;
+  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.25);
 }
 
 /* Tab Content */
@@ -1526,27 +896,91 @@ const selectExample = (id: string) => {
 .code-snippet h3 {
   margin: 0 0 0.5rem 0;
   font-size: 1.25rem;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .snippet-description {
   margin: 0 0 1rem 0;
-  color: #666;
-}
-
-.code-snippet pre {
-  background: #1e1e1e;
-  color: #d4d4d4;
-  padding: 1.5rem;
-  border-radius: 8px;
-  overflow-x: auto;
-  margin: 0;
+  color: var(--text-secondary);
 }
 
 .code-snippet code {
   font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
   font-size: 0.875rem;
   line-height: 1.6;
+}
+
+/* Code Block Wrapper */
+.code-block-wrapper {
+  position: relative;
+  margin-bottom: 1.5rem;
+}
+
+.copy-button {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  background: #1f2937;
+  color: var(--gray-300);
+  border: 1px solid #374151;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 10;
+  min-height: 32px;
+  min-width: 80px;
+}
+
+.copy-button:hover {
+  background: #374151;
+  color: white;
+  border-color: #4b5563;
+  transform: translateY(-1px);
+}
+
+.copy-button.copied {
+  background: var(--success);
+  color: white;
+  border-color: var(--success-dark);
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.25);
+}
+
+.copy-icon {
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+.copy-text {
+  font-weight: 500;
+}
+
+/* Ensure code block has enough padding for button */
+.code-snippet pre {
+  background: linear-gradient(180deg, #111827 0%, #0b1220 100%);
+  color: #e5e7eb;
+  padding: 3rem 1.5rem 1.5rem 1.5rem; /* Extra padding at top for button */
+  border-radius: 10px;
+  overflow-x: auto;
+  margin: 0;
+  border: 1px solid #1f2937;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+  position: relative;
+}
+
+.code-snippet pre::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #6366f1, #3b82f6, #10b981);
+  opacity: 0.8;
 }
 
 /* Setup Container */
@@ -1557,7 +991,7 @@ const selectExample = (id: string) => {
 .setup-content h3 {
   margin: 2rem 0 1rem 0;
   font-size: 1.5rem;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .setup-content h3:first-child {
@@ -1571,16 +1005,17 @@ const selectExample = (id: string) => {
 
 .setup-content li {
   margin-bottom: 0.5rem;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .setup-content pre {
-  background: #1e1e1e;
-  color: #d4d4d4;
+  background: linear-gradient(180deg, #111827 0%, #0b1220 100%);
+  color: #e5e7eb;
   padding: 1.5rem;
-  border-radius: 8px;
+  border-radius: 10px;
   overflow-x: auto;
   margin: 1rem 0 1.5rem 0;
+  border: 1px solid #1f2937;
 }
 
 .setup-content code {
@@ -1619,9 +1054,171 @@ const selectExample = (id: string) => {
   }
 
   .tab-navigation button {
-    padding: 0.75rem 1rem;
+    padding: 0.625rem 0.875rem;
     font-size: 0.875rem;
     white-space: nowrap;
   }
+}
+
+/* Compact mode adjustments */
+.compact .playground-header {
+  padding: 1.5rem 0;
+}
+
+.compact .playground-header h1 {
+  font-size: 2rem;
+}
+
+.compact .subtitle {
+  font-size: 1rem;
+}
+
+.compact .playground-content {
+  gap: 1.25rem;
+  padding: 0 1rem;
+  grid-template-columns: 240px 1fr;
+}
+
+.compact .playground-sidebar {
+  padding: 1rem;
+}
+
+.compact .search-input {
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.compact .example-list li {
+  padding: 0.75rem;
+}
+
+.compact .tab-navigation {
+  padding: 0.25rem;
+  gap: 0.25rem;
+}
+
+.compact .tab-navigation button {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.compact .playground-main {
+  padding: 1.25rem;
+}
+
+.compact .code-snippet pre {
+  padding: 2.25rem 1rem 1rem 1rem;
+}
+
+.compact .setup-content pre {
+  padding: 1rem;
+}
+
+/* Additional compact refinements */
+.compact .example-header h2 {
+  font-size: 1.5rem;
+}
+
+.compact .example-header p {
+  font-size: 1rem;
+  margin: 0 0 0.75rem 0;
+}
+
+.compact .example-tags {
+  gap: 0.375rem;
+  margin-bottom: 1rem;
+}
+
+.compact .tag {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 10px;
+}
+
+.compact .example-icon {
+  font-size: 1.5rem;
+}
+
+.compact .example-info h3 {
+  font-size: 0.95rem;
+}
+
+.compact .example-info p {
+  font-size: 0.8rem;
+}
+
+.compact .copy-button {
+  padding: 0.375rem 0.5rem;
+  min-height: 28px;
+  min-width: 68px;
+}
+
+.compact .code-snippet code,
+.compact .setup-content code {
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.compact .quick-links {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+}
+
+.compact .quick-links a {
+  padding: 0.375rem;
+  font-size: 0.82rem;
+}
+
+.compact .search-box {
+  margin-bottom: 0.75rem;
+}
+
+.compact .playground-sidebar h2 {
+  font-size: 1.1rem;
+  margin-bottom: 0.75rem;
+}
+
+.compact .filter-stats {
+  padding: 0.375rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Decorative header blobs */
+.playground-header::before,
+.playground-header::after {
+  content: '';
+  position: absolute;
+  filter: blur(40px);
+  opacity: 0.6;
+  transform: translateZ(0);
+}
+
+.playground-header::before {
+  width: 420px;
+  height: 420px;
+  top: -120px;
+  left: -120px;
+  background: radial-gradient(closest-side, rgba(255,255,255,0.25), transparent 70%);
+  animation: floatY 12s ease-in-out infinite alternate;
+}
+
+.playground-header::after {
+  width: 360px;
+  height: 360px;
+  right: -120px;
+  bottom: -120px;
+  background: radial-gradient(closest-side, rgba(99,102,241,0.45), transparent 70%);
+  animation: floatY 14s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes headerGradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes floatY {
+  0% { transform: translateY(0) translateZ(0); }
+  100% { transform: translateY(10px) translateZ(0); }
 }
 </style>

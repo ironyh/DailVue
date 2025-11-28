@@ -3,7 +3,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'VueSip',
   description: 'A headless Vue.js component library for SIP/VoIP applications',
-  base: '/',
+  base: '/VueSIP/',
   lang: 'en-US',
   lastUpdated: true,
   cleanUrls: true,

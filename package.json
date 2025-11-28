@@ -100,6 +100,7 @@
     "coverage:unit": "vitest run --coverage tests/unit",
     "lint": "eslint . --ext .ts,.vue",
     "lint:fix": "eslint . --ext .ts,.vue --fix",
+    "lint-staged": "lint-staged",
     "format": "prettier --write \"src/**/*.{ts,vue,json}\"",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
